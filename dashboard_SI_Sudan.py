@@ -2,963 +2,888 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
-from plotly.subplots import make_subplots
 import folium
+from folium.plugins import MarkerCluster, HeatMap
 from streamlit_folium import st_folium
-import numpy as np
-from datetime import datetime, date
+from datetime import datetime
 import warnings
 warnings.filterwarnings("ignore")
 
-# ══════════════════════════════════════════════════════════════
+# ══════════════════════════════════════════════════════════════════════════════
 # PAGE CONFIG
-# ══════════════════════════════════════════════════════════════
+# ══════════════════════════════════════════════════════════════════════════════
 st.set_page_config(
     page_title="SI Sudan · IM Dashboard",
     page_icon="🌍",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="expanded",
 )
 
-# ══════════════════════════════════════════════════════════════
-# GLOBAL CSS — dark humanitarian aesthetic
-# ══════════════════════════════════════════════════════════════
+# ══════════════════════════════════════════════════════════════════════════════
+# THEME & CSS
+# ══════════════════════════════════════════════════════════════════════════════
 st.markdown("""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
 
-/* ── Root tokens ── */
 :root {
-  --si-navy:   #0A1628;
-  --si-blue:   #1A3A6B;
-  --si-accent: #E8502A;
-  --si-gold:   #F5A623;
-  --si-teal:   #0D9488;
-  --si-green:  #16A34A;
-  --si-slate:  #1E293B;
-  --si-muted:  #64748B;
-  --si-border: rgba(255,255,255,0.07);
-  --si-glass:  rgba(255,255,255,0.04);
-  --si-text:   #E2E8F0;
-  --si-dim:    #94A3B8;
-  --radius:    12px;
+  --navy:   #060D1F;  --slate:  #0F1B2D;  --panel: #131F35;
+  --border: rgba(99,140,210,0.12);  --border2: rgba(99,140,210,0.22);
+  --accent: #3B82F6;  --accent2: #60A5FA;
+  --red:    #EF4444;  --amber:   #F59E0B;  --green: #10B981;
+  --teal:   #14B8A6;  --purple:  #8B5CF6;  --pink:  #EC4899;
+  --text:   #E2E8F0;  --muted:   #64748B;  --dim:   #334155;
+  --font:   'Outfit', sans-serif;  --mono: 'JetBrains Mono', monospace;
+  --r: 10px;
 }
-
-/* ── Base ── */
-html, body, [data-testid="stAppViewContainer"] {
-  background: var(--si-navy) !important;
-  color: var(--si-text) !important;
-  font-family: 'DM Sans', sans-serif;
-}
+*, *::before, *::after { box-sizing: border-box; }
+html, body { font-family: var(--font); background: var(--navy); color: var(--text); }
+[data-testid="stAppViewContainer"] { background: var(--navy) !important; }
+[data-testid="stMain"]             { background: var(--navy) !important; }
+[data-testid="block-container"]    { padding-top: 1.5rem !important; }
+[data-testid="stHeader"]           { background: transparent !important; }
 [data-testid="stSidebar"] {
-  background: var(--si-slate) !important;
-  border-right: 1px solid var(--si-border);
+  background: var(--slate) !important;
+  border-right: 1px solid var(--border) !important;
 }
-[data-testid="stHeader"] { background: transparent !important; }
+[data-testid="stSidebar"] * { font-family: var(--font) !important; }
 
-/* ── Typography ── */
-h1,h2,h3,h4 { font-family: 'Syne', sans-serif !important; }
-
-/* ── Metric cards ── */
-.metric-card {
-  background: var(--si-glass);
-  border: 1px solid var(--si-border);
-  border-radius: var(--radius);
-  padding: 1.25rem 1.5rem;
-  position: relative;
-  overflow: hidden;
-  transition: transform .2s, box-shadow .2s;
+/* RADIO NAV */
+[data-testid="stRadio"] > div { display:flex; flex-direction:column; gap:2px; }
+[data-testid="stRadio"] label {
+  background:transparent !important; border-radius:8px !important;
+  padding:8px 12px !important; cursor:pointer;
+  color:var(--muted) !important; font-size:0.88rem !important;
+  font-weight:500 !important; transition:all 0.15s !important; border:none !important;
 }
-.metric-card:hover { transform: translateY(-2px); box-shadow: 0 8px 32px rgba(0,0,0,.4); }
-.metric-card::before {
-  content: '';
-  position: absolute; top: 0; left: 0; right: 0; height: 3px;
-}
-.card-wash::before  { background: linear-gradient(90deg,#0EA5E9,#38BDF8); }
-.card-fsl::before   { background: linear-gradient(90deg,#16A34A,#4ADE80); }
-.card-shelter::before { background: linear-gradient(90deg,#D97706,#FBBF24); }
-.card-cva::before   { background: linear-gradient(90deg,#E8502A,#FB923C); }
-.card-meal::before  { background: linear-gradient(90deg,#7C3AED,#A78BFA); }
-.card-total::before { background: linear-gradient(90deg,#0D9488,#2DD4BF); }
+[data-testid="stRadio"] label:hover { background:var(--dim) !important; color:var(--text) !important; }
+[data-testid="stRadio"] [role="radio"] { display:none !important; }
 
-.metric-label {
-  font-size: 0.72rem; font-weight: 500; letter-spacing: .08em;
-  text-transform: uppercase; color: var(--si-dim); margin-bottom: .4rem;
+/* INPUTS */
+[data-testid="stSelectbox"] > div > div {
+  background:var(--panel) !important; border:1px solid var(--border2) !important;
+  border-radius:var(--r) !important; color:var(--text) !important;
 }
-.metric-value {
-  font-family: 'Syne', sans-serif;
-  font-size: 2rem; font-weight: 800; color: #fff; line-height: 1;
+[data-testid="stTextInput"] > div > div > input {
+  background:var(--panel) !important; border:1px solid var(--border2) !important;
+  color:var(--text) !important; border-radius:var(--r) !important; font-family:var(--font) !important;
 }
-.metric-sub { font-size: 0.78rem; color: var(--si-dim); margin-top: .35rem; }
-.metric-icon { font-size: 1.6rem; position: absolute; top: 1rem; right: 1.2rem; opacity: .35; }
+[data-baseweb="select"] * { color:var(--text) !important; }
+[data-baseweb="menu"]    { background:var(--panel) !important; }
+label, p { color:var(--muted) !important; font-size:0.82rem !important; }
 
-/* ── Section headers ── */
-.section-head {
-  font-family: 'Syne', sans-serif;
-  font-size: 1.05rem; font-weight: 700;
-  color: var(--si-text);
-  border-left: 3px solid var(--si-accent);
-  padding-left: .75rem; margin: 1.5rem 0 1rem;
-  letter-spacing: .02em;
-}
-
-/* ── Alert badges ── */
-.badge {
-  display: inline-block; padding: 2px 10px; border-radius: 20px;
-  font-size: 0.72rem; font-weight: 600; letter-spacing:.04em;
-}
-.badge-green  { background:#166534; color:#86EFAC; }
-.badge-yellow { background:#78350F; color:#FDE68A; }
-.badge-red    { background:#7F1D1D; color:#FCA5A5; }
-
-/* ── Progress bar ── */
-.prog-wrap { background: rgba(255,255,255,.07); border-radius: 6px; height: 8px; overflow: hidden; }
-.prog-bar  { height: 100%; border-radius: 6px; transition: width .6s ease; }
-
-/* ── Login ── */
-.login-wrap {
-  max-width: 420px; margin: 8vh auto 0;
-  background: var(--si-slate);
-  border: 1px solid var(--si-border);
-  border-radius: 20px; padding: 3rem 2.5rem;
-  box-shadow: 0 30px 80px rgba(0,0,0,.5);
-}
-.login-logo { font-family:'Syne',sans-serif; font-size:1.8rem; font-weight:800; color:#fff; }
-.login-sub  { color:var(--si-dim); font-size:.9rem; margin-top:.3rem; margin-bottom:2rem; }
-
-/* ── Sidebar nav ── */
-.sidebar-logo {
-  font-family:'Syne',sans-serif; font-size:1.2rem; font-weight:800;
-  color:#fff; padding:1rem 0 .5rem; line-height:1.2;
-}
-.sidebar-mission { font-size:.72rem; color:var(--si-dim); letter-spacing:.05em; text-transform:uppercase; }
-.sidebar-divider { border:none; border-top:1px solid var(--si-border); margin:1rem 0; }
-
-/* ── Plotly chart background ── */
-.js-plotly-plot .plotly .main-svg { border-radius: 10px; }
-
-/* ── Streamlit overrides ── */
-[data-testid="stSelectbox"] > div > div,
-[data-testid="stMultiSelect"] > div > div {
-  background: var(--si-glass) !important;
-  border-color: var(--si-border) !important;
-  color: var(--si-text) !important;
-}
+/* BUTTONS */
 .stButton > button {
-  background: var(--si-accent) !important;
-  color: #fff !important; border: none !important;
-  border-radius: 8px !important; font-family: 'DM Sans', sans-serif !important;
-  font-weight: 600 !important; letter-spacing:.03em !important;
+  background:var(--accent) !important; color:#fff !important;
+  border:none !important; border-radius:var(--r) !important;
+  font-family:var(--font) !important; font-weight:600 !important;
+  font-size:0.9rem !important; padding:0.6rem 1.4rem !important; transition:all 0.2s !important;
 }
-.stButton > button:hover { opacity: .88 !important; }
-[data-testid="stTextInput"] input {
-  background: rgba(255,255,255,.06) !important;
-  border: 1px solid var(--si-border) !important;
-  color: var(--si-text) !important; border-radius: 8px !important;
+.stButton > button:hover { background:var(--accent2) !important; transform:translateY(-1px) !important; }
+[data-testid="stDownloadButton"] > button {
+  background:var(--panel) !important; border:1px solid var(--border2) !important;
+  color:var(--text) !important; border-radius:var(--r) !important; font-family:var(--font) !important;
 }
-label { color: var(--si-dim) !important; font-size:.82rem !important; }
-[data-testid="stMetricValue"] { color:#fff !important; }
+[data-testid="stFileUploader"] {
+  background:var(--panel) !important; border:1px dashed var(--border2) !important; border-radius:var(--r) !important;
+}
+[data-testid="stDataFrame"] { border-radius:var(--r); overflow:hidden; }
+::-webkit-scrollbar { width:4px; height:4px; }
+::-webkit-scrollbar-thumb { background:var(--dim); border-radius:2px; }
 
-/* ── Tab styling ── */
-[data-testid="stTabs"] [role="tab"] {
-  font-family:'Syne',sans-serif; font-weight:600;
-  color: var(--si-dim) !important;
+/* KPI CARDS */
+.kpi-card {
+  background:var(--panel); border:1px solid var(--border);
+  border-radius:var(--r); padding:1.1rem 1.2rem 1rem;
+  position:relative; overflow:hidden; margin-bottom:4px;
 }
-[data-testid="stTabs"] [role="tab"][aria-selected="true"] {
-  color:#fff !important;
-  border-bottom: 2px solid var(--si-accent) !important;
+.kpi-card::after {
+  content:''; position:absolute; bottom:0; left:0; right:0; height:2px;
 }
+.kpi-blue::after   { background:linear-gradient(90deg,#3B82F6,#60A5FA); }
+.kpi-green::after  { background:linear-gradient(90deg,#10B981,#34D399); }
+.kpi-amber::after  { background:linear-gradient(90deg,#F59E0B,#FCD34D); }
+.kpi-red::after    { background:linear-gradient(90deg,#EF4444,#F87171); }
+.kpi-purple::after { background:linear-gradient(90deg,#8B5CF6,#A78BFA); }
+.kpi-teal::after   { background:linear-gradient(90deg,#14B8A6,#5EEAD4); }
+.kpi-label { font-size:0.66rem; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); margin-bottom:0.45rem; }
+.kpi-value { font-size:1.75rem; font-weight:800; color:#fff; line-height:1; font-family:var(--font); }
+.kpi-sub   { font-size:0.7rem; color:var(--muted); margin-top:0.3rem; }
+.kpi-icon  { position:absolute; top:0.9rem; right:1rem; font-size:1.3rem; opacity:0.15; }
+.kpi-delta { font-size:0.7rem; font-weight:700; margin-top:0.35rem; display:inline-flex;
+             align-items:center; gap:3px; padding:1px 7px; border-radius:20px; }
+.d-up   { background:rgba(16,185,129,0.15); color:#34D399; }
+.d-down { background:rgba(239,68,68,0.15);  color:#F87171; }
+.d-mid  { background:rgba(245,158,11,0.15); color:#FCD34D; }
 
-/* ── Dataframe ── */
-[data-testid="stDataFrame"] { border-radius: 10px; overflow: hidden; }
+/* SECTION HEADER */
+.sh {
+  font-size:0.68rem; font-weight:700; letter-spacing:.12em; text-transform:uppercase;
+  color:var(--accent2); margin:1.6rem 0 0.9rem;
+  display:flex; align-items:center; gap:8px;
+}
+.sh::after { content:''; flex:1; height:1px; background:var(--border); }
 
-/* ── Scrollbar ── */
-::-webkit-scrollbar { width: 5px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: var(--si-muted); border-radius: 3px; }
+/* PAGE HEADER */
+.ph { border-bottom:1px solid var(--border); margin-bottom:1.6rem; padding-bottom:1rem; }
+.ph h1 { font-size:1.65rem; font-weight:800; color:#fff; margin:0 0 3px; font-family:var(--font); }
+.ph p  { font-size:0.82rem; color:var(--muted) !important; margin:0; }
+
+/* BADGE */
+.badge { display:inline-block; padding:2px 9px; border-radius:20px; font-size:0.67rem; font-weight:700; letter-spacing:.04em; }
+.bg { background:rgba(16,185,129,0.18);  color:#34D399; }
+.ba { background:rgba(245,158,11,0.18);  color:#FCD34D; }
+.br { background:rgba(239,68,68,0.18);   color:#F87171; }
+.bn { background:rgba(100,116,139,0.18); color:#94A3B8; }
+
+/* PROGRESS */
+.pbar-wrap { background:rgba(255,255,255,0.06); border-radius:4px; height:5px; overflow:hidden; margin:5px 0 3px; }
+.pbar { height:100%; border-radius:4px; }
+
+/* INDICATOR CARD */
+.ind-card {
+  background:var(--panel); border:1px solid var(--border);
+  border-radius:var(--r); padding:0.9rem 1.1rem; margin-bottom:0.5rem;
+}
+.ind-name { font-size:0.86rem; font-weight:500; color:var(--text); }
+.ind-vals { font-size:0.72rem; color:var(--muted); font-family:var(--mono); }
+
+/* ALERT BANNER */
+.alert-banner {
+  background:rgba(239,68,68,0.07); border:1px solid rgba(239,68,68,0.2);
+  border-left:3px solid var(--red); border-radius:var(--r);
+  padding:0.75rem 1rem; margin-bottom:0.6rem; display:flex; align-items:center; gap:10px;
+}
+.alert-banner span { font-size:0.83rem; color:#FCA5A5; }
+
+/* LOGIN */
+.login-card {
+  width:400px; background:var(--slate); border:1px solid var(--border2);
+  border-radius:18px; padding:2.8rem 2.5rem; box-shadow:0 40px 80px rgba(0,0,0,0.5);
+}
+.login-badge {
+  display:inline-block; background:rgba(59,130,246,0.15); color:var(--accent2);
+  font-size:0.69rem; font-weight:700; letter-spacing:.1em; text-transform:uppercase;
+  padding:3px 10px; border-radius:20px; margin-bottom:1rem;
+}
+.login-title { font-size:1.6rem; font-weight:800; color:#fff; margin-bottom:0.3rem; font-family:var(--font); }
+.login-sub   { font-size:0.82rem; color:var(--muted); margin-bottom:2rem; }
+
+/* SIDEBAR */
+.sb-logo { font-size:1.05rem; font-weight:800; color:#fff; margin-bottom:2px; font-family:var(--font); }
+.sb-sub  { font-size:0.67rem; color:var(--muted); letter-spacing:.07em; text-transform:uppercase; }
+.sb-sep  { border:none; border-top:1px solid var(--border); margin:13px 0; }
+.sb-sec  { font-size:0.63rem; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--dim); margin:10px 0 5px; }
 </style>
 """, unsafe_allow_html=True)
 
-# ══════════════════════════════════════════════════════════════
-# PLOTLY THEME
-# ══════════════════════════════════════════════════════════════
-PLOT_BG   = "rgba(0,0,0,0)"
-PAPER_BG  = "rgba(0,0,0,0)"
-FONT_CLR  = "#94A3B8"
-GRID_CLR  = "rgba(255,255,255,0.06)"
-COLORS    = ["#0EA5E9","#16A34A","#F5A623","#E8502A","#7C3AED","#0D9488","#EC4899","#F59E0B"]
+# ══════════════════════════════════════════════════════════════════════════════
+# CONSTANTS
+# ══════════════════════════════════════════════════════════════════════════════
+CREDENTIALS = {"im_manager": "15062026"}
+COLORS = ["#3B82F6","#10B981","#F59E0B","#EF4444","#8B5CF6","#14B8A6","#EC4899","#F97316"]
+SECTOR_COLORS = {
+    "WASH": "#3B82F6", "FSL": "#10B981",
+    "Shelter & NFI": "#F59E0B", "Cash & Voucher Assistance": "#EF4444",
+}
+BG = "rgba(0,0,0,0)"; FONT_C = "#64748B"; GRID_C = "rgba(255,255,255,0.05)"
 
-def apply_theme(fig, height=340):
+NAV = {
+    "🏠  Overview":         "overview",
+    "🗺️  Geographic Map":   "map",
+    "💧  WASH":             "wash",
+    "🌾  FSL Distribution": "fsl",
+    "💵  CVA / Cash":       "cva",
+    "📊  Indicators":       "ind",
+    "🗂️  Raw Data":         "raw",
+}
+
+# ══════════════════════════════════════════════════════════════════════════════
+# HELPERS
+# ══════════════════════════════════════════════════════════════════════════════
+def N(n, d=0):
+    try:
+        n = float(n)
+        if pd.isna(n): return "—"
+        if n >= 1_000_000: return f"{n/1_000_000:.1f}M"
+        if n >= 1_000:     return f"{n/1_000:.1f}K"
+        return f"{n:,.{d}f}"
+    except: return "—"
+
+def has(df, col): return col in df.columns
+def ssum(df, col): return df[col].sum() if has(df, col) else 0
+def slen(df, col, val): return len(df[df[col]==val]) if has(df, col) else 0
+def suniq(df, col): return df[col].nunique() if has(df, col) else 0
+def sopts(df, col): return ["All"] + sorted(df[col].dropna().unique().tolist()) if has(df, col) else ["All"]
+def sfilt(df, col, val):
+    if val == "All" or not has(df, col): return df
+    return df[df[col]==val]
+
+def bdg(status):
+    s = str(status).lower()
+    if any(x in s for x in ["on track","paid","completed","above 80","in stock","fully"]):
+        return f"<span class='badge bg'>{status}</span>"
+    if any(x in s for x in ["risk","pending","partial","low stock","60–80","awaiting"]):
+        return f"<span class='badge ba'>{status}</span>"
+    if any(x in s for x in ["off","fail","non-func","pipeline break","cancel","below 60","not"]):
+        return f"<span class='badge br'>{status}</span>"
+    return f"<span class='badge bn'>{status}</span>"
+
+def kpi(label, value, sub="", color="blue", icon="", delta=None, ddir="up"):
+    dc = {"up":"d-up","down":"d-down","mid":"d-mid"}.get(ddir,"d-mid")
+    da = f"<div class='kpi-delta {dc}'>{delta}</div>" if delta else ""
+    return f"""<div class='kpi-card kpi-{color}'>
+      <div class='kpi-icon'>{icon}</div>
+      <div class='kpi-label'>{label}</div>
+      <div class='kpi-value'>{value}</div>
+      <div class='kpi-sub'>{sub}</div>{da}
+    </div>"""
+
+def sh(t): st.markdown(f"<div class='sh'>{t}</div>", unsafe_allow_html=True)
+def ph(title, sub): st.markdown(f"<div class='ph'><h1>{title}</h1><p>{sub}</p></div>", unsafe_allow_html=True)
+def pc(fig): st.plotly_chart(fig, use_container_width=True, config={"displayModeBar":False})
+
+def T(fig, h=340, leg=True):
     fig.update_layout(
-        height=height,
-        paper_bgcolor=PAPER_BG,
-        plot_bgcolor=PLOT_BG,
-        font=dict(family="DM Sans", color=FONT_CLR, size=12),
-        margin=dict(l=16, r=16, t=28, b=16),
-        legend=dict(
-            bgcolor="rgba(0,0,0,0)", font=dict(color=FONT_CLR, size=11),
-            bordercolor="rgba(255,255,255,.1)", borderwidth=1
-        ),
+        height=h, paper_bgcolor=BG, plot_bgcolor=BG,
+        font=dict(family="Outfit", color=FONT_C, size=11),
+        margin=dict(l=12,r=12,t=36,b=12), showlegend=leg,
+        legend=dict(bgcolor=BG, font=dict(color="#94A3B8",size=10),
+                    borderwidth=0, orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0),
         colorway=COLORS,
+        title_font=dict(size=12, color="#CBD5E1", family="Outfit"),
     )
-    fig.update_xaxes(showgrid=False, zeroline=False, color=FONT_CLR,
-                     tickfont=dict(color=FONT_CLR, size=11))
-    fig.update_yaxes(gridcolor=GRID_CLR, zeroline=False, color=FONT_CLR,
-                     tickfont=dict(color=FONT_CLR, size=11))
+    fig.update_xaxes(showgrid=False, zeroline=False, color=FONT_C,
+                     tickfont=dict(size=10,color=FONT_C), linecolor="rgba(255,255,255,0.05)")
+    fig.update_yaxes(gridcolor=GRID_C, zeroline=False, color=FONT_C,
+                     tickfont=dict(size=10,color=FONT_C), linewidth=0)
     return fig
 
-# ══════════════════════════════════════════════════════════════
-# LOGIN
-# ══════════════════════════════════════════════════════════════
-CREDENTIALS = {"im_manager": "15062026"}
-
-def login_page():
-    st.markdown("""
-    <div class='login-wrap'>
-      <div class='login-logo'>🌍 SI Sudan</div>
-      <div class='login-sub'>Information Management Dashboard<br>Solidarites International · Sudan Mission</div>
-    </div>
-    """, unsafe_allow_html=True)
-
-    col_l, col_m, col_r = st.columns([1, 1.4, 1])
-    with col_m:
-        st.markdown("<br>", unsafe_allow_html=True)
-        username = st.text_input("Username", placeholder="im_manager")
-        password = st.text_input("Password", type="password", placeholder="••••••••")
-        login_btn = st.button("Sign In →", use_container_width=True)
-
-        if login_btn:
-            if username in CREDENTIALS and CREDENTIALS[username] == password:
-                st.session_state["auth"] = True
-                st.session_state["user"] = username
-                st.rerun()
-            else:
-                st.error("Invalid credentials. Please try again.")
-
-        st.markdown("""
-        <div style='text-align:center;margin-top:1.5rem;font-size:.75rem;color:#475569;'>
-        Restricted access · Solidarites International © 2026
-        </div>""", unsafe_allow_html=True)
-
-# ══════════════════════════════════════════════════════════════
-# DATA LOADING
-# ══════════════════════════════════════════════════════════════
-@st.cache_data(show_spinner=False)
+# ══════════════════════════════════════════════════════════════════════════════
+# DATA
+# ══════════════════════════════════════════════════════════════════════════════
+@st.cache_data(show_spinner="Loading data…")
 def load_data(file):
-    xls = pd.ExcelFile(file)
-    dfs = {}
-    for sheet in xls.sheet_names:
-        try:
-            df = pd.read_excel(xls, sheet_name=sheet, engine="openpyxl")
-            dfs[sheet] = df
-        except Exception:
-            pass
-    return dfs
+    xls = pd.ExcelFile(file, engine="openpyxl")
+    out = {}
+    for name in xls.sheet_names:
+        try: out[name] = pd.read_excel(xls, sheet_name=name)
+        except Exception: pass
+    return out
 
-# ══════════════════════════════════════════════════════════════
-# HELPERS
-# ══════════════════════════════════════════════════════════════
-def fmt_num(n, decimals=0):
-    if pd.isna(n): return "—"
-    if n >= 1_000_000: return f"{n/1_000_000:.1f}M"
-    if n >= 1_000: return f"{n/1_000:.1f}K"
-    return f"{n:,.{decimals}f}"
+# ══════════════════════════════════════════════════════════════════════════════
+# LOGIN
+# ══════════════════════════════════════════════════════════════════════════════
+def login_page():
+    c1, c2, c3 = st.columns([1,1.2,1])
+    with c2:
+        st.markdown("""<div class='login-card'>
+          <div class='login-badge'>🌍 Restricted Access</div>
+          <div class='login-title'>SI Sudan IM</div>
+          <div class='login-sub'>Information Management Dashboard<br>Solidarites International · Sudan Mission 2025–2026</div>
+        </div>""", unsafe_allow_html=True)
+        st.markdown("<br>", unsafe_allow_html=True)
+        user = st.text_input("Username", placeholder="im_manager", label_visibility="collapsed")
+        pw   = st.text_input("Password", type="password", placeholder="Password", label_visibility="collapsed")
+        if st.button("Sign in →", use_container_width=True):
+            if CREDENTIALS.get(user) == pw:
+                st.session_state.update(auth=True, user=user); st.rerun()
+            else: st.error("Invalid credentials.")
+        st.markdown("<div style='text-align:center;font-size:.7rem;color:#334155;margin-top:1.2rem;'>Confidential · SI © 2026</div>", unsafe_allow_html=True)
 
-def badge(status):
-    s = str(status).lower()
-    if "on track" in s or "paid" in s or "functional" in s and "non" not in s:
-        return f"<span class='badge badge-green'>{status}</span>"
-    elif "risk" in s or "pending" in s or "partial" in s or "low" in s:
-        return f"<span class='badge badge-yellow'>{status}</span>"
-    elif "off" in s or "fail" in s or "non" in s or "break" in s or "cancel" in s:
-        return f"<span class='badge badge-red'>{status}</span>"
-    return f"<span class='badge badge-green'>{status}</span>"
+# ══════════════════════════════════════════════════════════════════════════════
+# SIDEBAR
+# ══════════════════════════════════════════════════════════════════════════════
+def sidebar():
+    with st.sidebar:
+        st.markdown("<div class='sb-logo'>🌍 SI Sudan</div><div class='sb-sub'>Information Management</div><hr class='sb-sep'>", unsafe_allow_html=True)
+        up = st.file_uploader("Load Excel database", type=["xlsx"], label_visibility="collapsed")
+        if up:
+            data = load_data(up)
+            st.session_state["dfs"] = data
+            st.success(f"✅ {len(data)} sheets loaded")
+        st.markdown("<hr class='sb-sep'><div class='sb-sec'>Navigation</div>", unsafe_allow_html=True)
+        page = st.radio(" ", list(NAV.keys()), label_visibility="collapsed")
+        st.markdown("<hr class='sb-sep'>", unsafe_allow_html=True)
+        st.markdown(f"<div style='font-size:.7rem;color:#334155;line-height:1.9;'>👤 <span style='color:#64748B;'>{st.session_state.get('user','—')}</span><br>🕐 <span style='color:#64748B;'>{datetime.now().strftime('%d %b %Y %H:%M')}</span></div><br>", unsafe_allow_html=True)
+        if st.button("Logout", use_container_width=True):
+            st.session_state.clear(); st.rerun()
+    return NAV[page], st.session_state.get("dfs", {})
 
-def metric_card(label, value, sub="", card_class="", icon=""):
-    return f"""
-    <div class='metric-card {card_class}'>
-      <div class='metric-icon'>{icon}</div>
-      <div class='metric-label'>{label}</div>
-      <div class='metric-value'>{value}</div>
-      <div class='metric-sub'>{sub}</div>
-    </div>"""
-
-def section(title):
-    st.markdown(f"<div class='section-head'>{title}</div>", unsafe_allow_html=True)
-
-# ══════════════════════════════════════════════════════════════
-# MAP BUILDER
-# ══════════════════════════════════════════════════════════════
-def build_map(df_ben):
-    # Guard: GPS columns may be absent depending on the uploaded file
-    gps_cols = [c for c in ["GPS_Latitude","GPS_Longitude"] if c in df_ben.columns]
-    if len(gps_cols) < 2:
-        m = folium.Map(location=[14.5, 29.5], zoom_start=5,
-                       tiles="CartoDB dark_matter", attr="CartoDB")
-        folium.Marker([14.5, 29.5],
-                      popup="No GPS data available in this file.",
-                      tooltip="No GPS data").add_to(m)
-        return m
-
-    df_map = df_ben.dropna(subset=["GPS_Latitude","GPS_Longitude"]).copy()
-    df_map = df_map[
-        (pd.to_numeric(df_map["GPS_Latitude"], errors="coerce").between(8, 24)) &
-        (pd.to_numeric(df_map["GPS_Longitude"], errors="coerce").between(20, 40))
-    ]
-    m = folium.Map(
-        location=[14.5, 29.5],
-        zoom_start=5,
-        tiles="CartoDB dark_matter",
-        attr="CartoDB",
-    )
-
-    sector_colors_map = {
-        "WASH": "#0EA5E9",
-        "FSL": "#16A34A",
-        "Shelter & NFI": "#F5A623",
-        "Cash & Voucher Assistance": "#E8502A",
-    }
-
-    for _, row in df_map.iterrows():
-        sector = str(row.get("Sector", ""))
-        color  = sector_colors_map.get(sector, "#94A3B8")
+# ══════════════════════════════════════════════════════════════════════════════
+# MAP
+# ══════════════════════════════════════════════════════════════════════════════
+def make_map(df):
+    m = folium.Map(location=[14.5,29.5], zoom_start=5, tiles="CartoDB dark_matter", attr="CartoDB")
+    if not (has(df,"GPS_Latitude") and has(df,"GPS_Longitude")): return m
+    dfm = df.copy()
+    dfm["GPS_Latitude"]  = pd.to_numeric(dfm["GPS_Latitude"],  errors="coerce")
+    dfm["GPS_Longitude"] = pd.to_numeric(dfm["GPS_Longitude"], errors="coerce")
+    dfm = dfm.dropna(subset=["GPS_Latitude","GPS_Longitude"])
+    dfm = dfm[dfm["GPS_Latitude"].between(8,24) & dfm["GPS_Longitude"].between(20,40)]
+    if dfm.empty: return m
+    # Heatmap
+    HeatMap(dfm[["GPS_Latitude","GPS_Longitude"]].values.tolist(), radius=12, blur=15, min_opacity=0.25).add_to(m)
+    # Clustered markers
+    cl = MarkerCluster(options={"maxClusterRadius":40,"showCoverageOnHover":False}).add_to(m)
+    for _, row in dfm.iterrows():
+        sector = str(row.get("Sector","")) if has(df,"Sector") else ""
+        color  = SECTOR_COLORS.get(sector,"#64748B")
+        pop = f"""<div style='font-family:Outfit,sans-serif;font-size:12px;min-width:160px;'>
+          <b>{row.get('Beneficiary_ID','—')}</b><br>
+          <span style='color:#64748b;'>State:</span> {row.get('State','—')}<br>
+          <span style='color:#64748b;'>Sector:</span> <b style='color:{color};'>{sector}</b><br>
+          <span style='color:#64748b;'>Displacement:</span> {row.get('Displacement_Status','—')}<br>
+          <span style='color:#64748b;'>Vulnerability:</span> {row.get('Vulnerability_Level','—')}
+        </div>"""
         folium.CircleMarker(
             location=[row["GPS_Latitude"], row["GPS_Longitude"]],
-            radius=5,
-            color=color,
-            fill=True,
-            fill_color=color,
-            fill_opacity=0.7,
-            weight=0.5,
-            popup=folium.Popup(
-                f"""<b>{row.get('Beneficiary_ID','')}</b><br>
-                State: {row.get('State','')}<br>
-                Sector: {sector}<br>
-                Status: {row.get('Displacement_Status','')}""",
-                max_width=200
-            ),
-            tooltip=f"{row.get('Locality','')} · {sector}"
-        ).add_to(m)
-
+            radius=6, color=color, fill=True, fill_color=color, fill_opacity=0.8, weight=1,
+            popup=folium.Popup(pop, max_width=220),
+            tooltip=f"{row.get('Locality','—')} · {sector}"
+        ).add_to(cl)
     # Legend
-    legend_html = """
-    <div style="position:fixed;bottom:30px;left:30px;z-index:9999;
-         background:rgba(15,23,42,.92);border:1px solid rgba(255,255,255,.15);
-         border-radius:10px;padding:12px 16px;font-family:'DM Sans',sans-serif;">
-      <div style="font-weight:700;font-size:12px;color:#e2e8f0;margin-bottom:8px;letter-spacing:.06em;text-transform:uppercase;">Sectors</div>
-      <div style="display:flex;flex-direction:column;gap:5px;">
-        <div><span style="background:#0EA5E9;width:10px;height:10px;border-radius:50%;display:inline-block;margin-right:6px;"></span><span style="color:#94a3b8;font-size:11px;">WASH</span></div>
-        <div><span style="background:#16A34A;width:10px;height:10px;border-radius:50%;display:inline-block;margin-right:6px;"></span><span style="color:#94a3b8;font-size:11px;">FSL</span></div>
-        <div><span style="background:#F5A623;width:10px;height:10px;border-radius:50%;display:inline-block;margin-right:6px;"></span><span style="color:#94a3b8;font-size:11px;">Shelter & NFI</span></div>
-        <div><span style="background:#E8502A;width:10px;height:10px;border-radius:50%;display:inline-block;margin-right:6px;"></span><span style="color:#94a3b8;font-size:11px;">Cash & Voucher</span></div>
-      </div>
-    </div>"""
-    m.get_root().html.add_child(folium.Element(legend_html))
+    leg = "<div style='position:fixed;bottom:28px;right:16px;z-index:9999;background:rgba(13,23,48,0.95);border:1px solid rgba(99,140,210,0.2);border-radius:10px;padding:12px 16px;font-family:Outfit,sans-serif;'><div style='font-weight:700;font-size:11px;color:#e2e8f0;margin-bottom:8px;letter-spacing:.07em;text-transform:uppercase;'>Sectors</div>"
+    for s, c in SECTOR_COLORS.items():
+        leg += f"<div style='display:flex;align-items:center;gap:7px;margin-bottom:4px;'><span style='width:9px;height:9px;border-radius:50%;background:{c};display:inline-block;'></span><span style='font-size:11px;color:#94a3b8;'>{s}</span></div>"
+    leg += "</div>"
+    m.get_root().html.add_child(folium.Element(leg))
     return m
 
-# ══════════════════════════════════════════════════════════════
-# PAGES
-# ══════════════════════════════════════════════════════════════
-
-def page_overview(dfs):
-    df_ben  = dfs.get("Beneficiary_Registration", pd.DataFrame())
-    df_wash = dfs.get("WASH_Monitoring", pd.DataFrame())
-    df_fsl  = dfs.get("FSL_Distribution", pd.DataFrame())
-    df_cva  = dfs.get("CVA_Cash_Transfers", pd.DataFrame())
-
-    total_ben    = len(df_ben)
-    active_ben   = len(df_ben[df_ben.get("Registration_Status","") == "Active"]) if "Registration_Status" in df_ben else total_ben
-    wash_reached = int(df_wash["Reached_Beneficiaries"].sum()) if "Reached_Beneficiaries" in df_wash else 0
-    fsl_hh       = int(df_fsl["HH_Reached"].sum()) if "HH_Reached" in df_fsl else 0
-    cva_paid     = df_cva[df_cva.get("Transfer_Status","") == "Paid"]["Transfer_Value_USD"].sum() if "Transfer_Value_USD" in df_cva else 0
-    states_nb    = df_ben["State"].nunique() if "State" in df_ben else 0
-
-    # ── KPI row 1 ──
-    section("Key Program Metrics")
-    c1,c2,c3,c4,c5,c6 = st.columns(6)
-    cards = [
-        (c1, "Total Beneficiaries", fmt_num(total_ben), f"{active_ben:,} active", "card-total", "👤"),
-        (c2, "WASH Individuals Reached", fmt_num(wash_reached), "cumulative", "card-wash", "💧"),
-        (c3, "FSL Households Reached", fmt_num(fsl_hh), "all distributions", "card-fsl", "🌾"),
-        (c4, "Cash Transferred", f"${fmt_num(cva_paid)}", "USD paid out", "card-cva", "💵"),
-        (c5, "States Covered", str(states_nb), "operational areas", "card-shelter", "🗺️"),
-        (c6, "Reporting Period", "2025–2026", "Jan 2025 – Apr 2026", "card-meal", "📅"),
-    ]
-    for col, label, value, sub, cls, icon in cards:
-        with col:
-            st.markdown(metric_card(label, value, sub, cls, icon), unsafe_allow_html=True)
-
-    st.markdown("<br>", unsafe_allow_html=True)
-
-    # ── Row 2: Sector split + Displacement ──
-    section("Beneficiary Profile")
-    col_a, col_b, col_c = st.columns([1.1,1,1])
-
-    with col_a:
-        if "Sector" in df_ben:
-            sec_cnt = df_ben["Sector"].value_counts().reset_index()
-            sec_cnt.columns = ["Sector","Count"]
-            fig = px.pie(sec_cnt, values="Count", names="Sector",
-                         color_discrete_sequence=COLORS, hole=0.55)
-            fig.update_traces(textposition="outside", textfont_size=11,
-                              marker=dict(line=dict(color="rgba(0,0,0,0)",width=0)))
-            fig.update_layout(title=dict(text="Beneficiaries by Sector", font=dict(color="#fff",size=13,family="Syne")))
-            apply_theme(fig, 300)
-            st.plotly_chart(fig, use_container_width=True, config={"displayModeBar":False})
-
-    with col_b:
-        if "Displacement_Status" in df_ben:
-            disp = df_ben["Displacement_Status"].value_counts().reset_index()
-            disp.columns = ["Status","Count"]
-            fig = px.bar(disp, x="Count", y="Status", orientation="h",
-                         color="Status", color_discrete_sequence=COLORS)
-            fig.update_layout(showlegend=False,
-                title=dict(text="Displacement Status", font=dict(color="#fff",size=13,family="Syne")))
-            apply_theme(fig, 300)
-            st.plotly_chart(fig, use_container_width=True, config={"displayModeBar":False})
-
-    with col_c:
-        if "Vulnerability_Level" in df_ben:
-            vuln = df_ben["Vulnerability_Level"].value_counts().reset_index()
-            vuln.columns = ["Level","Count"]
-            fig = px.bar(vuln, x="Level", y="Count", color="Level",
-                         color_discrete_sequence=["#E8502A","#F5A623","#16A34A"])
-            fig.update_layout(showlegend=False,
-                title=dict(text="Vulnerability Level", font=dict(color="#fff",size=13,family="Syne")))
-            apply_theme(fig, 300)
-            st.plotly_chart(fig, use_container_width=True, config={"displayModeBar":False})
-
-    # ── Registration trend ──
-    section("Beneficiary Registration Trend")
-    if "Registration_Date" in df_ben:
-        df_ben2 = df_ben.copy()
-        df_ben2["Registration_Date"] = pd.to_datetime(df_ben2["Registration_Date"], errors="coerce")
-        df_trend = df_ben2.dropna(subset=["Registration_Date"])
-        df_trend["Month"] = df_trend["Registration_Date"].dt.to_period("M").astype(str)
-        trend = df_trend.groupby(["Month","Sector"]).size().reset_index(name="Count")
-        fig = px.area(trend, x="Month", y="Count", color="Sector",
-                      color_discrete_sequence=COLORS, line_group="Sector")
-        fig.update_traces(line=dict(width=2))
-        fig.update_layout(title=dict(text="Monthly Registrations by Sector",
-                          font=dict(color="#fff",size=13,family="Syne")))
-        apply_theme(fig, 320)
-        st.plotly_chart(fig, use_container_width=True, config={"displayModeBar":False})
-
-
 def page_map(dfs):
-    section("Geographic Coverage — Beneficiary Locations")
-    df_ben = dfs.get("Beneficiary_Registration", pd.DataFrame())
+    ph("Geographic Coverage", "Interactive map — beneficiary locations with clustering & heatmap overlay")
+    df = dfs.get("Beneficiary_Registration", pd.DataFrame())
+    if df.empty: st.info("Load the Excel database to view the map."); return
 
-    # Filters
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        states_all = ["All"] + sorted(df_ben["State"].dropna().unique().tolist()) if "State" in df_ben else ["All"]
-        state_sel = st.selectbox("Filter by State", states_all)
-    with col2:
-        sectors_all = ["All"] + sorted(df_ben["Sector"].dropna().unique().tolist()) if "Sector" in df_ben else ["All"]
-        sector_sel = st.selectbox("Filter by Sector", sectors_all)
-    with col3:
-        disp_all = ["All"] + sorted(df_ben["Displacement_Status"].dropna().unique().tolist()) if "Displacement_Status" in df_ben else ["All"]
-        disp_sel = st.selectbox("Filter by Displacement", disp_all)
-
-    df_f = df_ben.copy()
-    if state_sel != "All":  df_f = df_f[df_f["State"] == state_sel]
-    if sector_sel != "All": df_f = df_f[df_f["Sector"] == sector_sel]
-    if disp_sel != "All":   df_f = df_f[df_f["Displacement_Status"] == disp_sel]
-
-    # Stats strip
     c1,c2,c3,c4 = st.columns(4)
-    with c1: st.markdown(metric_card("Beneficiaries shown", fmt_num(len(df_f)), "", "card-total", "📍"), unsafe_allow_html=True)
-    with c2: st.markdown(metric_card("States", str(df_f["State"].nunique() if "State" in df_f else 0), "", "card-wash", "🗺️"), unsafe_allow_html=True)
-    with c3: st.markdown(metric_card("Localities", str(df_f["Locality"].nunique() if "Locality" in df_f else 0), "", "card-fsl", "📌"), unsafe_allow_html=True)
-    with c4:
-        fem = len(df_f[df_f["Sex"]=="Female"]) if "Sex" in df_f else 0
-        pct = f"{100*fem/len(df_f):.0f}% female" if len(df_f) > 0 else "—"
-        st.markdown(metric_card("Gender split", pct, "", "card-cva", "♀"), unsafe_allow_html=True)
+    with c1: s1 = st.selectbox("State",        sopts(df,"State"),               key="m_s")
+    with c2: s2 = st.selectbox("Sector",       sopts(df,"Sector"),              key="m_sec")
+    with c3: s3 = st.selectbox("Displacement", sopts(df,"Displacement_Status"), key="m_d")
+    with c4: s4 = st.selectbox("Vulnerability",sopts(df,"Vulnerability_Level"), key="m_v")
 
-    st.markdown("<br>", unsafe_allow_html=True)
-
-    col_map, col_bar = st.columns([2, 1])
-    with col_map:
-        m = build_map(df_f)
-        st_folium(m, use_container_width=True, height=500, returned_objects=[])
-
-    with col_bar:
-        if "State" in df_f and len(df_f) > 0:
-            by_state = df_f.groupby("State").size().reset_index(name="Count").sort_values("Count")
-            fig = px.bar(by_state, x="Count", y="State", orientation="h",
-                         color="Count", color_continuous_scale=["#1A3A6B","#0EA5E9"])
-            fig.update_layout(showlegend=False, coloraxis_showscale=False,
-                title=dict(text="Beneficiaries by State", font=dict(color="#fff",size=13,family="Syne")))
-            apply_theme(fig, 240)
-            st.plotly_chart(fig, use_container_width=True, config={"displayModeBar":False})
-
-        if "Sector" in df_f and "State" in df_f and len(df_f) > 0:
-            heat = df_f.groupby(["State","Sector"]).size().reset_index(name="Count")
-            fig = px.density_heatmap(heat, x="Sector", y="State", z="Count",
-                                     color_continuous_scale="Blues")
-            fig.update_layout(
-                title=dict(text="Coverage Heatmap", font=dict(color="#fff",size=13,family="Syne")),
-                coloraxis_colorbar=dict(tickfont=dict(color=FONT_CLR)),
-            )
-            apply_theme(fig, 240)
-            st.plotly_chart(fig, use_container_width=True, config={"displayModeBar":False})
-
-
-def page_wash(dfs):
-    df = dfs.get("WASH_Monitoring", pd.DataFrame())
-    if df.empty:
-        st.warning("WASH_Monitoring sheet not found."); return
-
-    section("WASH Program Monitoring")
-
-    # Filters
-    col1, col2 = st.columns(2)
-    with col1:
-        states = ["All"] + sorted(df["State"].dropna().unique().tolist()) if "State" in df else ["All"]
-        state_sel = st.selectbox("State", states, key="wash_state")
-    with col2:
-        acts = ["All"] + sorted(df["Activity_Type"].dropna().unique().tolist()) if "Activity_Type" in df else ["All"]
-        act_sel = st.selectbox("Activity Type", acts, key="wash_act")
-
-    df_f = df.copy()
-    if state_sel != "All": df_f = df_f[df_f["State"] == state_sel]
-    if act_sel != "All":   df_f = df_f[df_f["Activity_Type"] == act_sel]
-
-    # KPIs
-    reached   = int(df_f["Reached_Beneficiaries"].sum()) if "Reached_Beneficiaries" in df_f else 0
-    target    = int(df_f["Target_Beneficiaries"].sum())  if "Target_Beneficiaries" in df_f else 1
-    pct_reach = reached/target if target > 0 else 0
-    water_vol = int(df_f["Water_Volume_Liters"].sum()) if "Water_Volume_Liters" in df_f else 0
-    latrines  = int(df_f["Latrine_Units_Built"].sum())  if "Latrine_Units_Built" in df_f else 0
-    hygiene   = int(df_f["Hygiene_Kits_Dist"].sum())    if "Hygiene_Kits_Dist" in df_f else 0
+    df_f = sfilt(sfilt(sfilt(sfilt(df.copy(),"State",s1),"Sector",s2),"Displacement_Status",s3),"Vulnerability_Level",s4)
+    nb  = len(df_f)
+    fem = slen(df_f,"Sex","Female")
 
     c1,c2,c3,c4,c5 = st.columns(5)
-    with c1: st.markdown(metric_card("Individuals Reached",fmt_num(reached),f"{pct_reach:.0%} of target","card-wash","💧"), unsafe_allow_html=True)
-    with c2: st.markdown(metric_card("Target Beneficiaries",fmt_num(target),"planned","card-total","🎯"), unsafe_allow_html=True)
-    with c3: st.markdown(metric_card("Water Distributed",fmt_num(water_vol)+" L","litres","card-wash","🚰"), unsafe_allow_html=True)
-    with c4: st.markdown(metric_card("Latrines Built",fmt_num(latrines),"units","card-fsl","🏗️"), unsafe_allow_html=True)
-    with c5: st.markdown(metric_card("Hygiene Kits",fmt_num(hygiene),"distributed","card-shelter","🧴"), unsafe_allow_html=True)
-
+    c1.markdown(kpi("Shown",     N(nb),                 "beneficiaries","blue",  "📍"), unsafe_allow_html=True)
+    c2.markdown(kpi("States",    N(suniq(df_f,"State")),"","teal",  "🗺️"), unsafe_allow_html=True)
+    c3.markdown(kpi("Localities",N(suniq(df_f,"Locality")),"","amber","📌"), unsafe_allow_html=True)
+    c4.markdown(kpi("Female",    f"{100*fem/nb:.0f}%" if nb else "—","","purple","♀"), unsafe_allow_html=True)
+    c5.markdown(kpi("Active",    N(slen(df_f,"Registration_Status","Active")),"","green","✅"), unsafe_allow_html=True)
     st.markdown("<br>", unsafe_allow_html=True)
-    col_a, col_b = st.columns(2)
 
-    with col_a:
-        if "Activity_Type" in df_f:
+    col_map, col_r = st.columns([3,1])
+    with col_map:
+        st_folium(make_map(df_f), use_container_width=True, height=520, returned_objects=[])
+    with col_r:
+        if has(df_f,"State") and nb > 0:
+            by_s = df_f.groupby("State").size().reset_index(name="n").sort_values("n")
+            fig = px.bar(by_s, x="n", y="State", orientation="h",
+                         color="n", color_continuous_scale=["#1E3A6E","#60A5FA"], title="By State")
+            fig.update_layout(coloraxis_showscale=False)
+            pc(T(fig, h=240, leg=False))
+        if has(df_f,"Sector") and nb > 0:
+            by_sec = df_f.groupby("Sector").size().reset_index(name="n")
+            fig = px.pie(by_sec, values="n", names="Sector", hole=0.55,
+                         color="Sector", color_discrete_map=SECTOR_COLORS, title="By Sector")
+            fig.update_traces(textinfo="none", marker=dict(line=dict(color="#060D1F",width=2)))
+            pc(T(fig, h=260))
+
+# ══════════════════════════════════════════════════════════════════════════════
+# OVERVIEW
+# ══════════════════════════════════════════════════════════════════════════════
+def page_overview(dfs):
+    ph("Program Overview", "Consolidated key metrics — all sectors · Sudan Mission 2025–2026")
+    df_b = dfs.get("Beneficiary_Registration", pd.DataFrame())
+    df_w = dfs.get("WASH_Monitoring",           pd.DataFrame())
+    df_f = dfs.get("FSL_Distribution",          pd.DataFrame())
+    df_c = dfs.get("CVA_Cash_Transfers",        pd.DataFrame())
+    df_i = dfs.get("Indicator_Tracker",         pd.DataFrame())
+
+    tot   = len(df_b)
+    act   = slen(df_b,"Registration_Status","Active")
+    wr    = int(ssum(df_w,"Reached_Beneficiaries"))
+    fhh   = int(ssum(df_f,"HH_Reached"))
+    paid  = sfilt(df_c,"Transfer_Status","Paid")
+    usd   = paid["Transfer_Value_USD"].sum() if has(paid,"Transfer_Value_USD") and len(paid)>0 else 0
+    on_t  = slen(df_i,"Status","On track")
+    ti    = len(df_i)
+
+    sh("Programme Scale")
+    c1,c2,c3,c4,c5,c6 = st.columns(6)
+    c1.markdown(kpi("Beneficiaries",N(tot),  f"{act:,} active",   "blue",  "👤", f"↑ {act/tot:.0%} active" if tot else None,"up"), unsafe_allow_html=True)
+    c2.markdown(kpi("WASH Reached", N(wr),   "cumulative",        "teal",  "💧"), unsafe_allow_html=True)
+    c3.markdown(kpi("FSL HH",       N(fhh),  "households reached","green", "🌾"), unsafe_allow_html=True)
+    c4.markdown(kpi("Cash Paid",    f"${N(usd)}","USD disbursed", "amber", "💵"), unsafe_allow_html=True)
+    c5.markdown(kpi("States",       str(suniq(df_b,"State")),"covered","purple","🗺️"), unsafe_allow_html=True)
+    c6.markdown(kpi("On Track",     f"{on_t}/{ti}","indicators",  "green", "📊", f"↑ {on_t/ti:.0%}" if ti else None,"up"), unsafe_allow_html=True)
+
+    # Alerts
+    alerts = []
+    pb = slen(df_f,"Pipeline_Status","Pipeline break")
+    if pb: alerts.append(f"⚠️  <b>{pb}</b> pipeline breaks detected in FSL supply chain")
+    fa = slen(df_c,"Transfer_Status","Failed")
+    if fa: alerts.append(f"❌  <b>{fa}</b> failed cash transfers require investigation")
+    ot = slen(df_i,"Status","Off track")
+    if ot: alerts.append(f"🔴  <b>{ot}</b> program indicators are off track")
+    if alerts:
+        sh("Active Alerts")
+        for a in alerts:
+            st.markdown(f"<div class='alert-banner'><span>{a}</span></div>", unsafe_allow_html=True)
+
+    sh("Beneficiary Profile")
+    c1,c2,c3 = st.columns([1.1,1,1])
+    with c1:
+        if not df_b.empty and has(df_b,"Sector"):
+            d = df_b.groupby("Sector").size().reset_index(name="n")
+            fig = px.pie(d, values="n", names="Sector", hole=0.58,
+                         color="Sector", color_discrete_map=SECTOR_COLORS, title="Beneficiaries by Sector")
+            fig.update_traces(textinfo="percent", textfont_size=10,
+                              marker=dict(line=dict(color="#060D1F",width=2)))
+            pc(T(fig, h=300))
+    with c2:
+        if not df_b.empty and has(df_b,"Displacement_Status"):
+            d = df_b["Displacement_Status"].value_counts().reset_index()
+            d.columns = ["Status","Count"]
+            fig = px.bar(d, x="Count", y="Status", orientation="h",
+                         color="Count", color_continuous_scale=["#1E3A6E","#3B82F6"],
+                         title="Displacement Status")
+            fig.update_layout(coloraxis_showscale=False)
+            pc(T(fig, h=300, leg=False))
+    with c3:
+        if not df_b.empty and has(df_b,"Sex") and has(df_b,"Vulnerability_Level"):
+            ct = df_b.groupby(["Vulnerability_Level","Sex"]).size().reset_index(name="n")
+            fig = px.bar(ct, x="Vulnerability_Level", y="n", color="Sex", barmode="stack",
+                         color_discrete_map={"Female":"#EC4899","Male":"#3B82F6"},
+                         title="Vulnerability × Sex")
+            pc(T(fig, h=300))
+
+    sh("Registration Trend")
+    if not df_b.empty and has(df_b,"Registration_Date"):
+        df_t = df_b.copy()
+        df_t["Registration_Date"] = pd.to_datetime(df_t["Registration_Date"], errors="coerce")
+        df_t = df_t.dropna(subset=["Registration_Date"])
+        df_t["Month"] = df_t["Registration_Date"].dt.to_period("M").astype(str)
+        if has(df_t,"Sector"):
+            trend = df_t.groupby(["Month","Sector"]).size().reset_index(name="Count")
+            fig = px.area(trend, x="Month", y="Count", color="Sector",
+                          color_discrete_map=SECTOR_COLORS, title="Monthly Registrations by Sector")
+            fig.update_traces(line_width=2)
+            pc(T(fig, h=290))
+
+    if not df_b.empty and has(df_b,"State") and has(df_b,"Sector"):
+        sh("Coverage Heatmap — State × Sector")
+        heat = df_b.groupby(["State","Sector"]).size().reset_index(name="Count")
+        fig = px.density_heatmap(heat, x="Sector", y="State", z="Count",
+                                 color_continuous_scale="Blues", title="Beneficiaries by State × Sector")
+        fig.update_layout(coloraxis_colorbar=dict(tickfont=dict(color=FONT_C)))
+        pc(T(fig, h=280, leg=False))
+
+# ══════════════════════════════════════════════════════════════════════════════
+# WASH
+# ══════════════════════════════════════════════════════════════════════════════
+def page_wash(dfs):
+    ph("WASH Monitoring", "Water, Sanitation & Hygiene — activity performance and gender disaggregation")
+    df = dfs.get("WASH_Monitoring", pd.DataFrame())
+    if df.empty: st.info("No WASH_Monitoring sheet found."); return
+
+    c1,c2 = st.columns(2)
+    with c1: s1 = st.selectbox("State",         sopts(df,"State"),        key="w_s")
+    with c2: s2 = st.selectbox("Activity Type", sopts(df,"Activity_Type"),key="w_a")
+    df_f = sfilt(sfilt(df.copy(),"State",s1),"Activity_Type",s2)
+
+    reached = int(ssum(df_f,"Reached_Beneficiaries"))
+    target  = int(ssum(df_f,"Target_Beneficiaries")) or 1
+    pct     = reached/target
+    wv      = int(ssum(df_f,"Water_Volume_Liters"))
+    lat     = int(ssum(df_f,"Latrine_Units_Built"))
+    hyg     = int(ssum(df_f,"Hygiene_Kits_Dist"))
+    nfi     = int(ssum(df_f,"NFI_Kits_Dist"))
+
+    sh("Key Indicators")
+    c1,c2,c3,c4,c5 = st.columns(5)
+    dd = "up" if pct>=0.8 else "mid" if pct>=0.6 else "down"
+    c1.markdown(kpi("Reached",  N(reached),f"of {N(target)} target","blue",  "💧",f"{pct:.0%} coverage",dd), unsafe_allow_html=True)
+    c2.markdown(kpi("Water",    N(wv)+" L","litres",             "teal",  "🚰"), unsafe_allow_html=True)
+    c3.markdown(kpi("Latrines", N(lat),    "units built",         "green", "🏗️"), unsafe_allow_html=True)
+    c4.markdown(kpi("Hyg Kits", N(hyg),    "distributed",         "amber", "🧴"), unsafe_allow_html=True)
+    c5.markdown(kpi("NFI Kits", N(nfi),    "distributed",         "purple","📦"), unsafe_allow_html=True)
+
+    sh("Activity Performance")
+    c1,c2 = st.columns(2)
+    with c1:
+        if has(df_f,"Activity_Type"):
             grp = df_f.groupby("Activity_Type")[["Target_Beneficiaries","Reached_Beneficiaries"]].sum().reset_index()
             fig = go.Figure()
             fig.add_bar(name="Target", x=grp["Activity_Type"], y=grp["Target_Beneficiaries"],
-                        marker_color="#1E3A6E", marker_line_width=0)
-            fig.add_bar(name="Reached", x=grp["Activity_Type"], y=grp["Reached_Beneficiaries"],
-                        marker_color="#0EA5E9", marker_line_width=0)
-            fig.update_layout(barmode="group",
-                title=dict(text="Target vs Reached by Activity", font=dict(color="#fff",size=13,family="Syne")))
-            apply_theme(fig, 340)
-            st.plotly_chart(fig, use_container_width=True, config={"displayModeBar":False})
-
-    with col_b:
-        if "Functionality_Status" in df_f:
+                        marker_color="rgba(59,130,246,0.2)", marker_line_color="#3B82F6", marker_line_width=1)
+            fig.add_bar(name="Reached",x=grp["Activity_Type"], y=grp["Reached_Beneficiaries"],
+                        marker_color="#3B82F6")
+            fig.update_layout(barmode="group", title="Target vs Reached")
+            pc(T(fig, h=330))
+    with c2:
+        if has(df_f,"Functionality_Status"):
             func = df_f["Functionality_Status"].value_counts().reset_index()
             func.columns = ["Status","Count"]
-            colors_func = {"Fully Functional":"#16A34A","Partially Functional":"#F5A623",
-                           "Non-Functional":"#E8502A","Under Construction":"#7C3AED"}
-            fig = px.pie(func, values="Count", names="Status", hole=0.52,
-                         color="Status", color_discrete_map=colors_func)
-            fig.update_layout(title=dict(text="Infrastructure Functionality", font=dict(color="#fff",size=13,family="Syne")))
-            apply_theme(fig, 340)
-            st.plotly_chart(fig, use_container_width=True, config={"displayModeBar":False})
+            cmap = {"Fully Functional":"#10B981","Partially Functional":"#F59E0B",
+                    "Non-Functional":"#EF4444","Under Construction":"#8B5CF6"}
+            fig = px.pie(func, values="Count", names="Status", hole=0.55,
+                         color="Status", color_discrete_map=cmap, title="Infrastructure Functionality")
+            fig.update_traces(textinfo="percent+label", textfont_size=9,
+                              marker=dict(line=dict(color="#060D1F",width=2)))
+            pc(T(fig, h=330))
 
-    # Gender split
-    section("Gender Breakdown")
-    if "Reached_Female" in df_f and "Reached_Male" in df_f:
-        col_x, col_y = st.columns(2)
-        with col_x:
-            total_f = df_f["Reached_Female"].sum()
-            total_m = df_f["Reached_Male"].sum()
-            fig = go.Figure(go.Bar(
-                x=["Female","Male"],
-                y=[total_f, total_m],
-                marker_color=["#EC4899","#0EA5E9"],
-                text=[fmt_num(total_f), fmt_num(total_m)],
-                textposition="outside",
-                textfont=dict(color="#fff", size=13)
-            ))
-            fig.update_layout(title=dict(text="Sex Disaggregation — WASH",
-                font=dict(color="#fff",size=13,family="Syne")))
-            apply_theme(fig, 280)
-            st.plotly_chart(fig, use_container_width=True, config={"displayModeBar":False})
-        with col_y:
-            if "State" in df_f:
+    sh("Gender Disaggregation")
+    if has(df_f,"Reached_Female") and has(df_f,"Reached_Male"):
+        c1,c2,c3 = st.columns(3)
+        tf = df_f["Reached_Female"].sum(); tm = df_f["Reached_Male"].sum()
+        with c1:
+            fig = go.Figure(go.Bar(x=["Female","Male"], y=[tf,tm],
+                                   marker_color=["#EC4899","#3B82F6"],
+                                   text=[N(tf),N(tm)], textposition="outside",
+                                   textfont=dict(color="#fff",size=11)))
+            fig.update_layout(title="Sex Disaggregation")
+            pc(T(fig, h=280, leg=False))
+        with c2:
+            if has(df_f,"State"):
                 sg = df_f.groupby("State")[["Reached_Female","Reached_Male"]].sum().reset_index()
-                fig = px.bar(sg, x="State", y=["Reached_Female","Reached_Male"],
-                             color_discrete_map={"Reached_Female":"#EC4899","Reached_Male":"#0EA5E9"},
-                             barmode="stack")
-                fig.update_layout(title=dict(text="Sex by State",
-                    font=dict(color="#fff",size=13,family="Syne")))
-                apply_theme(fig, 280)
-                st.plotly_chart(fig, use_container_width=True, config={"displayModeBar":False})
+                fig = px.bar(sg, x="State", y=["Reached_Female","Reached_Male"], barmode="stack",
+                             color_discrete_map={"Reached_Female":"#EC4899","Reached_Male":"#3B82F6"},
+                             title="Sex by State")
+                pc(T(fig, h=280))
+        with c3:
+            if has(df_f,"Reached_Children_U5"):
+                tc5 = df_f["Reached_Children_U5"].sum()
+                fig = go.Figure(go.Pie(labels=["Children U5","Adults"],
+                                       values=[tc5, max(0,(tf+tm)-tc5)], hole=0.55,
+                                       marker=dict(colors=["#F59E0B","#3B82F6"],
+                                                   line=dict(color="#060D1F",width=2))))
+                fig.update_layout(title="Children U5 vs Adults")
+                pc(T(fig, h=280))
 
+    sh("Reporting Compliance")
+    if has(df_f,"Cluster_Reporting"):
+        c1,c2 = st.columns(2)
+        with c1:
+            cr = df_f["Cluster_Reporting"].value_counts().reset_index(); cr.columns = ["Status","Count"]
+            fig = px.pie(cr, values="Count", names="Status", hole=0.55,
+                         color="Status",
+                         color_discrete_map={"Reported":"#10B981","Not reported":"#EF4444"},
+                         title="Cluster Reporting Compliance")
+            fig.update_traces(marker=dict(line=dict(color="#060D1F",width=2)), textinfo="percent")
+            pc(T(fig, h=270))
+        with c2:
+            if has(df_f,"State"):
+                grp2 = df_f.groupby(["State","Cluster_Reporting"]).size().reset_index(name="n")
+                fig = px.bar(grp2, x="State", y="n", color="Cluster_Reporting",
+                             color_discrete_map={"Reported":"#10B981","Not reported":"#EF4444"},
+                             title="Reporting Status by State")
+                pc(T(fig, h=270))
 
+# ══════════════════════════════════════════════════════════════════════════════
+# FSL
+# ══════════════════════════════════════════════════════════════════════════════
 def page_fsl(dfs):
+    ph("Food Security & Livelihoods", "Distribution tracking — commodities, pipeline status, donor coverage")
     df = dfs.get("FSL_Distribution", pd.DataFrame())
-    if df.empty:
-        st.warning("FSL_Distribution sheet not found."); return
+    if df.empty: st.info("No FSL_Distribution sheet found."); return
 
-    section("Food Security & Livelihoods — Distribution Tracking")
+    c1,c2,c3 = st.columns(3)
+    with c1: s1 = st.selectbox("State",     sopts(df,"State"),         key="f_s")
+    with c2: s2 = st.selectbox("Commodity", sopts(df,"Commodity_Type"),key="f_c")
+    with c3: s3 = st.selectbox("Donor",     sopts(df,"Donor"),         key="f_d")
+    df_f = sfilt(sfilt(sfilt(df.copy(),"State",s1),"Commodity_Type",s2),"Donor",s3)
 
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        states = ["All"] + sorted(df["State"].dropna().unique().tolist()) if "State" in df else ["All"]
-        state_sel = st.selectbox("State", states, key="fsl_state")
-    with col2:
-        commodities = ["All"] + sorted(df["Commodity_Type"].dropna().unique().tolist()) if "Commodity_Type" in df else ["All"]
-        comm_sel = st.selectbox("Commodity", commodities, key="fsl_comm")
-    with col3:
-        donors = ["All"] + sorted(df["Donor"].dropna().unique().tolist()) if "Donor" in df else ["All"]
-        donor_sel = st.selectbox("Donor", donors, key="fsl_donor")
+    hht = int(ssum(df_f,"HH_Targeted")); hhr = int(ssum(df_f,"HH_Reached"))
+    qp  = ssum(df_f,"Quantity_Planned"); qd  = ssum(df_f,"Quantity_Distributed")
+    fem = int(ssum(df_f,"Female_HHH_Reached"))
+    pb  = slen(df_f,"Pipeline_Status","Pipeline break")
+    cov = hhr/hht if hht else 0
 
-    df_f = df.copy()
-    if state_sel != "All":  df_f = df_f[df_f["State"] == state_sel]
-    if comm_sel != "All":   df_f = df_f[df_f["Commodity_Type"] == comm_sel]
-    if donor_sel != "All":  df_f = df_f[df_f["Donor"] == donor_sel]
-
-    hh_target  = int(df_f["HH_Targeted"].sum())  if "HH_Targeted" in df_f else 0
-    hh_reached = int(df_f["HH_Reached"].sum())   if "HH_Reached" in df_f else 0
-    qty_plan   = df_f["Quantity_Planned"].sum()   if "Quantity_Planned" in df_f else 0
-    qty_dist   = df_f["Quantity_Distributed"].sum() if "Quantity_Distributed" in df_f else 0
-    fem_hh     = int(df_f["Female_HHH_Reached"].sum()) if "Female_HHH_Reached" in df_f else 0
-    pct_fem    = fem_hh/hh_reached if hh_reached > 0 else 0
-
+    sh("Key Indicators")
     c1,c2,c3,c4,c5 = st.columns(5)
-    with c1: st.markdown(metric_card("HH Reached",fmt_num(hh_reached),f"of {fmt_num(hh_target)} targeted","card-fsl","🏠"), unsafe_allow_html=True)
-    with c2: st.markdown(metric_card("Coverage Rate",f"{hh_reached/hh_target:.0%}" if hh_target else "—","achievement","card-total","📊"), unsafe_allow_html=True)
-    with c3: st.markdown(metric_card("Qty Distributed",fmt_num(qty_dist),f"of {fmt_num(qty_plan)} planned","card-wash","📦"), unsafe_allow_html=True)
-    with c4: st.markdown(metric_card("Female-headed HH",fmt_num(fem_hh),f"{pct_fem:.0%} of reached","card-cva","♀"), unsafe_allow_html=True)
-    with c5:
-        pipeline_breaks = len(df_f[df_f["Pipeline_Status"]=="Pipeline break"]) if "Pipeline_Status" in df_f else 0
-        st.markdown(metric_card("Pipeline Breaks",str(pipeline_breaks),"supply chain alerts","card-shelter","⚠️"), unsafe_allow_html=True)
+    dd = "up" if cov>=0.8 else "mid" if cov>=0.6 else "down"
+    c1.markdown(kpi("HH Reached",   N(hhr),f"of {N(hht)} targeted","green","🏠",f"{cov:.0%} coverage",dd), unsafe_allow_html=True)
+    c2.markdown(kpi("Qty Dist.",    N(qd), f"of {N(qp)} planned",  "blue", "📦"), unsafe_allow_html=True)
+    c3.markdown(kpi("Female HHH",   N(fem),f"{fem/hhr:.0%} of reached" if hhr else "—","purple","♀"), unsafe_allow_html=True)
+    c4.markdown(kpi("Pipeline ⚠️",  str(pb),"supply breaks",       "red" if pb else "green","⚠️"), unsafe_allow_html=True)
+    c5.markdown(kpi("Records",      N(len(df_f)),"in selection",   "teal","📋"), unsafe_allow_html=True)
 
-    st.markdown("<br>", unsafe_allow_html=True)
-    col_a, col_b, col_c = st.columns(3)
-
-    with col_a:
-        if "Commodity_Type" in df_f:
-            comm = df_f.groupby("Commodity_Type")["HH_Reached"].sum().reset_index().sort_values("HH_Reached",ascending=True).tail(8)
-            fig = px.bar(comm, x="HH_Reached", y="Commodity_Type", orientation="h",
-                         color="HH_Reached", color_continuous_scale=["#14532D","#4ADE80"])
-            fig.update_layout(showlegend=False, coloraxis_showscale=False,
-                title=dict(text="HH Reached by Commodity", font=dict(color="#fff",size=13,family="Syne")))
-            apply_theme(fig, 340)
-            st.plotly_chart(fig, use_container_width=True, config={"displayModeBar":False})
-
-    with col_b:
-        if "Pipeline_Status" in df_f:
-            pipe = df_f["Pipeline_Status"].value_counts().reset_index()
-            pipe.columns = ["Status","Count"]
-            colors_pipe = {"In stock":"#16A34A","Low stock":"#F5A623",
-                           "Pipeline break":"#E8502A","Awaiting delivery":"#7C3AED"}
-            fig = px.pie(pipe, values="Count", names="Status", hole=0.5,
-                         color="Status", color_discrete_map=colors_pipe)
-            fig.update_layout(title=dict(text="Pipeline Status", font=dict(color="#fff",size=13,family="Syne")))
-            apply_theme(fig, 340)
-            st.plotly_chart(fig, use_container_width=True, config={"displayModeBar":False})
-
-    with col_c:
-        if "Donor" in df_f:
+    sh("Distribution Analysis")
+    c1,c2,c3 = st.columns(3)
+    with c1:
+        if has(df_f,"Commodity_Type"):
+            comm = df_f.groupby("Commodity_Type")["HH_Reached"].sum().reset_index()
+            comm = comm.sort_values("HH_Reached",ascending=True).tail(10)
+            comm.columns = ["Commodity","HH_Reached"]
+            fig = px.bar(comm, x="HH_Reached", y="Commodity", orientation="h",
+                         color="HH_Reached", color_continuous_scale=["#14532D","#34D399"],
+                         title="HH Reached by Commodity")
+            fig.update_layout(coloraxis_showscale=False)
+            pc(T(fig, h=350, leg=False))
+    with c2:
+        if has(df_f,"Pipeline_Status"):
+            pipe = df_f["Pipeline_Status"].value_counts().reset_index(); pipe.columns = ["Status","Count"]
+            cmap = {"In stock":"#10B981","Low stock":"#F59E0B","Pipeline break":"#EF4444","Awaiting delivery":"#8B5CF6"}
+            fig = px.pie(pipe, values="Count", names="Status", hole=0.55,
+                         color="Status", color_discrete_map=cmap, title="Pipeline Status")
+            fig.update_traces(marker=dict(line=dict(color="#060D1F",width=2)), textinfo="percent")
+            pc(T(fig, h=350))
+    with c3:
+        if has(df_f,"Donor"):
             don = df_f.groupby("Donor")["HH_Reached"].sum().reset_index()
             fig = px.bar(don, x="Donor", y="HH_Reached", color="Donor",
-                         color_discrete_sequence=COLORS)
-            fig.update_layout(showlegend=False,
-                title=dict(text="HH Reached by Donor", font=dict(color="#fff",size=13,family="Syne")))
-            apply_theme(fig, 340)
-            st.plotly_chart(fig, use_container_width=True, config={"displayModeBar":False})
+                         color_discrete_sequence=COLORS, title="HH Reached by Donor",
+                         text="HH_Reached")
+            fig.update_traces(texttemplate="%{text:,.0f}", textposition="outside",
+                              textfont=dict(color="#fff",size=9))
+            fig.update_layout(showlegend=False)
+            pc(T(fig, h=350, leg=False))
 
-    # Satisfaction
-    if "Beneficiary_Satisfaction" in df_f:
-        section("Post-Distribution Monitoring — Beneficiary Satisfaction")
-        sat = df_f["Beneficiary_Satisfaction"].value_counts().reset_index()
-        sat.columns = ["Level","Count"]
-        colors_sat = {"Above 80%":"#16A34A","60–80%":"#F5A623","Below 60%":"#E8502A","N/A":"#475569"}
-        fig = px.bar(sat, x="Level", y="Count", color="Level", color_discrete_map=colors_sat,
-                     text="Count")
-        fig.update_traces(textposition="outside", textfont=dict(color="#fff"))
-        fig.update_layout(showlegend=False,
-            title=dict(text="Satisfaction Rate Distribution", font=dict(color="#fff",size=13,family="Syne")))
-        apply_theme(fig, 280)
-        st.plotly_chart(fig, use_container_width=True, config={"displayModeBar":False})
+    sh("Distribution Timeline")
+    if has(df_f,"Distribution_Date"):
+        df_t = df_f.copy()
+        df_t["Distribution_Date"] = pd.to_datetime(df_t["Distribution_Date"], errors="coerce")
+        df_t = df_t.dropna(subset=["Distribution_Date"])
+        df_t["Month"] = df_t["Distribution_Date"].dt.to_period("M").astype(str)
+        if has(df_t,"Donor"):
+            monthly = df_t.groupby(["Month","Donor"])["HH_Reached"].sum().reset_index()
+            fig = px.area(monthly, x="Month", y="HH_Reached", color="Donor",
+                          title="Monthly HH Reached by Donor", color_discrete_sequence=COLORS)
+            fig.update_traces(line_width=1.5)
+            pc(T(fig, h=270))
 
+    sh("Post-Distribution Monitoring")
+    c1,c2 = st.columns(2)
+    with c1:
+        if has(df_f,"Beneficiary_Satisfaction"):
+            sat = df_f["Beneficiary_Satisfaction"].value_counts().reset_index(); sat.columns = ["Level","Count"]
+            cmap = {"Above 80%":"#10B981","60–80%":"#F59E0B","Below 60%":"#EF4444","N/A":"#475569"}
+            fig = px.bar(sat, x="Level", y="Count", color="Level",
+                         color_discrete_map=cmap, title="Beneficiary Satisfaction", text="Count")
+            fig.update_traces(textposition="outside", textfont=dict(color="#fff"))
+            fig.update_layout(showlegend=False)
+            pc(T(fig, h=270))
+    with c2:
+        if has(df_f,"Post_Dist_Monitor"):
+            pdm = df_f["Post_Dist_Monitor"].value_counts().reset_index(); pdm.columns = ["Status","Count"]
+            fig = px.pie(pdm, values="Count", names="Status", hole=0.5,
+                         title="PDM Completion Status", color_discrete_sequence=COLORS)
+            fig.update_traces(marker=dict(line=dict(color="#060D1F",width=2)), textinfo="percent")
+            pc(T(fig, h=270))
 
+# ══════════════════════════════════════════════════════════════════════════════
+# CVA
+# ══════════════════════════════════════════════════════════════════════════════
 def page_cva(dfs):
+    ph("Cash & Voucher Assistance", "Transfer tracking — payment status, modalities, and beneficiary profile")
     df = dfs.get("CVA_Cash_Transfers", pd.DataFrame())
-    if df.empty:
-        st.warning("CVA_Cash_Transfers sheet not found."); return
+    if df.empty: st.info("No CVA_Cash_Transfers sheet found."); return
 
-    section("Cash & Voucher Assistance — Transfer Tracking")
+    c1,c2,c3 = st.columns(3)
+    with c1: s1 = st.selectbox("State",         sopts(df,"State"),        key="c_s")
+    with c2: s2 = st.selectbox("Transfer Type", sopts(df,"Transfer_Type"),key="c_t")
+    with c3: s3 = st.selectbox("Round",         sopts(df,"Round"),        key="c_r")
+    df_f = sfilt(sfilt(sfilt(df.copy(),"State",s1),"Transfer_Type",s2),"Round",s3)
 
-    col1, col2 = st.columns(2)
-    with col1:
-        states = ["All"] + sorted(df["State"].dropna().unique().tolist()) if "State" in df else ["All"]
-        state_sel = st.selectbox("State", states, key="cva_state")
-    with col2:
-        types = ["All"] + sorted(df["Transfer_Type"].dropna().unique().tolist()) if "Transfer_Type" in df else ["All"]
-        type_sel = st.selectbox("Transfer Type", types, key="cva_type")
+    paid_df = sfilt(df_f,"Transfer_Status","Paid")
+    pend_df = sfilt(df_f,"Transfer_Status","Pending")
+    fail_df = sfilt(df_f,"Transfer_Status","Failed")
+    usd     = paid_df["Transfer_Value_USD"].sum() if has(paid_df,"Transfer_Value_USD") and len(paid_df)>0 else 0
+    avg_v   = paid_df["Transfer_Value_USD"].mean() if has(paid_df,"Transfer_Value_USD") and len(paid_df)>0 else 0
+    fem_pct = slen(df_f,"Female_Headed_HH","Yes")/len(df_f) if len(df_f)>0 and has(df_f,"Female_Headed_HH") else 0
 
-    df_f = df.copy()
-    if state_sel != "All": df_f = df_f[df_f["State"] == state_sel]
-    if type_sel != "All":  df_f = df_f[df_f["Transfer_Type"] == type_sel]
-
-    paid    = df_f[df_f["Transfer_Status"]=="Paid"]  if "Transfer_Status" in df_f else df_f
-    pending = df_f[df_f["Transfer_Status"]=="Pending"] if "Transfer_Status" in df_f else pd.DataFrame()
-    failed  = df_f[df_f["Transfer_Status"]=="Failed"]  if "Transfer_Status" in df_f else pd.DataFrame()
-
-    total_usd   = paid["Transfer_Value_USD"].sum() if ("Transfer_Value_USD" in paid.columns and len(paid) > 0) else 0
-    avg_val     = paid["Transfer_Value_USD"].mean() if ("Transfer_Value_USD" in paid.columns and len(paid) > 0) else 0
-    nb_paid     = len(paid)
-    nb_pending  = len(pending)
-    nb_failed   = len(failed)
-    fem_pct     = len(df_f[df_f["Female_Headed_HH"]=="Yes"])/len(df_f) if (len(df_f)>0 and "Female_Headed_HH" in df_f.columns) else 0
-
+    sh("Key Indicators")
     c1,c2,c3,c4,c5,c6 = st.columns(6)
-    with c1: st.markdown(metric_card("Total Paid Out",f"${fmt_num(total_usd)}","USD","card-cva","💵"), unsafe_allow_html=True)
-    with c2: st.markdown(metric_card("Transfers Paid",fmt_num(nb_paid),"completed","card-fsl","✅"), unsafe_allow_html=True)
-    with c3: st.markdown(metric_card("Pending",fmt_num(nb_pending),"awaiting","card-shelter","⏳"), unsafe_allow_html=True)
-    with c4: st.markdown(metric_card("Failed",fmt_num(nb_failed),"to investigate","card-total","❌"), unsafe_allow_html=True)
-    with c5: st.markdown(metric_card("Avg Transfer",f"${avg_val:.0f}","per household","card-wash","📊"), unsafe_allow_html=True)
-    with c6: st.markdown(metric_card("Female-headed HH",f"{fem_pct:.0%}","of beneficiaries","card-meal","♀"), unsafe_allow_html=True)
+    c1.markdown(kpi("Total Paid",  f"${N(usd)}","USD",        "blue",  "💵"), unsafe_allow_html=True)
+    c2.markdown(kpi("Paid",        N(len(paid_df)),"completed","green", "✅"), unsafe_allow_html=True)
+    c3.markdown(kpi("Pending",     N(len(pend_df)),"awaiting", "amber", "⏳"), unsafe_allow_html=True)
+    c4.markdown(kpi("Failed",      N(len(fail_df)),"check",    "red" if len(fail_df) else "green","❌"), unsafe_allow_html=True)
+    c5.markdown(kpi("Avg Transfer",f"${avg_v:.0f}","per HH",  "teal",  "📊"), unsafe_allow_html=True)
+    c6.markdown(kpi("Female HHH",  f"{fem_pct:.0%}","",        "purple","♀"), unsafe_allow_html=True)
 
-    st.markdown("<br>", unsafe_allow_html=True)
-    col_a, col_b = st.columns(2)
+    if len(fail_df)>0:
+        st.markdown(f"<div class='alert-banner'><span>❌ <b>{len(fail_df)}</b> failed transfers detected — require verification before next payment round.</span></div>", unsafe_allow_html=True)
 
-    with col_a:
-        if "Transfer_Status" in df_f:
-            status_cnt = df_f["Transfer_Status"].value_counts().reset_index()
-            status_cnt.columns = ["Status","Count"]
-            colors_status = {"Paid":"#16A34A","Pending":"#F5A623","Failed":"#E8502A","Cancelled":"#7C3AED"}
-            fig = px.pie(status_cnt, values="Count", names="Status", hole=0.55,
-                         color="Status", color_discrete_map=colors_status)
-            fig.update_layout(title=dict(text="Transfer Status Breakdown", font=dict(color="#fff",size=13,family="Syne")))
-            apply_theme(fig, 320)
-            st.plotly_chart(fig, use_container_width=True, config={"displayModeBar":False})
-
-    with col_b:
-        if "Payment_Method" in df_f:
+    sh("Transfer Analysis")
+    c1,c2 = st.columns(2)
+    with c1:
+        if has(df_f,"Transfer_Status"):
+            sc = df_f["Transfer_Status"].value_counts().reset_index(); sc.columns = ["Status","Count"]
+            cmap = {"Paid":"#10B981","Pending":"#F59E0B","Failed":"#EF4444","Cancelled":"#8B5CF6"}
+            fig = px.pie(sc, values="Count", names="Status", hole=0.58,
+                         color="Status", color_discrete_map=cmap, title="Transfer Status")
+            fig.update_traces(marker=dict(line=dict(color="#060D1F",width=2)), textinfo="percent")
+            pc(T(fig, h=310))
+    with c2:
+        if has(df_f,"Payment_Method") and has(df_f,"Transfer_Value_USD"):
             pm = df_f.groupby("Payment_Method")["Transfer_Value_USD"].sum().reset_index()
-            fig = px.bar(pm, x="Payment_Method", y="Transfer_Value_USD", color="Payment_Method",
-                         color_discrete_sequence=COLORS, text_auto=True)
-            fig.update_traces(textposition="outside", texttemplate="%{y:,.0f}", textfont=dict(color="#fff",size=10))
-            fig.update_layout(showlegend=False,
-                title=dict(text="USD Transferred by Payment Method", font=dict(color="#fff",size=13,family="Syne")))
-            apply_theme(fig, 320)
-            st.plotly_chart(fig, use_container_width=True, config={"displayModeBar":False})
+            pm = pm.sort_values("Transfer_Value_USD", ascending=True)
+            fig = px.bar(pm, x="Transfer_Value_USD", y="Payment_Method", orientation="h",
+                         color="Transfer_Value_USD", color_continuous_scale=["#1E3A6E","#60A5FA"],
+                         title="USD by Payment Method", text="Transfer_Value_USD")
+            fig.update_traces(texttemplate="$%{text:,.0f}", textposition="outside",
+                              textfont=dict(color="#fff",size=9))
+            fig.update_layout(coloraxis_showscale=False)
+            pc(T(fig, h=310, leg=False))
 
-    # Timeline
-    section("Transfer Timeline")
-    if "Transfer_Date" in df_f:
-        df_f2 = df_f.copy()
-        df_f2["Transfer_Date"] = pd.to_datetime(df_f2["Transfer_Date"], errors="coerce")
-        monthly = df_f2.dropna(subset=["Transfer_Date"])
-        monthly["Month"] = monthly["Transfer_Date"].dt.to_period("M").astype(str)
-        agg = monthly.groupby(["Month","Transfer_Status"])["Transfer_Value_USD"].sum().reset_index()
-        fig = px.bar(agg, x="Month", y="Transfer_Value_USD", color="Transfer_Status",
-                     color_discrete_map={"Paid":"#16A34A","Pending":"#F5A623","Failed":"#E8502A","Cancelled":"#7C3AED"})
-        fig.update_layout(title=dict(text="Monthly Transfer Volume (USD) by Status",
-            font=dict(color="#fff",size=13,family="Syne")))
-        apply_theme(fig, 300)
-        st.plotly_chart(fig, use_container_width=True, config={"displayModeBar":False})
+    sh("Transfer Timeline")
+    if has(df_f,"Transfer_Date") and has(df_f,"Transfer_Value_USD"):
+        df_t = df_f.copy()
+        df_t["Transfer_Date"] = pd.to_datetime(df_t["Transfer_Date"], errors="coerce")
+        df_t = df_t.dropna(subset=["Transfer_Date"])
+        df_t["Month"] = df_t["Transfer_Date"].dt.to_period("M").astype(str)
+        if has(df_t,"Transfer_Status"):
+            agg = df_t.groupby(["Month","Transfer_Status"])["Transfer_Value_USD"].sum().reset_index()
+            cmap = {"Paid":"#10B981","Pending":"#F59E0B","Failed":"#EF4444","Cancelled":"#8B5CF6"}
+            fig = px.bar(agg, x="Month", y="Transfer_Value_USD", color="Transfer_Status",
+                         color_discrete_map=cmap, title="Monthly Transfer Volume (USD) by Status")
+            pc(T(fig, h=270))
 
+    sh("Beneficiary Profile")
+    c1,c2 = st.columns(2)
+    with c1:
+        if has(df_f,"Transfer_Type") and has(df_f,"Transfer_Value_USD"):
+            tt = df_f.groupby("Transfer_Type")["Transfer_Value_USD"].sum().reset_index()
+            tt.columns = ["Type","Total"]
+            fig = px.bar(tt, x="Type", y="Total", color="Type",
+                         color_discrete_sequence=COLORS, title="USD by Transfer Type", text="Total")
+            fig.update_traces(texttemplate="%{text:,.0f}", textposition="outside",
+                              textfont=dict(color="#fff",size=9))
+            fig.update_layout(showlegend=False)
+            pc(T(fig, h=270))
+    with c2:
+        if has(df_f,"State") and has(df_f,"Transfer_Value_USD"):
+            st_g = df_f.groupby("State")["Transfer_Value_USD"].sum().reset_index()
+            fig = px.pie(st_g, values="Transfer_Value_USD", names="State", hole=0.5,
+                         title="Transfer Value by State", color_discrete_sequence=COLORS)
+            fig.update_traces(marker=dict(line=dict(color="#060D1F",width=2)), textinfo="percent")
+            pc(T(fig, h=270))
 
-def page_indicators(dfs):
+# ══════════════════════════════════════════════════════════════════════════════
+# INDICATORS
+# ══════════════════════════════════════════════════════════════════════════════
+def page_ind(dfs):
+    ph("Indicator Tracker", "Results-based management — progress vs annual targets by sector")
     df = dfs.get("Indicator_Tracker", pd.DataFrame())
-    if df.empty:
-        st.warning("Indicator_Tracker sheet not found."); return
+    if df.empty: st.info("No Indicator_Tracker sheet found."); return
 
-    section("Program Indicator Tracker — Results-Based Management")
+    on_t = slen(df,"Status","On track")
+    at_r = slen(df,"Status","At risk")
+    off  = slen(df,"Status","Off track")
+    tot  = len(df)
 
-    # Summary counts
-    if "Status" in df:
-        on_track = len(df[df["Status"]=="On track"])
-        at_risk  = len(df[df["Status"]=="At risk"])
-        off_track= len(df[df["Status"]=="Off track"])
-        total_ind= len(df)
+    c1,c2,c3,c4 = st.columns(4)
+    c1.markdown(kpi("Total",     str(tot),  "indicators",        "blue",  "📋"), unsafe_allow_html=True)
+    c2.markdown(kpi("On Track",  str(on_t), f"{on_t/tot:.0%}",   "green", "✅", f"↑ {on_t/tot:.0%}","up"), unsafe_allow_html=True)
+    c3.markdown(kpi("At Risk",   str(at_r), f"{at_r/tot:.0%}",   "amber", "⚠️"), unsafe_allow_html=True)
+    c4.markdown(kpi("Off Track", str(off),  f"{off/tot:.0%}",    "red",   "❌"), unsafe_allow_html=True)
 
-        c1,c2,c3,c4 = st.columns(4)
-        with c1: st.markdown(metric_card("Total Indicators",str(total_ind),"in tracking frame","card-total","📋"), unsafe_allow_html=True)
-        with c2: st.markdown(metric_card("On Track",str(on_track),f"{on_track/total_ind:.0%} of indicators","card-fsl","✅"), unsafe_allow_html=True)
-        with c3: st.markdown(metric_card("At Risk",str(at_risk),f"{at_risk/total_ind:.0%} of indicators","card-shelter","⚠️"), unsafe_allow_html=True)
-        with c4: st.markdown(metric_card("Off Track",str(off_track),f"{off_track/total_ind:.0%} of indicators","card-cva","❌"), unsafe_allow_html=True)
+    sh("Performance Overview")
+    c1,c2 = st.columns([1,2])
+    with c1:
+        fig = go.Figure(go.Pie(
+            labels=["On Track","At Risk","Off Track"], values=[on_t,at_r,off], hole=0.62,
+            marker=dict(colors=["#10B981","#F59E0B","#EF4444"],
+                        line=dict(color="#060D1F",width=3)), textinfo="none"
+        ))
+        fig.add_annotation(text=f"<b>{tot}</b><br><span style='font-size:9px'>Total</span>",
+                           x=0.5, y=0.5, font_size=18, showarrow=False, font_color="#fff")
+        fig.update_layout(title="Overall Status")
+        pc(T(fig, h=280))
+    with c2:
+        if has(df,"Sector") and has(df,"Status"):
+            perf = df.groupby(["Sector","Status"]).size().reset_index(name="Count")
+            cmap = {"On track":"#10B981","At risk":"#F59E0B","Off track":"#EF4444"}
+            fig = px.bar(perf, x="Sector", y="Count", color="Status",
+                         color_discrete_map=cmap, barmode="stack", title="Indicator Status by Sector")
+            pc(T(fig, h=280))
 
-    st.markdown("<br>", unsafe_allow_html=True)
-
-    # Progress bars per indicator
-    if "Sector" in df:
-        sectors_u = df["Sector"].unique()
-        for sec in sectors_u:
+    if has(df,"Sector"):
+        for sec in sorted(df["Sector"].dropna().unique()):
             df_sec = df[df["Sector"]==sec]
-            section(f"Sector: {sec}")
+            sh(f"Sector — {sec}")
             for _, row in df_sec.iterrows():
-                indicator = row.get("Indicator","")
-                unit = row.get("Unit","")
-                target = row.get("Annual Target", None)
-                cumul = row.get("Cumulative", None)
+                ind_name = str(row.get("Indicator",""))
+                unit     = str(row.get("Unit",""))
+                target   = row.get("Annual Target", None)
+                cumul    = row.get("Cumulative", None)
+                q1 = float(row.get("Q1 Achieved",0) or 0)
+                q2 = float(row.get("Q2 Achieved",0) or 0)
+                q3 = float(row.get("Q3 Achieved",0) or 0)
+                q4 = float(row.get("Q4 (Partial)",0) or 0)
                 status = str(row.get("Status",""))
 
-                if pd.notna(target) and target not in [None,""] and float(str(target).replace(",","") if str(target) else 0) > 0:
+                has_target = pd.notna(target) and str(target) not in ["","nan","None"]
+                if has_target:
                     try:
-                        t = float(str(target).replace(",",""))
-                        c_val = float(str(cumul).replace(",","")) if pd.notna(cumul) else 0
-                        pct = min(c_val / t, 1.0)
-                    except:
-                        t, c_val, pct = 0, 0, 0
-
-                    color = "#16A34A" if pct >= 0.80 else "#F5A623" if pct >= 0.60 else "#E8502A"
-                    badge_html = badge(status)
-
-                    st.markdown(f"""
-                    <div style='margin-bottom:1rem;padding:1rem 1.25rem;background:var(--si-glass);
-                         border:1px solid var(--si-border);border-radius:10px;'>
-                      <div style='display:flex;justify-content:space-between;align-items:center;margin-bottom:.6rem;'>
-                        <span style='font-size:.88rem;font-weight:500;color:var(--si-text);'>{indicator}</span>
-                        <span style='display:flex;gap:.5rem;align-items:center;'>
-                          {badge_html}
-                          <span style='font-size:.78rem;color:var(--si-dim);'>{fmt_num(c_val)} / {fmt_num(t)} {unit}</span>
-                        </span>
+                        t = float(str(target).replace(",","").replace("%",""))
+                        cv = float(str(cumul).replace(",","").replace("%","")) if pd.notna(cumul) else 0
+                        pct = min(cv/t,1.0) if t > 0 else 0
+                    except: t,cv,pct = 0,0,0
+                    bc = "#10B981" if pct>=0.8 else "#F59E0B" if pct>=0.6 else "#EF4444"
+                    st.markdown(f"""<div class='ind-card'>
+                      <div style='display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:7px;'>
+                        <div>
+                          <div class='ind-name'>{ind_name}</div>
+                          <div class='ind-vals'>Target: {N(t)} {unit} &nbsp;·&nbsp; Achieved: {N(cv)} &nbsp;·&nbsp; {pct*100:.1f}%</div>
+                        </div>
+                        <div>{bdg(status)}</div>
                       </div>
-                      <div class='prog-wrap'>
-                        <div class='prog-bar' style='width:{pct*100:.1f}%;background:{color};'></div>
+                      <div class='pbar-wrap'><div class='pbar' style='width:{pct*100:.1f}%;background:{bc};'></div></div>
+                      <div style='display:flex;gap:16px;margin-top:5px;'>
+                        <span class='ind-vals'>Q1: {N(q1)}</span><span class='ind-vals'>Q2: {N(q2)}</span>
+                        <span class='ind-vals'>Q3: {N(q3)}</span><span class='ind-vals'>Q4: {N(q4)}</span>
+                        <span class='ind-vals' style='margin-left:auto;color:#60A5FA;'>Cumul: {N(q1+q2+q3+q4)}</span>
                       </div>
-                      <div style='font-size:.72rem;color:var(--si-dim);margin-top:.3rem;'>{pct*100:.1f}% achieved</div>
                     </div>""", unsafe_allow_html=True)
                 else:
-                    st.markdown(f"""
-                    <div style='margin-bottom:.6rem;padding:.8rem 1.25rem;background:var(--si-glass);
-                         border:1px solid var(--si-border);border-radius:10px;
-                         display:flex;justify-content:space-between;align-items:center;'>
-                      <span style='font-size:.88rem;color:var(--si-text);'>{indicator}</span>
-                      <span style='font-size:.82rem;color:var(--si-dim);'>{fmt_num(cumul) if pd.notna(cumul) else "—"} {unit}</span>
+                    st.markdown(f"""<div class='ind-card' style='display:flex;justify-content:space-between;align-items:center;'>
+                      <div><div class='ind-name'>{ind_name}</div><div class='ind-vals'>Count indicator — no annual target</div></div>
+                      <div style='display:flex;align-items:center;gap:10px;'>
+                        <span style='font-size:1.1rem;font-weight:700;color:#fff;'>{N(cumul) if pd.notna(cumul) else "—"} <span style='font-size:.7rem;color:#64748B;'>{unit}</span></span>
+                        {bdg(status)}
+                      </div>
                     </div>""", unsafe_allow_html=True)
 
-    # Sector comparison chart
-    section("Indicator Performance by Sector")
-    if "Sector" in df and "Status" in df:
-        perf = df.groupby(["Sector","Status"]).size().reset_index(name="Count")
-        fig = px.bar(perf, x="Sector", y="Count", color="Status", barmode="stack",
-                     color_discrete_map={"On track":"#16A34A","At risk":"#F5A623","Off track":"#E8502A"})
-        fig.update_layout(title=dict(text="Indicator Status by Sector",
-            font=dict(color="#fff",size=13,family="Syne")))
-        apply_theme(fig, 320)
-        st.plotly_chart(fig, use_container_width=True, config={"displayModeBar":False})
+# ══════════════════════════════════════════════════════════════════════════════
+# RAW DATA
+# ══════════════════════════════════════════════════════════════════════════════
+def page_raw(dfs):
+    ph("Raw Data Explorer", "Browse, filter and export program datasets")
+    sheet = st.selectbox("Select dataset", list(dfs.keys()))
+    df = dfs[sheet]
+    c1,c2 = st.columns([3,1])
+    with c1: st.markdown(f"<div style='padding:.5rem 0;font-size:.8rem;color:#64748B;'>{len(df):,} rows · {len(df.columns)} columns</div>", unsafe_allow_html=True)
+    with c2: st.download_button("⬇ Download CSV", df.to_csv(index=False).encode(), file_name=f"{sheet}.csv", mime="text/csv", use_container_width=True)
+    num_cols = df.select_dtypes(include="number").columns.tolist()
+    if num_cols:
+        sh("Quick Statistics")
+        st.dataframe(df[num_cols].describe().round(2), use_container_width=True)
+    sh("Data Table")
+    st.dataframe(df, use_container_width=True, height=500)
 
-
-def page_data(dfs):
-    section("Raw Data Explorer")
-    sheet_sel = st.selectbox("Select sheet", list(dfs.keys()))
-    df = dfs[sheet_sel]
-    col1, col2 = st.columns([3,1])
-    with col2:
-        st.download_button(
-            "⬇ Download CSV", df.to_csv(index=False).encode(),
-            file_name=f"{sheet_sel}.csv", mime="text/csv"
-        )
-    with col1:
-        st.markdown(f"**{len(df):,} rows · {len(df.columns)} columns**")
-    st.dataframe(df, use_container_width=True, height=520)
-
-
-# ══════════════════════════════════════════════════════════════
-# SIDEBAR
-# ══════════════════════════════════════════════════════════════
-def sidebar_nav(dfs):
-    with st.sidebar:
-        st.markdown("""
-        <div class='sidebar-logo'>
-          🌍 SI Sudan<br>
-          <span style='font-size:.95rem;font-weight:400;color:#94A3B8;'>IM Dashboard</span>
-        </div>
-        <div class='sidebar-mission'>Solidarites International · Sudan Mission</div>
-        <hr class='sidebar-divider'>
-        """, unsafe_allow_html=True)
-
-        uploaded = st.file_uploader("📂 Load Excel Database", type=["xlsx"])
-
-        if uploaded:
-            dfs_new = load_data(uploaded)
-            st.session_state["dfs"] = dfs_new
-            st.success(f"✅ {len(dfs_new)} sheets loaded")
-
-        st.markdown("<hr class='sidebar-divider'>", unsafe_allow_html=True)
-
-        pages = {
-            "🏠  Overview":         "overview",
-            "🗺️  Geographic Map":   "map",
-            "💧  WASH Monitoring":  "wash",
-            "🌾  FSL Distribution": "fsl",
-            "💵  CVA / Cash":       "cva",
-            "📊  Indicator Tracker":"indicators",
-            "🗂️  Raw Data":         "data",
-        }
-        page = st.radio("Navigation", list(pages.keys()), label_visibility="collapsed")
-
-        st.markdown("<hr class='sidebar-divider'>", unsafe_allow_html=True)
-        st.markdown(f"""
-        <div style='font-size:.72rem;color:#475569;line-height:1.6;'>
-          Logged in as <b style='color:#94A3B8;'>{st.session_state.get('user','—')}</b><br>
-          Last refresh: {datetime.now().strftime('%d %b %Y %H:%M')}
-        </div>""", unsafe_allow_html=True)
-        if st.button("🚪 Logout"):
-            st.session_state.clear(); st.rerun()
-
-        return pages[page], st.session_state.get("dfs", dfs)
-
-
-# ══════════════════════════════════════════════════════════════
+# ══════════════════════════════════════════════════════════════════════════════
 # MAIN
-# ══════════════════════════════════════════════════════════════
+# ══════════════════════════════════════════════════════════════════════════════
 def main():
-    if "auth" not in st.session_state or not st.session_state["auth"]:
-        login_page()
-        return
-
-    dfs = st.session_state.get("dfs", {})
-    page_key, dfs = sidebar_nav(dfs)
-
-    # Page header
-    titles = {
-        "overview":   ("Program Overview", "Key metrics across all sectors"),
-        "map":        ("Geographic Coverage", "Beneficiary distribution across Sudan"),
-        "wash":       ("WASH Monitoring", "Water, Sanitation & Hygiene program data"),
-        "fsl":        ("Food Security & Livelihoods", "Distribution and pipeline tracking"),
-        "cva":        ("Cash & Voucher Assistance", "Transfer tracking and analysis"),
-        "indicators": ("Indicator Tracker", "Results-based management framework"),
-        "data":       ("Raw Data Explorer", "Browse and export program datasets"),
-    }
-    title, subtitle = titles.get(page_key, ("Dashboard",""))
-    st.markdown(f"""
-    <div style='padding:.5rem 0 1.5rem;border-bottom:1px solid var(--si-border);margin-bottom:1.5rem;'>
-      <div style='font-family:Syne,sans-serif;font-size:1.8rem;font-weight:800;color:#fff;line-height:1;'>{title}</div>
-      <div style='font-size:.85rem;color:#64748B;margin-top:.35rem;'>{subtitle}</div>
-    </div>""", unsafe_allow_html=True)
-
+    if not st.session_state.get("auth"):
+        login_page(); return
+    page_key, dfs = sidebar()
     if not dfs:
-        st.markdown("""
-        <div style='text-align:center;padding:4rem 2rem;background:var(--si-glass);
-             border:1px dashed var(--si-border);border-radius:16px;margin-top:2rem;'>
+        ph("Welcome","Load the database to get started")
+        st.markdown("""<div style='text-align:center;padding:5rem 2rem;background:#131F35;border:1px dashed rgba(99,140,210,0.22);border-radius:14px;margin-top:2rem;'>
           <div style='font-size:2.5rem;margin-bottom:1rem;'>📂</div>
-          <div style='font-family:Syne,sans-serif;font-size:1.1rem;font-weight:700;color:#fff;margin-bottom:.5rem;'>
-            No database loaded
-          </div>
-          <div style='font-size:.9rem;color:var(--si-dim);'>
-            Upload your Excel file using the sidebar to start exploring the dashboard.
-          </div>
+          <div style='font-size:1.1rem;font-weight:700;color:#fff;margin-bottom:.5rem;'>No database loaded</div>
+          <div style='font-size:.85rem;color:#64748B;'>Upload <code>SI_Sudan_Program_Database.xlsx</code> using the sidebar.</div>
         </div>""", unsafe_allow_html=True)
         return
-
-    if page_key == "overview":   page_overview(dfs)
-    elif page_key == "map":      page_map(dfs)
-    elif page_key == "wash":     page_wash(dfs)
-    elif page_key == "fsl":      page_fsl(dfs)
-    elif page_key == "cva":      page_cva(dfs)
-    elif page_key == "indicators": page_indicators(dfs)
-    elif page_key == "data":     page_data(dfs)
+    dispatch = {
+        "overview": page_overview, "map": page_map, "wash": page_wash,
+        "fsl": page_fsl, "cva": page_cva, "ind": page_ind, "raw": page_raw,
+    }
+    dispatch.get(page_key, page_overview)(dfs)
 
 if __name__ == "__main__":
     main()
