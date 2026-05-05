@@ -290,10 +290,20 @@ def section(title):
 # MAP BUILDER
 # ══════════════════════════════════════════════════════════════
 def build_map(df_ben):
+    # Guard: GPS columns may be absent depending on the uploaded file
+    gps_cols = [c for c in ["GPS_Latitude","GPS_Longitude"] if c in df_ben.columns]
+    if len(gps_cols) < 2:
+        m = folium.Map(location=[14.5, 29.5], zoom_start=5,
+                       tiles="CartoDB dark_matter", attr="CartoDB")
+        folium.Marker([14.5, 29.5],
+                      popup="No GPS data available in this file.",
+                      tooltip="No GPS data").add_to(m)
+        return m
+
     df_map = df_ben.dropna(subset=["GPS_Latitude","GPS_Longitude"]).copy()
     df_map = df_map[
-        (df_map["GPS_Latitude"].between(8, 24)) &
-        (df_map["GPS_Longitude"].between(20, 40))
+        (pd.to_numeric(df_map["GPS_Latitude"], errors="coerce").between(8, 24)) &
+        (pd.to_numeric(df_map["GPS_Longitude"], errors="coerce").between(20, 40))
     ]
     m = folium.Map(
         location=[14.5, 29.5],
@@ -701,12 +711,12 @@ def page_cva(dfs):
     pending = df_f[df_f["Transfer_Status"]=="Pending"] if "Transfer_Status" in df_f else pd.DataFrame()
     failed  = df_f[df_f["Transfer_Status"]=="Failed"]  if "Transfer_Status" in df_f else pd.DataFrame()
 
-    total_usd   = paid["Transfer_Value_USD"].sum() if "Transfer_Value_USD" in paid else 0
-    avg_val     = paid["Transfer_Value_USD"].mean() if len(paid) > 0 else 0
+    total_usd   = paid["Transfer_Value_USD"].sum() if ("Transfer_Value_USD" in paid.columns and len(paid) > 0) else 0
+    avg_val     = paid["Transfer_Value_USD"].mean() if ("Transfer_Value_USD" in paid.columns and len(paid) > 0) else 0
     nb_paid     = len(paid)
     nb_pending  = len(pending)
     nb_failed   = len(failed)
-    fem_pct     = len(df_f[df_f.get("Female_Headed_HH","")=="Yes"])/len(df_f) if len(df_f)>0 and "Female_Headed_HH" in df_f else 0
+    fem_pct     = len(df_f[df_f["Female_Headed_HH"]=="Yes"])/len(df_f) if (len(df_f)>0 and "Female_Headed_HH" in df_f.columns) else 0
 
     c1,c2,c3,c4,c5,c6 = st.columns(6)
     with c1: st.markdown(metric_card("Total Paid Out",f"${fmt_num(total_usd)}","USD","card-cva","💵"), unsafe_allow_html=True)
