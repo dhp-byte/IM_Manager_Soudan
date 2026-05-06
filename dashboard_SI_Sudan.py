@@ -6,54 +6,14 @@ import folium
 from folium.plugins import MarkerCluster, HeatMap, MiniMap
 from streamlit_folium import st_folium
 from datetime import datetime
-import io, warnings, requests
+import io, warnings, time
 warnings.filterwarnings("ignore")
 
-# ── KoBoToolbox API ───────────────────────────────────────────────────────────
-KOBO_BASE = "https://kf.kobotoolbox.org"  # or https://kobo.humanitarianresponse.info
-
-def kobo_get_token(username, password):
-    try:
-        r = requests.post(f"{KOBO_BASE}/token/?format=json",
-                          data={"username": username, "password": password}, timeout=15)
-        if r.status_code == 200:
-            return r.json().get("token"), None
-        return None, f"HTTP {r.status_code} — Check your credentials or server URL."
-    except Exception as e:
-        return None, f"Connection error: {e}"
-
-def kobo_header(token):
-    return {"Authorization": f"Token {token}"}
-
-def kobo_list_forms(token):
-    try:
-        r = requests.get(f"{KOBO_BASE}/api/v2/assets/?format=json&asset_type=survey&limit=200",
-                         headers=kobo_header(token), timeout=20)
-        if r.status_code == 200:
-            return r.json().get("results", []), None
-        return [], f"HTTP {r.status_code}: {r.text[:300]}"
-    except Exception as e:
-        return [], str(e)
-
-def kobo_fetch_data(token, uid, label="form"):
-    try:
-        all_rows = []
-        url = f"{KOBO_BASE}/api/v2/assets/{uid}/data/?format=json&limit=500"
-        while url:
-            r = requests.get(url, headers=kobo_header(token), timeout=30)
-            if r.status_code != 200:
-                return pd.DataFrame(), f"HTTP {r.status_code}"
-            j = r.json()
-            all_rows.extend(j.get("results", []))
-            url = j.get("next")
-        if not all_rows:
-            return pd.DataFrame(), None
-        df = pd.json_normalize(all_rows)
-        df.columns = [c.split("/")[-1] if "/" in c else c for c in df.columns]
-        return df, None
-    except Exception as e:
-        return pd.DataFrame(), str(e)
-
+try:
+    import requests
+    HAS_REQUESTS = True
+except ImportError:
+    HAS_REQUESTS = False
 
 # ── ReportLab (PDF) ──────────────────────────────────────────────────────────
 try:
@@ -156,47 +116,42 @@ html,body {{ font-family:var(--font); background:var(--bg); color:var(--text); m
 }}
 
 /* TOP NAV */
-.topnav {{
-  position:sticky; top:0; z-index:1000;
-  background:var(--navbg);
-  border-bottom:1px solid var(--navbdr);
-  display:flex; align-items:center; gap:0;
-  padding:0 2rem;
-  backdrop-filter:blur(12px);
-  -webkit-backdrop-filter:blur(12px);
+/* NAV BUTTONS — all Streamlit buttons in the nav row */
+[data-testid="stHorizontalBlock"] > div > [data-testid="stButton"] > button {{
+  background: transparent !important;
+  border: none !important;
+  border-bottom: 2px solid transparent !important;
+  border-radius: 0 !important;
+  color: var(--muted) !important;
+  font-family: var(--font) !important;
+  font-size: 0.82rem !important;
+  font-weight: 500 !important;
+  padding: 0.6rem 0.4rem !important;
+  width: 100% !important;
+  transition: all 0.15s !important;
+  white-space: nowrap !important;
 }}
-.topnav-brand {{
-  font-size:1rem; font-weight:800; color:var(--text);
-  white-space:nowrap; margin-right:2rem;
-  display:flex; align-items:center; gap:8px;
+[data-testid="stHorizontalBlock"] > div > [data-testid="stButton"] > button:hover {{
+  color: var(--text) !important;
+  background: var(--dim) !important;
 }}
-.topnav-brand span {{ color:var(--accent); }}
-.nav-tab {{
-  padding:0.85rem 1.1rem; cursor:pointer; border:none;
-  background:transparent; color:var(--muted);
-  font-family:var(--font); font-size:0.84rem; font-weight:500;
-  border-bottom:2px solid transparent;
-  transition:all 0.15s; white-space:nowrap;
-  display:flex; align-items:center; gap:5px;
+
+/* NAV BRAND */
+.nav-brand {{
+  font-family: var(--font);
+  font-size: 1rem; font-weight: 800; color: var(--text);
 }}
-.nav-tab:hover {{ color:var(--text); }}
-.nav-tab.active {{ color:var(--accent); border-bottom-color:var(--accent); font-weight:600; }}
-.nav-right {{ margin-left:auto; display:flex; align-items:center; gap:12px; }}
-.theme-toggle {{
-  background:var(--dim); border:1px solid var(--border);
-  border-radius:20px; padding:4px 10px; cursor:pointer;
-  font-size:0.78rem; color:var(--muted); font-family:var(--font);
-  display:flex; align-items:center; gap:5px; transition:all .15s;
-}}
-.theme-toggle:hover {{ border-color:var(--border2); color:var(--text); }}
+.nav-brand b {{ color: var(--accent); }}
+
+/* USER CHIP */
 .user-chip {{
-  background:var(--dim); border:1px solid var(--border);
-  border-radius:20px; padding:4px 12px;
-  font-size:0.78rem; color:var(--muted); font-family:var(--font);
+  background: var(--dim); border: 1px solid var(--border);
+  border-radius: 20px; padding: 3px 10px;
+  font-size: 0.76rem; color: var(--muted); font-family: var(--font);
 }}
 
 /* PAGE CONTENT */
-.page-content {{ padding:1.8rem 2.2rem; }}
+.page-content {{ padding: 1.5rem 2rem; }}
 
 /* KPI CARDS */
 .kpi-card {{
@@ -407,64 +362,392 @@ def load_data(file):
     return out
 
 # ══════════════════════════════════════════════════════════════════════════════
-# TOP NAVIGATION
+# TOP NAVIGATION  — pure Streamlit buttons, no JS tricks
 # ══════════════════════════════════════════════════════════════════════════════
 def top_nav():
+    th   = TH()
     page = st.session_state.get("page", "Overview")
     user = st.session_state.get("user", "")
     dark = st.session_state.get("dark", True)
-    theme_icon = "☀️ Light" if dark else "🌙 Dark"
+    src  = st.session_state.get("data_source","—")
+    src_icon = "🔗" if src == "kobo" else "📊"
 
-    tabs_html = ""
-    for icon, label in NAV_ITEMS:
-        active = "active" if page == label else ""
-        tabs_html += f"<button class='nav-tab {active}' onclick=\"document.getElementById('nav_{label}').click()\">{icon} {label}</button>"
-
+    # ── Brand bar (pure HTML, cosmetic only) ─────────────────────────────────
     st.markdown(f"""
-    <div class='topnav'>
-      <div class='topnav-brand'>🌍 <span>SI</span> Sudan IM</div>
-      {tabs_html}
-      <div class='nav-right'>
-        <div class='user-chip'>👤 {user}</div>
-      </div>
+    <div style='background:{th["navbg"]};border-bottom:1px solid {th["navborder"]};
+         padding:.6rem 1.5rem;display:flex;align-items:center;gap:10px;
+         position:sticky;top:0;z-index:1000;backdrop-filter:blur(12px);'>
+      <span style='font-size:1rem;font-weight:800;color:{th["text"]};font-family:Outfit,sans-serif;'>
+        🌍 <span style='color:{th["accent"]};'>SI</span> Sudan IM
+      </span>
+      <span style='margin-left:auto;font-size:.75rem;color:{th["muted"]};background:{th["dim"]};
+            padding:3px 10px;border-radius:20px;'>{src_icon} {user}</span>
     </div>""", unsafe_allow_html=True)
 
-    # Hidden Streamlit radio that JS clicks
-    cols = st.columns(len(NAV_ITEMS) + 3)
-    nav_labels = [f"{icon} {label}" for icon, label in NAV_ITEMS]
-    current_label = f"{dict(NAV_ITEMS).get(page, '🏠')} {page}" if False else next(
-        (f"{i} {l}" for i, l in NAV_ITEMS if l == page), nav_labels[0])
+    # ── Tab row — one Streamlit button per page ───────────────────────────────
+    labels  = [label for _, label in NAV_ITEMS]
+    n       = len(NAV_ITEMS)
+    # Extra 2 cols: theme + logout
+    cols    = st.columns(n + 2)
 
-    with cols[0]:
-        sel = st.radio("nav", nav_labels, index=nav_labels.index(current_label)
-                       if current_label in nav_labels else 0,
-                       label_visibility="collapsed", horizontal=True, key="nav_radio")
-        if sel:
-            label = sel.split(" ", 1)[1]
-            if st.session_state.get("page") != label:
-                st.session_state["page"] = label
-                st.rerun()
+    for i, (icon, label) in enumerate(NAV_ITEMS):
+        with cols[i]:
+            is_active = page == label
+            # Use custom CSS class via a tiny container
+            btn_style = f"""
+            <style>
+            div[data-testid="stButton"]:has(button[kind="secondary"][aria-label="nav_{label}"]) button {{
+                background: {"rgba(59,130,246,0.15)" if is_active else "transparent"} !important;
+                color: {th["accent"] if is_active else th["muted"]} !important;
+                border: none !important;
+                border-bottom: {"2px solid " + th["accent"] if is_active else "2px solid transparent"} !important;
+                border-radius: 0 !important;
+                font-weight: {"700" if is_active else "400"} !important;
+                font-size: .83rem !important;
+                padding: .55rem .6rem !important;
+                width: 100% !important;
+                white-space: nowrap !important;
+            }}
+            div[data-testid="stButton"]:has(button[kind="secondary"][aria-label="nav_{label}"]) button:hover {{
+                background: {th["dim"]} !important;
+                color: {th["text"]} !important;
+            }}
+            </style>"""
+            st.markdown(btn_style, unsafe_allow_html=True)
+            if st.button(f"{icon} {label}", key=f"nav_{label}",
+                         help=label, use_container_width=True,
+                         kwargs={"aria-label": f"nav_{label}"}):
+                if st.session_state.get("page") != label:
+                    st.session_state["page"] = label
+                    st.rerun()
 
-    # Theme toggle and logout as buttons in remaining cols
     with cols[-2]:
-        if st.button(theme_icon, key="theme_btn"):
+        theme_lbl = "☀️" if dark else "🌙"
+        if st.button(theme_lbl, key="theme_btn", help="Toggle light/dark theme",
+                     use_container_width=True):
             st.session_state["dark"] = not dark
             st.rerun()
+
     with cols[-1]:
-        if st.button("🚪 Logout", key="logout_btn"):
+        if st.button("🚪", key="logout_btn", help="Logout", use_container_width=True):
             st.session_state.clear(); st.rerun()
 
-    # File uploader (compact, always visible)
-    with st.expander("📂 Load / change database", expanded=not bool(st.session_state.get("dfs"))):
-        up = st.file_uploader("Excel file", type=["xlsx"], label_visibility="collapsed")
-        if up:
-            data = load_data(up)
-            st.session_state["dfs"] = data
-            st.success(f"✅ {len(data)} sheets loaded")
-            st.rerun()
+    st.markdown(f"<div style='padding:1.5rem 2rem 0;'>", unsafe_allow_html=True)
 
-    st.markdown("<div class='page-content'>", unsafe_allow_html=True)
 
+# LOGIN - KOBO INTEGRATION BEFORE THIS
+# ══════════════════════════════════════════════════════════════════════════════
+
+KOBO_SERVERS = {
+    "KoBoToolbox Global — kf.kobotoolbox.org": "https://kf.kobotoolbox.org",
+    "OCHA Humanitarian — kobo.humanitarianresponse.info": "https://kobo.humanitarianresponse.info",
+    "Custom server…": "custom",
+}
+
+def kobo_get_token(username, password, base_url):
+    url = f"{base_url}/token/?format=json"
+    try:
+        r = requests.get(url, auth=(username, password), timeout=20)
+        r.raise_for_status()
+        return r.json().get("token"), None
+    except Exception as e:
+        code = getattr(e.response if hasattr(e,"response") else None,"status_code",None)
+        if code == 401: return None, "Invalid KoBoToolbox username or password."
+        return None, str(e)
+
+def kobo_list_forms(token, base_url):
+    url = f"{base_url}/api/v2/assets/?asset_type=survey&format=json"
+    headers = {"Authorization": f"Token {token}"}
+    try:
+        r = requests.get(url, headers=headers, timeout=25)
+        r.raise_for_status()
+        data = r.json()
+        forms = []
+        for a in data.get("results",[]):
+            forms.append({
+                "uid":   a.get("uid",""),
+                "name":  a.get("name","Unnamed"),
+                "submissions": a.get("deployment__submission_count",0),
+                "owner": a.get("owner__username",""),
+                "modified": str(a.get("date_modified",""))[:10],
+            })
+        return forms, None
+    except Exception as e:
+        return None, str(e)
+
+def kobo_download_data(token, uid, base_url):
+    url = f"{base_url}/api/v2/assets/{uid}/data/?format=json&limit=30000"
+    headers = {"Authorization": f"Token {token}"}
+    try:
+        r = requests.get(url, headers=headers, timeout=60)
+        r.raise_for_status()
+        results = r.json().get("results", [])
+        if not results: return pd.DataFrame(), None
+        df = pd.json_normalize(results)
+        df.columns = [c.split("/")[-1].lstrip("_") for c in df.columns]
+        df = df.loc[:, ~df.columns.duplicated()]
+        return df, None
+    except Exception as e:
+        return None, str(e)
+
+def datasource_page():
+    inject_css(DARK)
+    th = DARK
+    st.markdown("""
+<style>
+.ds-card{background:var(--panel);border:1px solid var(--border2);border-radius:14px;
+  padding:1.8rem 2rem;text-align:center;transition:all .2s;}
+.ds-card:hover{border-color:var(--accent);transform:translateY(-3px);box-shadow:0 12px 40px rgba(59,130,246,0.15);}
+.ds-icon{font-size:2.6rem;margin-bottom:.8rem;}
+.ds-title{font-size:1.1rem;font-weight:700;color:var(--text);margin-bottom:.4rem;}
+.ds-desc{font-size:.82rem;color:var(--muted);line-height:1.6;}
+.step-badge{display:inline-block;background:rgba(59,130,246,0.15);color:#60A5FA;
+  font-size:.7rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;
+  padding:3px 10px;border-radius:20px;margin-bottom:1.2rem;}
+.kf-card{background:var(--panel);border:1px solid var(--border);border-radius:10px;
+  padding:.85rem 1.1rem;margin-bottom:.45rem;display:flex;align-items:center;gap:12px;}
+.kf-card:hover{border-color:var(--border2);}
+.kf-name{font-size:.87rem;font-weight:600;color:var(--text);}
+.kf-meta{font-size:.72rem;color:var(--muted);margin-top:2px;}
+.kf-badge{font-size:.7rem;font-weight:700;padding:2px 8px;border-radius:20px;
+  background:rgba(16,185,129,0.15);color:#34D399;margin-left:auto;white-space:nowrap;}
+.step-row{display:flex;align-items:center;gap:8px;font-size:.8rem;color:var(--muted);margin-bottom:1.5rem;}
+.sdot{width:24px;height:24px;border-radius:50%;display:flex;align-items:center;
+  justify-content:center;font-size:.72rem;font-weight:700;flex-shrink:0;}
+.sa{background:var(--accent);color:#fff;}
+.sd{background:rgba(16,185,129,0.8);color:#fff;}
+.sn{background:var(--dim);color:var(--muted);}
+.sline{flex:1;height:1px;background:var(--border);}
+</style>""", unsafe_allow_html=True)
+
+    step = st.session_state.get("kobo_step", 0)
+
+    def step_bar(current):
+        labels = ["Source","Connect","Forms","Load"]
+        html = "<div class='step-row'>"
+        for i,s in enumerate(labels):
+            cls = "sa" if i==current else ("sd" if i<current else "sn")
+            wt  = "700" if i==current else "400"
+            col = "var(--text)" if i==current else "var(--muted)"
+            html += f"<div class='sdot {cls}'>{i+1}</div>"
+            html += f"<span style='color:{col};font-weight:{wt};'>{s}</span>"
+            if i<len(labels)-1: html += "<div class='sline'></div>"
+        html += "</div>"
+        st.markdown(html, unsafe_allow_html=True)
+
+    # STEP 0: Choose source
+    if step == 0:
+        c1,c2,c3 = st.columns([1,2,1])
+        with c2:
+            st.markdown("<br>", unsafe_allow_html=True)
+            st.markdown("<div class='step-badge'>Step 1 of 4 — Data Source</div>", unsafe_allow_html=True)
+            st.markdown(f"<div style='font-size:1.5rem;font-weight:800;color:{th['text']};margin-bottom:.3rem;font-family:Outfit,sans-serif;'>Choose your data source</div>",unsafe_allow_html=True)
+            st.markdown(f"<div style='font-size:.87rem;color:{th['muted']};margin-bottom:1.8rem;'>Select how to load program data into the dashboard.</div>",unsafe_allow_html=True)
+            step_bar(0)
+            ca,cb = st.columns(2)
+            with ca:
+                st.markdown("""<div class='ds-card'>
+                  <div class='ds-icon'>📊</div>
+                  <div class='ds-title'>Excel File</div>
+                  <div class='ds-desc'>Upload an <b>.xlsx</b> file. Best for pre-processed or offline data.</div>
+                </div>""",unsafe_allow_html=True)
+                st.markdown("<br>",unsafe_allow_html=True)
+                if st.button("Use Excel File →", use_container_width=True, key="src_excel"):
+                    st.session_state.update(data_source="excel", kobo_step=10); st.rerun()
+            with cb:
+                st.markdown("""<div class='ds-card'>
+                  <div class='ds-icon'>🔗</div>
+                  <div class='ds-title'>KoBoToolbox Live</div>
+                  <div class='ds-desc'>Connect directly to KoBoToolbox and pull real-time form submissions.</div>
+                </div>""",unsafe_allow_html=True)
+                st.markdown("<br>",unsafe_allow_html=True)
+                if st.button("Connect to KoBoToolbox →", use_container_width=True, key="src_kobo"):
+                    st.session_state.update(data_source="kobo", kobo_step=1); st.rerun()
+            st.markdown(f"<br><div style='text-align:center;font-size:.72rem;color:{th['muted']};'>You can switch data source anytime from the dashboard.</div>",unsafe_allow_html=True)
+
+    # STEP 10: Excel upload
+    elif step == 10:
+        c1,c2,c3 = st.columns([1,2,1])
+        with c2:
+            st.markdown("<br>",unsafe_allow_html=True)
+            st.markdown("<div class='step-badge'>Excel Upload</div>",unsafe_allow_html=True)
+            st.markdown(f"<div style='font-size:1.5rem;font-weight:800;color:{th['text']};margin-bottom:1.2rem;font-family:Outfit,sans-serif;'>Upload Excel database</div>",unsafe_allow_html=True)
+            step_bar(3)
+            up = st.file_uploader("Select .xlsx file", type=["xlsx"])
+            if up:
+                with st.spinner("Loading sheets…"):
+                    data = load_data(up)
+                st.session_state["dfs"] = data
+                st.success(f"✅ {len(data)} sheets: {', '.join(list(data.keys())[:5])}")
+                st.markdown("<br>",unsafe_allow_html=True)
+                if st.button("Open Dashboard →", use_container_width=True, key="excel_go"):
+                    st.session_state["kobo_step"] = 99; st.rerun()
+            st.markdown("<br>",unsafe_allow_html=True)
+            if st.button("← Back", key="excel_back"):
+                st.session_state["kobo_step"]=0; st.rerun()
+
+    # STEP 1: KoBoToolbox credentials
+    elif step == 1:
+        c1,c2,c3 = st.columns([1,2,1])
+        with c2:
+            st.markdown("<br>",unsafe_allow_html=True)
+            st.markdown("<div class='step-badge'>Step 2 of 4 — Connect</div>",unsafe_allow_html=True)
+            st.markdown(f"<div style='font-size:1.5rem;font-weight:800;color:{th['text']};margin-bottom:.3rem;font-family:Outfit,sans-serif;'>KoBoToolbox Login</div>",unsafe_allow_html=True)
+            st.markdown(f"<div style='font-size:.85rem;color:{th['muted']};margin-bottom:1.2rem;'>Your password is used only to retrieve a temporary API token and is never stored.</div>",unsafe_allow_html=True)
+            step_bar(1)
+
+            srv_choice = st.selectbox("KoBoToolbox Server", list(KOBO_SERVERS.keys()), key="kobo_srv")
+            base_url   = KOBO_SERVERS[srv_choice]
+            if base_url == "custom":
+                base_url = st.text_input("Custom server URL", placeholder="https://your-kobo-server.org", key="kobo_cust")
+
+            kobo_u = st.text_input("Username", placeholder="your_username", key="kobo_u")
+            kobo_p = st.text_input("Password", type="password", placeholder="••••••••", key="kobo_p")
+
+            st.markdown(f"<div style='background:rgba(59,130,246,0.07);border:1px solid rgba(59,130,246,0.18);border-radius:8px;padding:.65rem 1rem;margin:.7rem 0;font-size:.77rem;color:{th['muted']};'>🔒 Credentials are stored only in your browser session and cleared on logout.</div>",unsafe_allow_html=True)
+
+            ca,cb = st.columns([3,1])
+            with ca:
+                go = st.button("Connect →", use_container_width=True, key="kobo_go")
+            with cb:
+                if st.button("← Back", key="k1b"): st.session_state["kobo_step"]=0; st.rerun()
+
+            if go:
+                if not kobo_u or not kobo_p: st.error("Enter your username and password."); return
+                if not base_url or base_url=="custom": st.error("Enter a valid server URL."); return
+                if not HAS_REQUESTS: st.error("Install requests: pip install requests"); return
+                with st.spinner("Authenticating…"):
+                    token, err = kobo_get_token(kobo_u, kobo_p, base_url)
+                if err: st.error(f"❌ {err}")
+                else:
+                    st.session_state.update(kobo_token=token, kobo_base_url=base_url,
+                                            kobo_username=kobo_u, kobo_step=2)
+                    st.rerun()
+
+    # STEP 2: Select forms
+    elif step == 2:
+        token    = st.session_state.get("kobo_token","")
+        base_url = st.session_state.get("kobo_base_url","")
+        kuser    = st.session_state.get("kobo_username","")
+
+        c1,c2,c3 = st.columns([0.4,3,0.4])
+        with c2:
+            st.markdown("<br>",unsafe_allow_html=True)
+            st.markdown("<div class='step-badge'>Step 3 of 4 — Select Forms</div>",unsafe_allow_html=True)
+            st.markdown(f"<div style='font-size:1.5rem;font-weight:800;color:{th['text']};margin-bottom:.3rem;font-family:Outfit,sans-serif;'>Select KoBoToolbox Forms</div>",unsafe_allow_html=True)
+            st.markdown(f"<div style='font-size:.84rem;color:{th['muted']};margin-bottom:1rem;'>Connected as <b style='color:{th['text']};'>{kuser}</b> · {base_url}</div>",unsafe_allow_html=True)
+            step_bar(2)
+
+            if "kobo_forms" not in st.session_state:
+                with st.spinner("Fetching forms list…"):
+                    forms, err = kobo_list_forms(token, base_url)
+                if err: st.error(f"❌ {err}"); st.button("← Back",key="k2be",on_click=lambda:st.session_state.update(kobo_step=1)); return
+                st.session_state["kobo_forms"] = forms or []
+
+            forms = st.session_state.get("kobo_forms",[])
+            if not forms:
+                st.warning("No forms found. Check your credentials or KoBoToolbox account.")
+                if st.button("← Back",key="k2bno"): st.session_state["kobo_step"]=1; st.rerun()
+                return
+
+            search   = st.text_input("🔍 Filter forms by name", label_visibility="collapsed", placeholder="Search…", key="fsearch")
+            filtered = [f for f in forms if search.lower() in f["name"].lower()] if search else forms
+            st.markdown(f"<div style='font-size:.77rem;color:{th['muted']};margin-bottom:.7rem;'>{len(filtered)} form(s) shown</div>",unsafe_allow_html=True)
+
+            selected = st.session_state.get("kobo_selected",{})
+            for form in filtered:
+                uid  = form["uid"];  name = form["name"]
+                subs = form["submissions"]; owner = form["owner"]; mod = form["modified"]
+                cc, ci = st.columns([0.07, 0.93])
+                with cc: checked = st.checkbox("", value=selected.get(uid,False), key=f"chk_{uid}"); selected[uid]=checked
+                with ci:
+                    fc = "#34D399" if subs>0 else "#64748B"
+                    st.markdown(f"""<div class='kf-card'>
+                      <div style='flex:1;'>
+                        <div class='kf-name'>📋 {name}</div>
+                        <div class='kf-meta'>UID: <code>{uid}</code> · Owner: {owner} · Modified: {mod}</div>
+                      </div>
+                      <div class='kf-badge' style='color:{fc};'>{subs:,} submissions</div>
+                    </div>""",unsafe_allow_html=True)
+            st.session_state["kobo_selected"] = selected
+
+            n_sel = sum(1 for v in selected.values() if v)
+            st.markdown("<br>",unsafe_allow_html=True)
+            ca,cb,cc2 = st.columns([1,2,1])
+            with ca:
+                if st.button("← Back",key="k2b"): st.session_state.pop("kobo_forms",None); st.session_state["kobo_step"]=1; st.rerun()
+            with cb:
+                st.markdown(f"<div style='text-align:center;font-size:.82rem;color:{th['text']};padding:.5rem;'><b>{n_sel}</b> form(s) selected</div>",unsafe_allow_html=True)
+            with cc2:
+                if st.button(f"Load {n_sel} →", use_container_width=True, key="k2load", disabled=(n_sel==0)):
+                    st.session_state["kobo_step"]=3; st.rerun()
+
+    # STEP 3: Download & map
+    elif step == 3:
+        token    = st.session_state.get("kobo_token","")
+        base_url = st.session_state.get("kobo_base_url","")
+        forms    = st.session_state.get("kobo_forms",[])
+        selected = st.session_state.get("kobo_selected",{})
+        sel_uids = [u for u,v in selected.items() if v]
+        fnames   = {f["uid"]:f["name"] for f in forms}
+
+        c1,c2,c3 = st.columns([1,2,1])
+        with c2:
+            st.markdown("<br>",unsafe_allow_html=True)
+            st.markdown("<div class='step-badge'>Step 4 of 4 — Loading Data</div>",unsafe_allow_html=True)
+            st.markdown(f"<div style='font-size:1.5rem;font-weight:800;color:{th['text']};margin-bottom:.3rem;font-family:Outfit,sans-serif;'>Downloading Submissions</div>",unsafe_allow_html=True)
+            st.markdown(f"<div style='font-size:.84rem;color:{th['muted']};margin-bottom:1.2rem;'>Downloading {len(sel_uids)} form(s). This may take a moment.</div>",unsafe_allow_html=True)
+            step_bar(3)
+
+            pb   = st.progress(0)
+            stat = st.empty()
+            dfs_k = {}; errs = []; logs = []
+
+            for i, uid in enumerate(sel_uids):
+                nm = fnames.get(uid,uid)
+                pb.progress(i/len(sel_uids), text=f"Downloading: {nm}…")
+                stat.markdown(f"<div style='font-size:.81rem;color:{th['muted']};'>⏳ {nm}…</div>",unsafe_allow_html=True)
+                df, err = kobo_download_data(token, uid, base_url)
+                if err:   errs.append(nm); logs.append(f"❌ **{nm}** — {err}")
+                else:
+                    dfs_k[nm] = df if df is not None else pd.DataFrame()
+                    logs.append(f"✅ **{nm}** — {len(df) if df is not None else 0:,} records, {len(df.columns) if df is not None else 0} fields")
+
+            pb.progress(1.0, text="Done!")
+            stat.empty()
+
+            for log in logs: st.markdown(log)
+
+            if dfs_k:
+                DASH_SHEETS = ["— Keep as-is —","Beneficiary_Registration","WASH_Monitoring",
+                               "FSL_Distribution","CVA_Cash_Transfers","Indicator_Tracker"]
+                st.markdown("<br>",unsafe_allow_html=True)
+                st.markdown(f"<div style='font-weight:700;font-size:.9rem;color:{th['text']};margin-bottom:.7rem;'>Map forms to dashboard sections (optional)</div>",unsafe_allow_html=True)
+                mappings = {}
+                for fnm in dfs_k:
+                    ca2,cb2 = st.columns([1.6,1])
+                    with ca2: st.markdown(f"<div style='font-size:.84rem;font-weight:500;color:{th['text']};padding:.55rem 0;'>📋 {fnm}</div>",unsafe_allow_html=True)
+                    with cb2: mappings[fnm] = st.selectbox("→",DASH_SHEETS,key=f"mp_{fnm}",label_visibility="collapsed")
+                st.session_state["kobo_mappings"] = mappings
+
+                st.markdown("<br>",unsafe_allow_html=True)
+                ca3,cb3 = st.columns([1,2])
+                with ca3:
+                    if st.button("← Back",key="k3b"): st.session_state["kobo_step"]=2; st.rerun()
+                with cb3:
+                    if st.button("Open Dashboard →", use_container_width=True, key="k3go"):
+                        final = {}
+                        for fnm,df in dfs_k.items():
+                            tgt = mappings.get(fnm,"— Keep as-is —")
+                            final[tgt if tgt!="— Keep as-is —" else fnm] = df
+                        st.session_state["dfs"] = final
+                        st.session_state["kobo_step"] = 99
+                        st.rerun()
+            else:
+                st.error("No data loaded. Check permissions on the selected forms.")
+                if st.button("← Start over",key="k3rst"): st.session_state["kobo_step"]=0; st.rerun()
+
+# ══════════════════════════════════════════════════════════════════════════════
 # LOGIN
 # ══════════════════════════════════════════════════════════════════════════════
 def login_page():
@@ -1577,410 +1860,43 @@ def page_report(dfs):
             st.success("✅ Text report ready!")
             st.code(txt, language=None)
 
-# ══════════════════════════════════════════════════════════════════════════════
-
-# ══════════════════════════════════════════════════════════════════════════════
-# DATA SOURCE SELECTION PAGE
-# ══════════════════════════════════════════════════════════════════════════════
-
-DS_CSS = """
-<style>
-.ds-card {
-  background: var(--panel); border: 2px solid var(--border);
-  border-radius: 14px; padding: 1.8rem 2rem; cursor: pointer;
-  transition: all .2s; position: relative; overflow: hidden;
-  text-align: center;
-}
-.ds-card:hover { border-color: var(--accent); transform: translateY(-3px);
-  box-shadow: 0 12px 40px rgba(59,130,246,0.15); }
-.ds-card.selected { border-color: var(--accent);
-  background: rgba(59,130,246,0.07); }
-.ds-card::before { content:''; position:absolute; top:0; left:0; right:0; height:3px; }
-.ds-card-excel::before { background: linear-gradient(90deg,#10B981,#34D399); }
-.ds-card-kobo::before  { background: linear-gradient(90deg,#3B82F6,#60A5FA); }
-.ds-icon { font-size: 2.8rem; margin-bottom: .8rem; }
-.ds-title { font-size: 1.1rem; font-weight: 700; color: var(--text);
-  font-family: var(--font); margin-bottom: .4rem; }
-.ds-desc { font-size: .82rem; color: var(--muted); line-height: 1.6; }
-.ds-badge { display:inline-block; background:rgba(16,185,129,0.15); color:#34D399;
-  font-size:.68rem; font-weight:700; padding:2px 8px; border-radius:12px;
-  margin-top:.6rem; letter-spacing:.05em; }
-.ds-badge-blue { background:rgba(59,130,246,0.15); color:#60A5FA; }
-
-.kobo-step {
-  background: var(--panel); border: 1px solid var(--border);
-  border-radius: 12px; padding: 1.4rem 1.8rem; margin-bottom: 1rem;
-}
-.kobo-step-num {
-  display:inline-flex; align-items:center; justify-content:center;
-  width:26px; height:26px; border-radius:50%;
-  background:var(--accent); color:#fff;
-  font-size:.75rem; font-weight:700; margin-right:8px; flex-shrink:0;
-}
-.kobo-step-title { font-size:.95rem; font-weight:600; color:var(--text);
-  display:flex; align-items:center; margin-bottom:.7rem; }
-
-.form-item {
-  background: var(--card); border: 1px solid var(--border);
-  border-radius: 10px; padding: .9rem 1.1rem; margin-bottom: .5rem;
-  display: flex; align-items: center; gap: 12px; transition: all .15s;
-}
-.form-item:hover { border-color: var(--border2); }
-.form-item.selected { border-color: var(--accent); background: rgba(59,130,246,0.05); }
-.form-tag { font-size:.7rem; font-weight:600; padding:2px 8px; border-radius:12px;
-  background:rgba(59,130,246,0.12); color:var(--accent2); }
-.form-meta { font-size:.72rem; color:var(--muted); font-family:var(--mono); }
-.form-name { font-size:.88rem; font-weight:500; color:var(--text); }
-
-.server-option {
-  background:var(--card); border:1px solid var(--border); border-radius:10px;
-  padding:.8rem 1.1rem; cursor:pointer; transition:all .15s; margin-bottom:.4rem;
-  display:flex; align-items:center; gap:10px;
-}
-.server-option:hover { border-color:var(--border2); }
-.server-option.selected { border-color:var(--accent); }
-.server-dot { width:10px; height:10px; border-radius:50%;
-  background:var(--border2); flex-shrink:0; }
-.server-dot.active { background:var(--accent); }
-</style>
-"""
-
-def page_datasource():
-    """
-    Step-by-step data source selection shown after login, before dashboard.
-    Handles both Excel upload and KoBoToolbox API flow.
-    """
-    inject_css(DARK)
-    th = DARK
-
-    # Header
-    st.markdown(f"""
-    <div style='text-align:center; padding: 2.5rem 0 1.5rem;'>
-      <div style='font-size:.8rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;
-        color:{th["accent2"]};margin-bottom:.8rem;'>Step 1 of 2 — Data Source</div>
-      <div style='font-size:1.7rem;font-weight:800;color:{th["text"]};font-family:Outfit,sans-serif;margin-bottom:.4rem;'>
-        Choose your data source
-      </div>
-      <div style='font-size:.9rem;color:{th["muted"]};'>
-        Select how you want to load program data into the dashboard
-      </div>
-    </div>
-    """, unsafe_allow_html=True)
-
-    st.markdown(DS_CSS, unsafe_allow_html=True)
-
-    source = st.session_state.get("ds_choice", None)
-
-    col_l, col_excel, col_kobo, col_r = st.columns([0.5, 1, 1, 0.5])
-
-    with col_excel:
-        excel_sel = "selected" if source == "excel" else ""
-        st.markdown(f"""<div class='ds-card ds-card-excel {excel_sel}'>
-          <div class='ds-icon'>📊</div>
-          <div class='ds-title'>Excel / CSV File</div>
-          <div class='ds-desc'>Upload a local .xlsx file containing your program data across multiple sheets (beneficiaries, WASH, FSL, CVA, indicators).</div>
-          <div class='ds-badge'>✓ Offline · No internet needed</div>
-        </div>""", unsafe_allow_html=True)
-        if st.button("Use Excel file", use_container_width=True, key="btn_excel"):
-            st.session_state["ds_choice"] = "excel"
-            st.rerun()
-
-    with col_kobo:
-        kobo_sel = "selected" if source == "kobo" else ""
-        st.markdown(f"""<div class='ds-card ds-card-kobo {kobo_sel}'>
-          <div class='ds-icon'>🔗</div>
-          <div class='ds-title'>KoBoToolbox Live Data</div>
-          <div class='ds-desc'>Connect directly to your KoBoToolbox account to pull real-time form submissions and build your dashboard from live field data.</div>
-          <div class='ds-badge ds-badge-blue'>⚡ Real-time · Always up-to-date</div>
-        </div>""", unsafe_allow_html=True)
-        if st.button("Connect KoBoToolbox", use_container_width=True, key="btn_kobo"):
-            st.session_state["ds_choice"] = "kobo"
-            st.rerun()
-
-    st.markdown("<br>", unsafe_allow_html=True)
-
-    # ── EXCEL FLOW ─────────────────────────────────────────────────────────
-    if source == "excel":
-        st.markdown(f"""
-        <div style='max-width:600px;margin:0 auto;'>
-          <div class='kobo-step'>
-            <div class='kobo-step-title'><span class='kobo-step-num'>1</span>Upload your Excel database</div>
-        """, unsafe_allow_html=True)
-        c1, c2, c3 = st.columns([0.5, 2, 0.5])
-        with c2:
-            up = st.file_uploader("Excel file (.xlsx)", type=["xlsx"], label_visibility="collapsed")
-            if up:
-                with st.spinner("Loading sheets…"):
-                    data = load_data(up)
-                st.session_state["dfs"] = data
-                st.session_state["data_source"] = "excel"
-                st.session_state["ds_step"] = "done"
-                st.success(f"✅ {len(data)} sheets loaded: {', '.join(data.keys())}")
-                if st.button("→ Open Dashboard", use_container_width=True, key="btn_open_excel"):
-                    st.session_state["ds_done"] = True
-                    st.rerun()
-        st.markdown("</div></div>", unsafe_allow_html=True)
-
-    # ── KOBO FLOW ───────────────────────────────────────────────────────────
-    elif source == "kobo":
-        kobo_step = st.session_state.get("kobo_step", "server")  # server → auth → forms → done
-
-        st.markdown("<div style='max-width:680px;margin:0 auto;'>", unsafe_allow_html=True)
-
-        # ── Step A: Server selection ──────────────────────────────────────
-        server = st.session_state.get("kobo_server", KOBO_BASE)
-        server_options = {
-            "KoBoToolbox (Global)":           "https://kf.kobotoolbox.org",
-            "Humanitarian (OCHA / UN)":       "https://kobo.humanitarianresponse.info",
-            "Custom server":                  "__custom__",
-        }
-        rev_map = {v: k for k, v in server_options.items()}
-        current_srv_label = rev_map.get(server, "Custom server")
-
-        with st.container():
-            st.markdown(f"""<div class='kobo-step'>
-              <div class='kobo-step-title'><span class='kobo-step-num'>1</span>Select KoBoToolbox server</div>
-            """, unsafe_allow_html=True)
-            srv_choice = st.radio("Server", list(server_options.keys()),
-                                  index=list(server_options.keys()).index(current_srv_label)
-                                  if current_srv_label in server_options else 0,
-                                  label_visibility="collapsed", key="srv_radio")
-            chosen_url = server_options[srv_choice]
-            if chosen_url == "__custom__":
-                chosen_url = st.text_input("Custom server URL",
-                                           value=server if server not in server_options.values() else "https://",
-                                           placeholder="https://your-kobo-server.org",
-                                           label_visibility="collapsed", key="custom_srv")
-            if chosen_url != server:
-                st.session_state["kobo_server"] = chosen_url
-            st.markdown("</div>", unsafe_allow_html=True)
-
-        # ── Step B: Authentication ────────────────────────────────────────
-        with st.container():
-            st.markdown(f"""<div class='kobo-step'>
-              <div class='kobo-step-title'><span class='kobo-step-num'>2</span>Sign in to KoBoToolbox</div>
-            """, unsafe_allow_html=True)
-
-            kobo_token = st.session_state.get("kobo_token")
-
-            if kobo_token:
-                st.success(f"✅ Connected — token active")
-                st.markdown(f"<div class='form-meta'>Server: {st.session_state.get('kobo_server', KOBO_BASE)}</div>", unsafe_allow_html=True)
-                if st.button("🔓 Disconnect / change account", key="btn_disco"):
-                    for k in ["kobo_token","kobo_forms","kobo_selected_uids","kobo_step"]:
-                        st.session_state.pop(k, None)
-                    st.rerun()
-            else:
-                c1, c2 = st.columns(2)
-                with c1:
-                    ku = st.text_input("KoBoToolbox username", placeholder="your_username", label_visibility="collapsed", key="kobo_user")
-                with c2:
-                    kp = st.text_input("KoBoToolbox password", type="password", placeholder="Password", label_visibility="collapsed", key="kobo_pass")
-                if st.button("🔐 Connect to KoBoToolbox", use_container_width=True, key="btn_kobo_auth"):
-                    srv = st.session_state.get("kobo_server", KOBO_BASE)
-                    if not ku or not kp:
-                        st.error("Please enter both username and password.")
-                    else:
-                        with st.spinner("Authenticating…"):
-                            token, err = kobo_get_token_from_server(srv, ku, kp)
-                        if token:
-                            st.session_state["kobo_token"] = token
-                            st.session_state["kobo_username"] = ku
-                            st.session_state["kobo_step"] = "forms"
-                            st.success("✅ Connected successfully!")
-                            st.rerun()
-                        else:
-                            st.error(f"Authentication failed: {err}")
-            st.markdown("</div>", unsafe_allow_html=True)
-
-        # ── Step C: Form selection ────────────────────────────────────────
-        kobo_token = st.session_state.get("kobo_token")
-        if kobo_token:
-            with st.container():
-                st.markdown(f"""<div class='kobo-step'>
-                  <div class='kobo-step-title'><span class='kobo-step-num'>3</span>Select KoBoToolbox forms to use in the dashboard</div>
-                """, unsafe_allow_html=True)
-
-                # Load form list (cached in session)
-                if "kobo_forms" not in st.session_state:
-                    srv = st.session_state.get("kobo_server", KOBO_BASE)
-                    with st.spinner("Fetching your forms…"):
-                        forms, err = kobo_list_forms_from_server(srv, kobo_token)
-                    if err:
-                        st.error(f"Could not load forms: {err}")
-                        forms = []
-                    st.session_state["kobo_forms"] = forms
-
-                forms = st.session_state.get("kobo_forms", [])
-
-                if not forms:
-                    st.info("No forms found on this account. Make sure you have at least one deployed survey.")
-                else:
-                    st.markdown(f"<div class='form-meta' style='margin-bottom:.8rem;'>Found <b>{len(forms)}</b> form(s) on your account. Select those to pull into the dashboard.</div>", unsafe_allow_html=True)
-
-                    # Quick filters
-                    search = st.text_input("🔍 Search forms", placeholder="Type form name…", label_visibility="collapsed", key="form_search")
-                    filtered_forms = [f for f in forms if search.lower() in f.get("name","").lower()] if search else forms
-
-                    selected_uids = st.session_state.get("kobo_selected_uids", set())
-                    if not isinstance(selected_uids, set):
-                        selected_uids = set(selected_uids)
-
-                    # Select all / none
-                    ca, cb = st.columns(2)
-                    with ca:
-                        if st.button("✅ Select all", key="sel_all", use_container_width=True):
-                            selected_uids = {f["uid"] for f in filtered_forms}
-                            st.session_state["kobo_selected_uids"] = selected_uids
-                            st.rerun()
-                    with cb:
-                        if st.button("⬜ Clear all", key="sel_none", use_container_width=True):
-                            selected_uids = set()
-                            st.session_state["kobo_selected_uids"] = selected_uids
-                            st.rerun()
-
-                    st.markdown("<br>", unsafe_allow_html=True)
-
-                    # Form list with checkboxes
-                    for form in filtered_forms:
-                        uid  = form.get("uid","")
-                        name = form.get("name","Unnamed form")
-                        nb   = form.get("deployment__submission_count", 0)
-                        dt   = form.get("date_modified","")[:10] if form.get("date_modified") else "—"
-                        sel  = uid in selected_uids
-                        sel_class = "selected" if sel else ""
-
-                        st.markdown(f"""<div class='form-item {sel_class}'>
-                          <div style='flex:1;'>
-                            <div class='form-name'>{name}</div>
-                            <div class='form-meta'>{uid} &nbsp;·&nbsp; {nb:,} submissions &nbsp;·&nbsp; Modified: {dt}</div>
-                          </div>
-                          <span class='form-tag'>{'✓ Selected' if sel else 'Not selected'}</span>
-                        </div>""", unsafe_allow_html=True)
-                        chk = st.checkbox(f"Select: {name}", value=sel, key=f"chk_{uid}", label_visibility="collapsed")
-                        if chk and uid not in selected_uids:
-                            selected_uids.add(uid)
-                            st.session_state["kobo_selected_uids"] = selected_uids
-                        elif not chk and uid in selected_uids:
-                            selected_uids.discard(uid)
-                            st.session_state["kobo_selected_uids"] = selected_uids
-
-                    st.markdown("<br>", unsafe_allow_html=True)
-                    nb_sel = len(selected_uids)
-                    if nb_sel > 0:
-                        st.success(f"✅ {nb_sel} form(s) selected")
-                        if st.button(f"⬇ Pull data from {nb_sel} form(s) & open dashboard →",
-                                     use_container_width=True, key="btn_pull"):
-                            srv = st.session_state.get("kobo_server", KOBO_BASE)
-                            progress = st.progress(0, text="Pulling submissions…")
-                            dfs = {}
-                            for i, uid in enumerate(list(selected_uids)):
-                                form_name = next((f["name"] for f in forms if f["uid"]==uid), uid)
-                                progress.progress((i+1)/nb_sel, text=f"Loading: {form_name}…")
-                                df_k, err = kobo_fetch_data_from_server(srv, kobo_token, uid)
-                                if not df_k.empty:
-                                    safe_name = form_name[:31]  # sheet name limit
-                                    dfs[safe_name] = df_k
-                                elif err:
-                                    st.warning(f"⚠ {form_name}: {err}")
-                            progress.empty()
-                            if dfs:
-                                st.session_state["dfs"] = dfs
-                                st.session_state["data_source"] = "kobo"
-                                st.session_state["ds_done"] = True
-                                st.success(f"✅ Data pulled from {len(dfs)} form(s)! Opening dashboard…")
-                                st.rerun()
-                            else:
-                                st.error("No data retrieved. Verify the selected forms have submissions.")
-                    else:
-                        st.info("Select at least one form to continue.")
-
-                st.markdown("</div>", unsafe_allow_html=True)
-
-        st.markdown("</div>", unsafe_allow_html=True)  # max-width wrapper
-
-    # ── Back to login ───────────────────────────────────────────────────────
-    st.markdown("<br>", unsafe_allow_html=True)
-    c1,c2,c3 = st.columns([1,0.4,1])
-    with c2:
-        if st.button("← Back to login", key="btn_back_login"):
-            st.session_state.clear(); st.rerun()
-
-
-# ── Server-aware wrappers (use session kobo_server) ──────────────────────────
-
-def kobo_get_token_from_server(server, username, password):
-    try:
-        r = requests.post(f"{server}/token/?format=json",
-                          data={"username": username, "password": password}, timeout=15)
-        if r.status_code == 200:
-            return r.json().get("token"), None
-        return None, f"HTTP {r.status_code}: {r.text[:200]}"
-    except Exception as e:
-        return None, str(e)
-
-def kobo_list_forms_from_server(server, token):
-    try:
-        r = requests.get(f"{server}/api/v2/assets/?format=json&asset_type=survey&limit=200",
-                         headers={"Authorization": f"Token {token}"}, timeout=20)
-        if r.status_code == 200:
-            return r.json().get("results", []), None
-        return [], f"HTTP {r.status_code}"
-    except Exception as e:
-        return [], str(e)
-
-def kobo_fetch_data_from_server(server, token, uid):
-    try:
-        all_rows = []
-        url = f"{server}/api/v2/assets/{uid}/data/?format=json&limit=500"
-        while url:
-            r = requests.get(url, headers={"Authorization": f"Token {token}"}, timeout=30)
-            if r.status_code != 200:
-                return pd.DataFrame(), f"HTTP {r.status_code}"
-            j = r.json()
-            all_rows.extend(j.get("results", []))
-            url = j.get("next")
-        if not all_rows:
-            return pd.DataFrame(), None
-        df = pd.json_normalize(all_rows)
-        df.columns = [c.split("/")[-1] if "/" in c else c for c in df.columns]
-        return df, None
-    except Exception as e:
-        return pd.DataFrame(), str(e)
-
 
 # ══════════════════════════════════════════════════════════════════════════════
 # MAIN
 # ══════════════════════════════════════════════════════════════════════════════
 def main():
-    # 1. Not authenticated → login
+    # 1. Not logged in → login page
     if not st.session_state.get("auth"):
-        login_page(); return
+        login_page()
+        return
 
-    # 2. Authenticated but data source not chosen/done yet → datasource page
-    if not st.session_state.get("ds_done"):
+    # 2. Logged in but data source not yet selected → datasource page
+    kobo_step = st.session_state.get("kobo_step", 0)
+    if kobo_step != 99:
         inject_css(DARK)
-        page_datasource(); return
+        datasource_page()
+        return
 
     # 3. Full dashboard
     inject_css(TH())
     top_nav()
 
-    page = st.session_state.get("page","Overview")
+    page = st.session_state.get("page", "Overview")
     dfs  = st.session_state.get("dfs", {})
 
+    th = TH()
     if not dfs and page != "Report":
-        st.markdown("""<div style='text-align:center;padding:5rem 2rem;
-          background:var(--panel);border:1px dashed var(--border2);
+        st.markdown(f"""<div style='text-align:center;padding:5rem 2rem;
+          background:{th["panel"]};border:1px dashed {th["border2"]};
           border-radius:14px;margin-top:2rem;'>
           <div style='font-size:2.5rem;margin-bottom:1rem;'>📂</div>
-          <div style='font-size:1.1rem;font-weight:700;color:var(--text);margin-bottom:.5rem;'>No data loaded</div>
-          <div style='font-size:.85rem;color:var(--muted);'>
-            Go back to the data source page to upload an Excel file or connect KoBoToolbox.
+          <div style='font-size:1.1rem;font-weight:700;color:{th["text"]};margin-bottom:.5rem;'>No data loaded</div>
+          <div style='font-size:.85rem;color:{th["muted"]};'>
+            Go back to the data source page to load your data.
           </div>
         </div>""", unsafe_allow_html=True)
         if st.button("← Change data source"):
-            st.session_state["ds_done"] = False
+            st.session_state["kobo_step"] = 0
             st.session_state.pop("dfs", None)
             st.rerun()
         st.markdown("</div>", unsafe_allow_html=True)
