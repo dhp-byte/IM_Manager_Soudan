@@ -802,11 +802,444 @@ def login_page():
 # MAP PAGE  (enriched)
 # ══════════════════════════════════════════════════════════════════════════════
 # SUDAN GEOGRAPHIC CONSTANTS
-# All coordinates verified within Sudan bounding box:
-#   Lat: 8.68 – 23.15   Lon: 21.83 – 38.61
+# Bounding box: Lat 8.68–23.15 · Lon 21.83–38.61
 # ══════════════════════════════════════════════════════════════════════════════
-SUDAN_LAT_MIN, SUDAN_LAT_MAX = 8.68,  23.15
+SUDAN_LAT_MIN, SUDAN_LAT_MAX = 8.68, 23.15
 SUDAN_LON_MIN, SUDAN_LON_MAX = 21.83, 38.61
+
+# Verified state centroids
+STATE_CENTROIDS = {
+    "West Darfur":    (13.58, 22.72), "North Darfur":   (15.85, 24.90),
+    "South Darfur":   (11.50, 25.10), "Central Darfur": (13.10, 24.10),
+    "East Darfur":    (12.85, 26.80), "Khartoum":       (15.50, 32.53),
+    "Gedaref":        (14.03, 35.39), "Kassala":        (15.47, 36.40),
+    "River Nile":     (18.50, 33.80), "Northern":       (20.80, 30.20),
+    "North Kordofan": (13.80, 29.40), "South Kordofan": (11.00, 29.40),
+    "White Nile":     (13.10, 32.20), "Blue Nile":      (11.80, 34.00),
+    "Sennar":         (13.55, 33.60), "Red Sea":        (20.00, 37.20),
+    "Al Jazirah":     (14.40, 33.40),
+}
+
+# Per-state locality offsets for realistic scatter (all within state boundaries)
+import random as _rnd
+_rnd.seed(42)
+STATE_SCATTER = {s: [(lat + _rnd.uniform(-0.35,0.35), lon + _rnd.uniform(-0.35,0.35))
+                     for _ in range(8)]
+                 for s, (lat,lon) in STATE_CENTROIDS.items()}
+
+def _gps_for_row(row):
+    """Return (lat,lon) for a row: real GPS if valid in Sudan, else state centroid scatter."""
+    try:
+        lat = float(row.get("GPS_Latitude", ""))
+        lon = float(row.get("GPS_Longitude", ""))
+        if (SUDAN_LAT_MIN <= lat <= SUDAN_LAT_MAX and
+                SUDAN_LON_MIN <= lon <= SUDAN_LON_MAX):
+            return lat, lon
+    except (TypeError, ValueError):
+        pass
+    # Fallback: state centroid with small scatter
+    state = str(row.get("State", ""))
+    if state in STATE_CENTROIDS:
+        pts = STATE_SCATTER[state]
+        idx = hash(str(row.get("Beneficiary_ID", row.get("_index", 0)))) % len(pts)
+        return pts[idx]
+    # Last resort: random point in Sudan
+    return (_rnd.uniform(10, 22), _rnd.uniform(23, 37))
+
+def _enrich_gps(df):
+    """Add/fix GPS columns using _gps_for_row, returns df with valid Sudan coords."""
+    if df.empty: return df
+    df = df.copy().reset_index(drop=True)
+    df["_index"] = df.index
+    coords = df.apply(_gps_for_row, axis=1)
+    df["GPS_Latitude"]  = coords.apply(lambda x: x[0])
+    df["GPS_Longitude"] = coords.apply(lambda x: x[1])
+    return df
+
+def _clean_gps(df):
+    """Return df with GPS — uses real coords if valid, falls back to state centroids."""
+    return _enrich_gps(df) if not df.empty else pd.DataFrame()
+
+def _add_state_labels(m, dark=True):
+    bg  = "rgba(30,58,138,0.82)" if dark else "rgba(255,255,255,0.88)"
+    tc  = "#e2e8f0" if dark else "#1e293b"
+    bdc = "rgba(147,197,253,0.3)" if dark else "rgba(59,130,246,0.3)"
+    for state, (lat,lon) in STATE_CENTROIDS.items():
+        folium.Marker(
+            location=[lat, lon],
+            icon=folium.DivIcon(
+                html=f"""<div style='background:{bg};color:{tc};padding:2px 7px;
+                         border-radius:10px;font-family:Outfit,sans-serif;font-size:10px;
+                         font-weight:600;white-space:nowrap;border:1px solid {bdc};
+                         box-shadow:0 2px 6px rgba(0,0,0,0.3);'>{state}</div>""",
+                icon_size=(140, 22), icon_anchor=(70, 11)
+            )
+        ).add_to(m)
+
+def _base_map(dark=True, location=(14.8, 29.5), zoom=5):
+    tiles = "CartoDB dark_matter" if dark else "CartoDB positron"
+    m = folium.Map(location=location, zoom_start=zoom, tiles=tiles,
+                   attr="© CartoDB", prefer_canvas=True)
+    MiniMap(toggle_display=True, position="bottomleft", tile_layer=tiles,
+            zoom_level_offset=-6).add_to(m)
+    return m
+
+def _map_legend(m, items, title="Legend", dark=True):
+    bg = "rgba(13,23,48,0.93)" if dark else "rgba(255,255,255,0.93)"
+    tc = "#e2e8f0" if dark else "#1e293b"
+    sc = "#94a3b8" if dark else "#64748b"
+    html = (f"<div style='position:fixed;bottom:32px;right:16px;z-index:9999;"
+            f"background:{bg};border:1px solid rgba(99,140,210,0.25);border-radius:10px;"
+            f"padding:11px 15px;font-family:Outfit,sans-serif;min-width:150px;'>"
+            f"<div style='font-weight:700;font-size:10px;color:{tc};margin-bottom:7px;"
+            f"letter-spacing:.08em;text-transform:uppercase;'>{title}</div>")
+    for label, color in items:
+        html += (f"<div style='display:flex;align-items:center;gap:7px;margin-bottom:4px;'>"
+                 f"<span style='width:10px;height:10px;border-radius:50%;background:{color};"
+                 f"display:inline-block;flex-shrink:0;'></span>"
+                 f"<span style='font-size:10px;color:{sc};'>{label}</span></div>")
+    html += "</div>"
+    m.get_root().html.add_child(folium.Element(html))
+
+# ── MAP 1: All beneficiaries — clusters + heatmap ────────────────────────────
+def map_beneficiaries(df, dark=True):
+    dfm = _clean_gps(df)
+    m   = _base_map(dark)
+    _add_state_labels(m, dark)
+    if dfm.empty:
+        _map_legend(m, list(SC.items()), "Sectors", dark)
+        return m
+
+    HeatMap(dfm[["GPS_Latitude","GPS_Longitude"]].values.tolist(),
+            radius=18, blur=22, min_opacity=0.18, max_zoom=10).add_to(m)
+
+    cl = MarkerCluster(options={"maxClusterRadius":55,"showCoverageOnHover":False,
+                                "spiderfyOnMaxZoom":True}).add_to(m)
+    for _, row in dfm.iterrows():
+        sec   = str(row.get("Sector","")) if has(df,"Sector") else ""
+        color = SC.get(sec,"#64748B")
+        pop   = (f"<div style='font-family:Outfit,sans-serif;font-size:12px;min-width:175px;'>"
+                 f"<b style='color:#1e293b;'>{row.get('Beneficiary_ID','—')}</b><br>"
+                 f"<span style='color:#64748b;'>State:</span> {row.get('State','—')}<br>"
+                 f"<span style='color:#64748b;'>Sector:</span> <b style='color:{color};'>{sec}</b><br>"
+                 f"<span style='color:#64748b;'>Displacement:</span> {row.get('Displacement_Status','—')}<br>"
+                 f"<span style='color:#64748b;'>Vulnerability:</span> {row.get('Vulnerability_Level','—')}"
+                 f"</div>")
+        folium.CircleMarker(
+            location=[row["GPS_Latitude"], row["GPS_Longitude"]],
+            radius=5, color=color, fill=True, fill_color=color,
+            fill_opacity=0.8, weight=0.8,
+            popup=folium.Popup(pop, max_width=240),
+            tooltip=f"{row.get('Locality','—')} · {sec}"
+        ).add_to(cl)
+
+    _map_legend(m, list(SC.items()), "Sectors", dark)
+    return m
+
+# ── MAP 2: Sector bubbles per state ──────────────────────────────────────────
+def map_sector_coverage(df, dark=True):
+    m = _base_map(dark)
+    _add_state_labels(m, dark)
+    if not (has(df,"State") and has(df,"Sector")):
+        return m
+
+    sec_list  = list(SC.keys())
+    n_sec     = len(sec_list)
+    # Offsets so bubbles don't overlap (compass rose pattern)
+    offsets   = [(0.0,0.0),(0.28,0.0),(-0.28,0.0),(0.0,0.28),(0.0,-0.28)]
+
+    for state, (lat, lon) in STATE_CENTROIDS.items():
+        sub = df[df["State"]==state] if has(df,"State") else pd.DataFrame()
+        if sub.empty: continue
+        total = len(sub)
+        for i, (sec, color) in enumerate(SC.items()):
+            n = slen(sub,"Sector",sec)
+            if n == 0: continue
+            pct    = n / max(total, 1)
+            radius = max(8, min(45, pct * 60))
+            dlat, dlon = offsets[i % len(offsets)]
+            folium.CircleMarker(
+                location=[lat + dlat, lon + dlon],
+                radius=radius, color=color, fill=True, fill_color=color,
+                fill_opacity=0.60, weight=1.5,
+                tooltip=f"{state} · {sec}: {n:,} ({pct:.0%})",
+                popup=folium.Popup(
+                    f"<b>{state}</b><br><b style='color:{color};'>{sec}</b><br>"
+                    f"{n:,} beneficiaries ({pct:.0%} of state total)", max_width=210)
+            ).add_to(m)
+
+    _map_legend(m, list(SC.items()), "Sectors", dark)
+    return m
+
+# ── MAP 3: Displacement status ────────────────────────────────────────────────
+def map_displacement(df, dark=True):
+    dfm = _clean_gps(df)
+    m   = _base_map(dark)
+    _add_state_labels(m, dark)
+
+    DISP_COLORS = {
+        "IDP":            "#EF4444",
+        "Refugee":        "#3B82F6",
+        "Host Community": "#10B981",
+        "Returnee":       "#F59E0B",
+    }
+
+    if not dfm.empty and has(dfm,"Displacement_Status"):
+        fg = folium.FeatureGroup(name="Displacement").add_to(m)
+        for disp, color in DISP_COLORS.items():
+            sub = dfm[dfm["Displacement_Status"]==disp]
+            if sub.empty: continue
+            cl = MarkerCluster(name=disp,
+                options={"maxClusterRadius":40,"showCoverageOnHover":False}).add_to(fg)
+            for _, row in sub.iterrows():
+                folium.CircleMarker(
+                    location=[row["GPS_Latitude"], row["GPS_Longitude"]],
+                    radius=5, color=color, fill=True, fill_color=color,
+                    fill_opacity=0.82, weight=0.7,
+                    tooltip=f"{row.get('Locality','—')} · {disp}",
+                    popup=folium.Popup(
+                        f"<b>{disp}</b><br>State: {row.get('State','—')}<br>"
+                        f"Locality: {row.get('Locality','—')}", max_width=200)
+                ).add_to(cl)
+
+    folium.LayerControl(position="topright").add_to(m)
+    _map_legend(m, list(DISP_COLORS.items()), "Displacement", dark)
+    return m
+
+# ── MAP 4: Vulnerability heatmap ──────────────────────────────────────────────
+def map_vulnerability(df, dark=True):
+    dfm = _clean_gps(df)
+    m   = _base_map(dark)
+    _add_state_labels(m, dark)
+
+    VULN_COLORS = {
+        "Extremely Vulnerable":  "#EF4444",
+        "Vulnerable":            "#F59E0B",
+        "Moderately Vulnerable": "#10B981",
+    }
+    VULN_WEIGHTS = {
+        "Extremely Vulnerable": 1.0,
+        "Vulnerable":           0.6,
+        "Moderately Vulnerable":0.3,
+    }
+
+    if not dfm.empty and has(dfm,"Vulnerability_Level"):
+        for vl, color in VULN_COLORS.items():
+            sub = dfm[dfm["Vulnerability_Level"]==vl]
+            if sub.empty: continue
+            w = VULN_WEIGHTS[vl]
+            data = [[r["GPS_Latitude"], r["GPS_Longitude"], w] for _, r in sub.iterrows()]
+            HeatMap(data, radius=16, blur=18, min_opacity=0.25,
+                    gradient={"0.3": color+"55","0.6": color+"AA","1.0": color}).add_to(m)
+
+        # One circle per state coloured by dominant vulnerability
+        for state,(lat,lon) in STATE_CENTROIDS.items():
+            sub = dfm[dfm["State"]==state] if has(dfm,"State") else pd.DataFrame()
+            if sub.empty: continue
+            dom = sub["Vulnerability_Level"].mode()
+            if dom.empty: continue
+            col = VULN_COLORS.get(dom.iloc[0],"#64748B")
+            n   = len(sub)
+            folium.CircleMarker(
+                location=[lat, lon], radius=max(12,min(40,(n/max(len(dfm),1))**0.5*55)),
+                color=col, fill=True, fill_color=col, fill_opacity=0.25, weight=2,
+                tooltip=f"{state} — dominant: {dom.iloc[0]} ({n} beneficiaries)"
+            ).add_to(m)
+
+    _map_legend(m, list(VULN_COLORS.items()), "Vulnerability", dark)
+    return m
+
+# ── MAP 5: State bubble map ────────────────────────────────────────────────────
+def map_state_bubbles(df, dark=True):
+    m = _base_map(dark, zoom=5)
+    if not has(df,"State") or df.empty:
+        return m
+
+    state_counts = df.groupby("State").size().reset_index(name="n")
+    max_n = state_counts["n"].max() or 1
+
+    for _, row in state_counts.iterrows():
+        state = row["State"]
+        if state not in STATE_CENTROIDS: continue
+        lat, lon = STATE_CENTROIDS[state]
+        n      = row["n"]
+        radius = max(14, min(58, (n/max_n)**0.5 * 58))
+
+        # Colour by volume
+        if n/max_n >= 0.66: color = "#3B82F6"
+        elif n/max_n >= 0.33: color = "#8B5CF6"
+        else: color = "#14B8A6"
+
+        folium.CircleMarker(
+            location=[lat, lon], radius=radius,
+            color=color, fill=True, fill_color=color, fill_opacity=0.42, weight=2,
+            tooltip=f"{state}: {n:,} beneficiaries",
+            popup=folium.Popup(f"<b>{state}</b><br>{n:,} beneficiaries<br>"
+                               f"{n/max_n:.0%} of largest state", max_width=190)
+        ).add_to(m)
+
+        folium.Marker(
+            location=[lat, lon],
+            icon=folium.DivIcon(
+                html=f"""<div style='text-align:center;font-family:Outfit,sans-serif;
+                         font-size:9px;font-weight:700;color:#fff;line-height:1.3;
+                         text-shadow:0 1px 3px rgba(0,0,0,0.6);'>
+                         {state.split()[0]}<br><b>{N(n)}</b></div>""",
+                icon_size=(80,28), icon_anchor=(40,14)
+            )
+        ).add_to(m)
+
+    _map_legend(m, [("High volume","#3B82F6"),("Medium","#8B5CF6"),("Lower","#14B8A6")],
+               "Beneficiary Volume", dark)
+    return m
+
+def page_map(dfs):
+    ph("Geographic Coverage", "Five thematic maps — Sudan-validated coordinates with state-centroid fallback")
+    df = dfs.get("Beneficiary_Registration", pd.DataFrame())
+    if df.empty: st.info("Load the Excel database to view geographic data."); return
+    th   = TH()
+    dark = st.session_state.get("dark", True)
+
+    # Filters
+    c1,c2,c3,c4 = st.columns(4)
+    with c1: s1 = st.selectbox("State",        sopts(df,"State"),               key="m_s")
+    with c2: s2 = st.selectbox("Sector",       sopts(df,"Sector"),              key="m_sec")
+    with c3: s3 = st.selectbox("Displacement", sopts(df,"Displacement_Status"), key="m_d")
+    with c4: s4 = st.selectbox("Vulnerability",sopts(df,"Vulnerability_Level"), key="m_v")
+
+    df_f = sfilt(sfilt(sfilt(sfilt(df.copy(),"State",s1),"Sector",s2),
+                       "Displacement_Status",s3),"Vulnerability_Level",s4)
+    nb   = len(df_f)
+    fem  = slen(df_f,"Sex","Female")
+
+    c1,c2,c3,c4,c5,c6 = st.columns(6)
+    c1.markdown(kpi("Beneficiaries", N(nb),   "in selection",      "blue",  "📊"), unsafe_allow_html=True)
+    c2.markdown(kpi("States",    N(suniq(df_f,"State")),  "covered","teal",  "🗺️"), unsafe_allow_html=True)
+    c3.markdown(kpi("Localities",N(suniq(df_f,"Locality")),"zones", "amber", "📌"), unsafe_allow_html=True)
+    c4.markdown(kpi("Female",    f"{100*fem/nb:.0f}%" if nb else "—","","purple","♀"), unsafe_allow_html=True)
+    c5.markdown(kpi("IDP",       N(slen(df_f,"Displacement_Status","IDP")),"","red","🏕️"), unsafe_allow_html=True)
+    c6.markdown(kpi("Active",    N(slen(df_f,"Registration_Status","Active")),"","green","✅"), unsafe_allow_html=True)
+
+    st.markdown(f"<div style='font-size:.75rem;color:{th['muted']};margin:.4rem 0 1rem;'>📌 Points shown at real GPS coordinates where available; state centroid with scatter otherwise.</div>",
+                unsafe_allow_html=True)
+
+    # ── MAP 1 — Full-width beneficiary map ────────────────────────────────────
+    sh("Map 1 — All Beneficiaries (Clusters + Heatmap overlay)")
+    col_m1, col_r1 = st.columns([2.5, 1])
+    with col_m1:
+        st_folium(map_beneficiaries(df_f, dark), use_container_width=True,
+                  height=460, returned_objects=[], key="m1")
+    with col_r1:
+        st.markdown("<br>", unsafe_allow_html=True)
+        if has(df_f,"State") and nb > 0:
+            by_s = df_f.groupby("State").size().reset_index(name="n").sort_values("n")
+            fig  = px.bar(by_s, x="n", y="State", orientation="h", color="n",
+                          color_continuous_scale=["#1E3A6E","#60A5FA"], title="Count by State")
+            fig.update_layout(coloraxis_showscale=False)
+            pc(T(fig, h=210, leg=False))
+        if has(df_f,"Sector") and nb > 0:
+            by_sec = df_f.groupby("Sector").size().reset_index(name="n")
+            fig = px.pie(by_sec, values="n", names="Sector", hole=0.55,
+                         color="Sector", color_discrete_map=SC, title="By Sector")
+            fig.update_traces(textinfo="percent", textfont_size=10,
+                              marker=dict(line=dict(color=th["bg"], width=2)))
+            pc(T(fig, h=220))
+
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    # ── MAPS 2 & 3 ────────────────────────────────────────────────────────────
+    sh("Map 2 — Sector Coverage by State    ·    Map 3 — Displacement Status")
+    c2a, c2b = st.columns(2)
+    with c2a:
+        st.markdown(f"<div style='font-size:.75rem;color:{th['muted']};margin-bottom:.4rem;'>Bubble = share of sector within state. Hover for detail.</div>", unsafe_allow_html=True)
+        st_folium(map_sector_coverage(df_f, dark), use_container_width=True,
+                  height=390, returned_objects=[], key="m2")
+    with c2b:
+        st.markdown(f"<div style='font-size:.75rem;color:{th['muted']};margin-bottom:.4rem;'>Colour = displacement category. Toggle layers (top-right).</div>", unsafe_allow_html=True)
+        st_folium(map_displacement(df_f, dark), use_container_width=True,
+                  height=390, returned_objects=[], key="m3")
+
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    # ── MAPS 4 & 5 ────────────────────────────────────────────────────────────
+    sh("Map 4 — Vulnerability Heatmap    ·    Map 5 — State Volume Bubbles")
+    c4a, c4b = st.columns(2)
+    with c4a:
+        st.markdown(f"<div style='font-size:.75rem;color:{th['muted']};margin-bottom:.4rem;'>Red intensity = extremely vulnerable concentration.</div>", unsafe_allow_html=True)
+        st_folium(map_vulnerability(df_f, dark), use_container_width=True,
+                  height=390, returned_objects=[], key="m4")
+    with c4b:
+        st.markdown(f"<div style='font-size:.75rem;color:{th['muted']};margin-bottom:.4rem;'>Bubble size proportional to total beneficiaries per state.</div>", unsafe_allow_html=True)
+        st_folium(map_state_bubbles(df_f, dark), use_container_width=True,
+                  height=390, returned_objects=[], key="m5")
+
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    # ── SPATIAL CHARTS ────────────────────────────────────────────────────────
+    sh("Spatial Analysis — Cross-Dimensional Charts")
+    c1,c2,c3 = st.columns(3)
+    with c1:
+        if has(df_f,"State") and has(df_f,"Sector") and nb > 0:
+            ct = df_f.groupby(["State","Sector"]).size().reset_index(name="n")
+            fig = px.bar(ct, x="State", y="n", color="Sector", barmode="stack",
+                         color_discrete_map=SC, title="Beneficiaries by State & Sector")
+            pc(T(fig, h=300))
+    with c2:
+        if has(df_f,"Displacement_Status") and has(df_f,"Sector") and nb > 0:
+            ct = df_f.groupby(["Displacement_Status","Sector"]).size().reset_index(name="n")
+            fig = px.bar(ct, x="Displacement_Status", y="n", color="Sector", barmode="stack",
+                         color_discrete_map=SC, title="Displacement × Sector")
+            fig.update_xaxes(tickangle=-20)
+            pc(T(fig, h=300))
+    with c3:
+        if has(df_f,"Age") and nb > 0:
+            da = df_f.copy()
+            da["Age"] = pd.to_numeric(da["Age"], errors="coerce")
+            da = da.dropna(subset=["Age"])
+            da["AgeGrp"] = pd.cut(da["Age"],[0,5,18,35,50,120],
+                                   labels=["0–4","5–17","18–34","35–49","50+"],right=False)
+            ag = da.groupby("AgeGrp", observed=True).size().reset_index(name="n")
+            fig = px.bar(ag, x="AgeGrp", y="n", color="AgeGrp",
+                         color_discrete_sequence=COLORS, title="Age Groups")
+            fig.update_layout(showlegend=False)
+            pc(T(fig, h=300))
+
+    c1,c2,c3 = st.columns(3)
+    with c1:
+        if has(df_f,"State") and has(df_f,"Sex") and nb > 0:
+            sg = df_f.groupby(["State","Sex"]).size().reset_index(name="n")
+            fig = px.bar(sg, x="State", y="n", color="Sex",
+                         color_discrete_map={"Female":"#EC4899","Male":"#3B82F6"},
+                         barmode="stack", title="Sex Disaggregation by State")
+            pc(T(fig, h=280))
+    with c2:
+        if has(df_f,"Vulnerability_Level") and has(df_f,"Sex") and nb > 0:
+            ct = df_f.groupby(["Vulnerability_Level","Sex"]).size().reset_index(name="n")
+            fig = px.bar(ct, x="Vulnerability_Level", y="n", color="Sex", barmode="group",
+                         color_discrete_map={"Female":"#EC4899","Male":"#3B82F6"},
+                         title="Vulnerability × Sex")
+            pc(T(fig, h=280))
+    with c3:
+        if has(df_f,"Registration_Date") and nb > 0:
+            dt = df_f.copy()
+            dt["Registration_Date"] = pd.to_datetime(dt["Registration_Date"], errors="coerce")
+            dt = dt.dropna(subset=["Registration_Date"])
+            dt["Month"] = dt["Registration_Date"].dt.to_period("M").astype(str)
+            trend = dt.groupby("Month").size().reset_index(name="n")
+            fig = px.line(trend, x="Month", y="n", title="Registration Timeline", markers=True)
+            fig.update_traces(line_color="#3B82F6", marker_color="#60A5FA", line_width=2)
+            pc(T(fig, h=280))
+
+    sh("Coverage Heatmap — State × Sector")
+    if has(df_f,"State") and has(df_f,"Sector") and nb > 0:
+        heat = df_f.groupby(["State","Sector"]).size().reset_index(name="n")
+        fig  = px.density_heatmap(heat, x="Sector", y="State", z="n",
+                                   color_continuous_scale="Blues",
+                                   title="Beneficiary Density — State × Sector")
+        fig.update_layout(coloraxis_colorbar=dict(tickfont=dict(color=th["fontc"])))
+        pc(T(fig, h=340, leg=False))
+
+
 
 # State centroids (verified)
 STATE_CENTROIDS = {
@@ -916,29 +1349,38 @@ def map_beneficiaries(df, dark=True):
     _map_legend(m, list(SC.items()), "Sectors", dark)
     return m
 
-# ── MAP 2: Sector coverage — one circle per state, sized by count ─────────────
+# ── MAP 2: Sector coverage — pie-chart bubbles per state, clamped to Sudan ───
 def map_sector_coverage(df, dark=True):
     m = _base_map(dark)
     _add_state_labels(m, dark)
+
+    SECTOR_LIST = list(SC.keys())
+    # Small fixed offsets (within ~0.15° of centroid) to spread sector bubbles
+    OFFSETS = [(-0.12, -0.12), (-0.12, 0.12), (0.12, -0.12), (0.12, 0.12)]
 
     if has(df,"State") and has(df,"Sector"):
         for state, (lat, lon) in STATE_CENTROIDS.items():
             sub = df[df["State"]==state] if has(df,"State") else pd.DataFrame()
             if sub.empty: continue
             total = len(sub)
-            for sec, color in SC.items():
+            for idx, sec in enumerate(SECTOR_LIST):
                 n = len(sub[sub["Sector"]==sec]) if has(sub,"Sector") else 0
                 if n == 0: continue
-                radius = max(8, min(40, n / max(total,1) * 50))
+                dlat, dlon = OFFSETS[idx % len(OFFSETS)]
+                mlat = max(SUDAN_LAT_MIN + 0.1, min(SUDAN_LAT_MAX - 0.1, lat + dlat))
+                mlon = max(SUDAN_LON_MIN + 0.1, min(SUDAN_LON_MAX - 0.1, lon + dlon))
+                color  = SC.get(sec, "#64748B")
+                radius = max(6, min(35, int((n / max(total,1)) * 40)))
                 folium.CircleMarker(
-                    location=[lat + (list(SC.keys()).index(sec)-1.5)*0.18,
-                              lon + (list(SC.keys()).index(sec)-1.5)*0.18],
+                    location=[mlat, mlon],
                     radius=radius,
-                    color=color, fill=True, fill_color=color, fill_opacity=0.65, weight=1,
-                    tooltip=f"{state} · {sec}: {n:,} beneficiaries",
+                    color=color, fill=True, fill_color=color,
+                    fill_opacity=0.65, weight=1.5,
+                    tooltip=f"{state} · {sec}: {n:,} beneficiaries ({n/total:.0%})",
                     popup=folium.Popup(
-                        f"<b>{state}</b><br>{sec}: {n:,}<br>({n/total:.0%} of state total)",
-                        max_width=200)
+                        f"<b>{state}</b><br><b style='color:{color};'>{sec}</b>"
+                        f"<br>{n:,} beneficiaries ({n/total:.0%} of state total)",
+                        max_width=210)
                 ).add_to(m)
 
     _map_legend(m, list(SC.items()), "Sectors", dark)
@@ -2012,81 +2454,794 @@ def build_text_report(dfs):
     ]
     return "\n".join(lines)
 
+# ══════════════════════════════════════════════════════════════════════════════
+# WORD REPORT BUILDER  (python-docx + kaleido for chart images)
+# ══════════════════════════════════════════════════════════════════════════════
+def build_word_report(dfs):
+    try:
+        from docx import Document
+        from docx.shared import Inches, Pt, RGBColor, Cm
+        from docx.enum.text import WD_ALIGN_PARAGRAPH
+        from docx.enum.table import WD_ALIGN_VERTICAL, WD_TABLE_ALIGNMENT
+        from docx.oxml.ns import qn
+        from docx.oxml import OxmlElement
+        import plotly.express as px
+        import plotly.graph_objects as go
+    except ImportError as e:
+        raise RuntimeError(f"Missing library: {e}. Run: pip install python-docx kaleido")
+
+    # ── Colour palette ────────────────────────────────────────────────────────
+    C_NAVY   = RGBColor(0x1A, 0x3A, 0x6B)
+    C_BLUE   = RGBColor(0x2E, 0x75, 0xB6)
+    C_ACCENT = RGBColor(0x3B, 0x82, 0xF6)
+    C_GREEN  = RGBColor(0x10, 0xB9, 0x81)
+    C_AMBER  = RGBColor(0xF5, 0x9E, 0x0B)
+    C_RED    = RGBColor(0xEF, 0x44, 0x44)
+    C_GRAY   = RGBColor(0x64, 0x74, 0x8B)
+    C_LGRAY  = RGBColor(0xF1, 0xF5, 0xF9)
+    C_WHITE  = RGBColor(0xFF, 0xFF, 0xFF)
+    CHART_COLORS = ["#3B82F6","#10B981","#F59E0B","#EF4444","#8B5CF6","#14B8A6","#EC4899","#F97316"]
+    PLOT_BG = "rgba(0,0,0,0)"
+
+    doc  = Document()
+    now  = datetime.now().strftime("%B %d, %Y")
+    buf  = io.BytesIO()
+
+    # ── Page setup ────────────────────────────────────────────────────────────
+    section = doc.sections[0]
+    section.page_width  = Cm(21.0)
+    section.page_height = Cm(29.7)
+    section.left_margin   = Cm(2.5)
+    section.right_margin  = Cm(2.5)
+    section.top_margin    = Cm(2.5)
+    section.bottom_margin = Cm(2.5)
+
+    # ── Helper: set cell shading ──────────────────────────────────────────────
+    def shade_cell(cell, hex_color):
+        tc   = cell._tc
+        tcPr = tc.get_or_add_tcPr()
+        shd  = OxmlElement("w:shd")
+        shd.set(qn("w:val"),   "clear")
+        shd.set(qn("w:color"), "auto")
+        shd.set(qn("w:fill"),  hex_color.replace("#","").upper())
+        tcPr.append(shd)
+
+    # ── Helper: paragraph style ───────────────────────────────────────────────
+    def para(text, bold=False, size=11, color=None, align=WD_ALIGN_PARAGRAPH.LEFT,
+             space_before=0, space_after=6, italic=False):
+        p = doc.add_paragraph()
+        p.alignment = align
+        p.paragraph_format.space_before = Pt(space_before)
+        p.paragraph_format.space_after  = Pt(space_after)
+        run = p.add_run(text)
+        run.bold   = bold
+        run.italic = italic
+        run.font.size = Pt(size)
+        run.font.color.rgb = color or C_GRAY
+        return p
+
+    def heading(text, level=1, color=None):
+        p = doc.add_heading(text, level=level)
+        for run in p.runs:
+            run.font.color.rgb = color or C_NAVY
+            run.font.bold = True
+        p.paragraph_format.space_before = Pt(10 if level > 1 else 18)
+        p.paragraph_format.space_after  = Pt(4)
+        return p
+
+    def hr_line():
+        p = doc.add_paragraph()
+        p.paragraph_format.space_before = Pt(2)
+        p.paragraph_format.space_after  = Pt(8)
+        pPr = p._p.get_or_add_pPr()
+        pBdr = OxmlElement("w:pBdr")
+        bottom = OxmlElement("w:bottom")
+        bottom.set(qn("w:val"), "single")
+        bottom.set(qn("w:sz"),  "6")
+        bottom.set(qn("w:space"),"1")
+        bottom.set(qn("w:color"),"2E75B6")
+        pBdr.append(bottom)
+        pPr.append(pBdr)
+
+    def body_text(text, space_after=6):
+        p = doc.add_paragraph(text)
+        p.paragraph_format.space_after  = Pt(space_after)
+        p.paragraph_format.space_before = Pt(2)
+        for run in p.runs:
+            run.font.size = Pt(10.5)
+            run.font.color.rgb = RGBColor(0x1E, 0x29, 0x3B)
+        return p
+
+    def caption(text):
+        p = doc.add_paragraph(text)
+        p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        p.paragraph_format.space_before = Pt(2)
+        p.paragraph_format.space_after  = Pt(10)
+        for run in p.runs:
+            run.font.size = Pt(9)
+            run.italic = True
+            run.font.color.rgb = C_GRAY
+
+    # ── Helper: data table ────────────────────────────────────────────────────
+    def add_table(headers, rows, col_widths=None):
+        n_cols = len(headers)
+        t = doc.add_table(rows=1 + len(rows), cols=n_cols)
+        t.style = "Table Grid"
+        t.alignment = WD_TABLE_ALIGNMENT.CENTER
+        page_w = section.page_width - section.left_margin - section.right_margin
+        default_w = int(page_w / n_cols)
+        widths = col_widths or [default_w]*n_cols
+
+        # Header row
+        hrow = t.rows[0]
+        for i, (hdr, w) in enumerate(zip(headers, widths)):
+            cell = hrow.cells[i]
+            cell.width = w
+            shade_cell(cell, "1A3A6B")
+            run = cell.paragraphs[0].add_run(hdr)
+            run.font.bold  = True
+            run.font.size  = Pt(9)
+            run.font.color.rgb = C_WHITE
+            cell.paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
+            cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
+
+        # Data rows
+        for r_idx, row_data in enumerate(rows):
+            row_obj = t.rows[r_idx + 1]
+            bg = "F8FAFC" if r_idx % 2 == 0 else "FFFFFF"
+            for c_idx, val in enumerate(row_data):
+                cell = row_obj.cells[c_idx]
+                cell.width = widths[c_idx]
+                shade_cell(cell, bg)
+                run = cell.paragraphs[0].add_run(str(val))
+                run.font.size = Pt(9)
+                run.font.color.rgb = RGBColor(0x1E,0x29,0x3B)
+                cell.paragraphs[0].alignment = (
+                    WD_ALIGN_PARAGRAPH.LEFT if c_idx == 0 else WD_ALIGN_PARAGRAPH.CENTER
+                )
+                cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
+        doc.add_paragraph()
+
+    # ── Helper: render Plotly fig → bytes → inline image ─────────────────────
+    def add_chart(fig, width_inches=6.0, height_px=320, caption_text=""):
+        fig.update_layout(
+            paper_bgcolor="white", plot_bgcolor="white",
+            font=dict(family="Arial", color="#334155", size=11),
+            margin=dict(l=40,r=40,t=40,b=40),
+            title_font=dict(size=13, color="#1A3A6B", family="Arial"),
+            legend=dict(bgcolor="rgba(0,0,0,0)", font=dict(color="#334155",size=10),
+                        orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0),
+            colorway=CHART_COLORS,
+        )
+        fig.update_xaxes(showgrid=True, gridcolor="#E2E8F0", zeroline=False,
+                         linecolor="#CBD5E1", tickfont=dict(size=10,color="#64748B"))
+        fig.update_yaxes(showgrid=True, gridcolor="#E2E8F0", zeroline=False,
+                         tickfont=dict(size=10,color="#64748B"))
+        try:
+            img_bytes = fig.to_image(format="png", width=int(width_inches*120),
+                                     height=height_px, scale=2)
+            img_buf = io.BytesIO(img_bytes)
+            doc.add_picture(img_buf, width=Inches(width_inches))
+            last_p = doc.paragraphs[-1]
+            last_p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            if caption_text:
+                caption(caption_text)
+        except Exception as e:
+            body_text(f"[Chart not available: {e}]")
+
+    # ── Helper: KPI summary table ─────────────────────────────────────────────
+    def add_kpi_row(items):
+        """items = list of (label, value, sub)"""
+        t = doc.add_table(rows=3, cols=len(items))
+        t.alignment = WD_TABLE_ALIGNMENT.CENTER
+        page_w = section.page_width - section.left_margin - section.right_margin
+        col_w  = int(page_w / len(items))
+        for c_idx, (label, value, sub) in enumerate(items):
+            shade_cell(t.rows[0].cells[c_idx], "EFF6FF")
+            shade_cell(t.rows[1].cells[c_idx], "EFF6FF")
+            shade_cell(t.rows[2].cells[c_idx], "EFF6FF")
+            for row in t.rows:
+                row.cells[c_idx].width = col_w
+            # Label
+            r0 = t.rows[0].cells[c_idx].paragraphs[0].add_run(label.upper())
+            r0.font.size = Pt(7.5); r0.font.color.rgb = C_GRAY; r0.font.bold = True
+            t.rows[0].cells[c_idx].paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
+            # Value
+            r1 = t.rows[1].cells[c_idx].paragraphs[0].add_run(value)
+            r1.font.size = Pt(18); r1.font.color.rgb = C_NAVY; r1.font.bold = True
+            t.rows[1].cells[c_idx].paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
+            # Sub
+            r2 = t.rows[2].cells[c_idx].paragraphs[0].add_run(sub)
+            r2.font.size = Pt(8.5); r2.font.color.rgb = C_GRAY
+            t.rows[2].cells[c_idx].paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
+        doc.add_paragraph()
+
+    # ═════════════════════════════════════════════════════════════════════════
+    # COVER PAGE
+    # ═════════════════════════════════════════════════════════════════════════
+    doc.add_paragraph()
+    doc.add_paragraph()
+
+    p_org = doc.add_paragraph()
+    p_org.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    r = p_org.add_run("SOLIDARITES INTERNATIONAL")
+    r.font.size = Pt(14); r.font.color.rgb = C_ACCENT; r.font.bold = True
+
+    doc.add_paragraph()
+    p_title = doc.add_paragraph()
+    p_title.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    r = p_title.add_run("Sudan Mission")
+    r.font.size = Pt(32); r.font.color.rgb = C_NAVY; r.font.bold = True
+
+    p_sub = doc.add_paragraph()
+    p_sub.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    r = p_sub.add_run("Information Management Program Report")
+    r.font.size = Pt(16); r.font.color.rgb = C_GRAY
+
+    hr_line()
+
+    p_date = doc.add_paragraph()
+    p_date.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    r = p_date.add_run(f"Generated: {now}     |     Reporting Period: January 2025 – April 2026")
+    r.font.size = Pt(10); r.font.color.rgb = C_GRAY
+
+    doc.add_paragraph()
+    doc.add_paragraph()
+    p_conf = doc.add_paragraph()
+    p_conf.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    r = p_conf.add_run("⚠  CONFIDENTIAL — For internal use only")
+    r.font.size = Pt(10); r.font.color.rgb = C_RED; r.font.bold = True
+
+    doc.add_page_break()
+
+    # ═════════════════════════════════════════════════════════════════════════
+    # DATA
+    # ═════════════════════════════════════════════════════════════════════════
+    df_b = dfs.get("Beneficiary_Registration", pd.DataFrame())
+    df_w = dfs.get("WASH_Monitoring",           pd.DataFrame())
+    df_f = dfs.get("FSL_Distribution",          pd.DataFrame())
+    df_c = dfs.get("CVA_Cash_Transfers",        pd.DataFrame())
+    df_i = dfs.get("Indicator_Tracker",         pd.DataFrame())
+
+    tot   = len(df_b)
+    act   = slen(df_b,"Registration_Status","Active")
+    wr    = int(ssum(df_w,"Reached_Beneficiaries"))
+    fhh   = int(ssum(df_f,"HH_Reached"))
+    paid  = sfilt(df_c,"Transfer_Status","Paid")
+    usd   = paid["Transfer_Value_USD"].sum() if has(paid,"Transfer_Value_USD") and len(paid)>0 else 0
+    on_t  = slen(df_i,"Status","On track")
+    at_r  = slen(df_i,"Status","At risk")
+    off_t = slen(df_i,"Status","Off track")
+    ti    = len(df_i)
+
+    # ═════════════════════════════════════════════════════════════════════════
+    # 1. EXECUTIVE SUMMARY
+    # ═════════════════════════════════════════════════════════════════════════
+    heading("1. Executive Summary", 1)
+    hr_line()
+    body_text(
+        f"This report presents the consolidated program performance of Solidarites International (SI) Sudan Mission "
+        f"for the period January 2025 to April 2026. The mission operates across {suniq(df_b,'State')} states of Sudan, "
+        f"providing multi-sector humanitarian assistance in WASH, Food Security & Livelihoods (FSL), Shelter & NFI, "
+        f"and Cash & Voucher Assistance (CVA).", space_after=8)
+    body_text(
+        f"As of the reporting date, {tot:,} beneficiaries have been registered ({act:,} active). "
+        f"WASH activities reached {wr:,} individuals; FSL distributions covered {fhh:,} households; "
+        f"cash transfers totalling ${usd:,.0f} USD were disbursed.", space_after=12)
+
+    add_kpi_row([
+        ("Total Beneficiaries", f"{tot:,}", f"{act:,} active ({act/tot:.0%})" if tot else ""),
+        ("WASH Individuals", f"{wr:,}", "cumulative reached"),
+        ("FSL Households", f"{fhh:,}", "all distributions"),
+        ("Cash Disbursed", f"${usd:,.0f}", "USD paid out"),
+        ("States Covered", str(suniq(df_b,"State")), "operational areas"),
+    ])
+
+    if ti:
+        body_text(
+            f"Of {ti} tracked indicators: {on_t} On Track ({on_t/ti:.0%}), "
+            f"{at_r} At Risk ({at_r/ti:.0%}), {off_t} Off Track ({off_t/ti:.0%}).", space_after=4)
+
+    # Indicator status chart
+    if ti > 0:
+        fig = go.Figure(go.Pie(
+            labels=["On Track","At Risk","Off Track"],
+            values=[on_t, at_r, off_t], hole=0.55,
+            marker=dict(colors=["#10B981","#F59E0B","#EF4444"],
+                        line=dict(color="white",width=2)),
+            textinfo="percent+label", textfont_size=11,
+        ))
+        fig.update_layout(title="Overall Indicator Status", showlegend=False)
+        add_chart(fig, width_inches=3.5, height_px=260,
+                  caption_text="Figure 1 — Overall indicator performance status")
+
+    doc.add_page_break()
+
+    # ═════════════════════════════════════════════════════════════════════════
+    # 2. BENEFICIARY REGISTRATION
+    # ═════════════════════════════════════════════════════════════════════════
+    heading("2. Beneficiary Registration", 1)
+    hr_line()
+    if not df_b.empty:
+        heading("2.1 Overview", 2)
+        body_text(
+            f"The beneficiary registry contains {tot:,} records across "
+            f"{suniq(df_b,'State')} states and {suniq(df_b,'Locality')} localities.")
+
+        # Table: by sector
+        if has(df_b,"Sector"):
+            sc = df_b["Sector"].value_counts().reset_index(); sc.columns=["Sector","Count"]
+            sc["% of Total"]=(sc["Count"]/tot*100).map(lambda x:f"{x:.1f}%")
+            heading("Table 1 — Beneficiaries by Sector",3)
+            add_table(["Sector","Count","% of Total"],
+                      [[r["Sector"],f"{r['Count']:,}",r["% of Total"]] for _,r in sc.iterrows()],
+                      col_widths=[Cm(8),Cm(3.5),Cm(3.5)])
+            # Pie chart
+            fig = px.pie(sc, values="Count", names="Sector", hole=0.50,
+                         color="Sector",
+                         color_discrete_map={"WASH":"#3B82F6","FSL":"#10B981",
+                                             "Shelter & NFI":"#F59E0B","Cash & Voucher Assistance":"#EF4444"},
+                         title="Beneficiaries by Sector")
+            fig.update_traces(textinfo="percent+label", textfont_size=11,
+                              marker=dict(line=dict(color="white",width=2)))
+            add_chart(fig, width_inches=4.5, height_px=280,
+                      caption_text="Figure 2 — Beneficiary distribution by sector")
+
+        # Table: displacement
+        if has(df_b,"Displacement_Status"):
+            disp=df_b["Displacement_Status"].value_counts().reset_index(); disp.columns=["Status","Count"]
+            disp["% of Total"]=(disp["Count"]/tot*100).map(lambda x:f"{x:.1f}%")
+            heading("Table 2 — Displacement Status",3)
+            add_table(["Displacement Status","Count","% of Total"],
+                      [[r["Status"],f"{r['Count']:,}",r["% of Total"]] for _,r in disp.iterrows()],
+                      col_widths=[Cm(7),Cm(3.5),Cm(3.5)])
+            fig = px.bar(disp, x="Count", y="Status", orientation="h",
+                         color="Count", color_continuous_scale=["#1E3A6E","#3B82F6"],
+                         title="Beneficiaries by Displacement Status")
+            fig.update_layout(coloraxis_showscale=False)
+            add_chart(fig, width_inches=5.5, height_px=260,
+                      caption_text="Figure 3 — Displacement status breakdown")
+
+        heading("2.2 Gender & Vulnerability", 2)
+        if has(df_b,"Sex"):
+            fem  = slen(df_b,"Sex","Female")
+            male = tot - fem
+            body_text(f"Female beneficiaries: {fem:,} ({fem/tot:.0%}).  Male: {male:,} ({male/tot:.0%}).")
+            if has(df_b,"Vulnerability_Level"):
+                vd = df_b.groupby(["Vulnerability_Level","Sex"]).size().reset_index(name="n")
+                fig = px.bar(vd, x="Vulnerability_Level", y="n", color="Sex", barmode="group",
+                             color_discrete_map={"Female":"#EC4899","Male":"#3B82F6"},
+                             title="Vulnerability Level × Sex")
+                add_chart(fig, width_inches=5.5, height_px=270,
+                          caption_text="Figure 4 — Vulnerability level by sex")
+
+    doc.add_page_break()
+
+    # ═════════════════════════════════════════════════════════════════════════
+    # 3. WASH
+    # ═════════════════════════════════════════════════════════════════════════
+    heading("3. WASH Program Performance", 1)
+    hr_line()
+    if not df_w.empty:
+        reached = int(ssum(df_w,"Reached_Beneficiaries"))
+        target  = int(ssum(df_w,"Target_Beneficiaries")) or 1
+        pct     = reached/target
+        wv  = int(ssum(df_w,"Water_Volume_Liters"))
+        lat = int(ssum(df_w,"Latrine_Units_Built"))
+        hyg = int(ssum(df_w,"Hygiene_Kits_Dist"))
+        nfi = int(ssum(df_w,"NFI_Kits_Dist"))
+
+        body_text(
+            f"WASH activities reached {reached:,} individuals against a target of {target:,} "
+            f"(coverage: {pct:.0%}). Water distributed: {wv:,} litres. "
+            f"Latrines constructed: {lat:,}. Hygiene kits: {hyg:,}. NFI kits: {nfi:,}.")
+        add_kpi_row([
+            ("Individuals Reached", f"{reached:,}", f"{pct:.0%} of target"),
+            ("Water", f"{wv:,} L", "distributed"),
+            ("Latrines", f"{lat:,}", "constructed"),
+            ("Hygiene Kits", f"{hyg:,}", "distributed"),
+        ])
+
+        # Activity performance chart
+        if has(df_w,"Activity_Type"):
+            grp = df_w.groupby("Activity_Type")[["Target_Beneficiaries","Reached_Beneficiaries"]].sum().reset_index()
+            fig = go.Figure()
+            fig.add_bar(name="Target", x=grp["Activity_Type"], y=grp["Target_Beneficiaries"],
+                        marker_color="rgba(59,130,246,0.25)", marker_line_color="#3B82F6", marker_line_width=1.5)
+            fig.add_bar(name="Reached",x=grp["Activity_Type"], y=grp["Reached_Beneficiaries"],
+                        marker_color="#3B82F6")
+            fig.update_layout(barmode="group", title="Target vs Reached by Activity Type")
+            add_chart(fig, width_inches=6.0, height_px=300,
+                      caption_text="Figure 5 — WASH target vs reached by activity")
+
+            heading("Table 3 — WASH Performance by Activity",3)
+            grp["Coverage%"] = grp.apply(lambda r: f"{r['Reached_Beneficiaries']/r['Target_Beneficiaries']:.0%}"
+                                          if r["Target_Beneficiaries"]>0 else "N/A", axis=1)
+            add_table(["Activity Type","Target","Reached","Coverage"],
+                      [[r["Activity_Type"],f"{int(r['Target_Beneficiaries']):,}",
+                        f"{int(r['Reached_Beneficiaries']):,}",r["Coverage%"]] for _,r in grp.iterrows()],
+                      col_widths=[Cm(6.5),Cm(3),Cm(3),Cm(2.5)])
+
+        # Functionality pie
+        if has(df_w,"Functionality_Status"):
+            func = df_w["Functionality_Status"].value_counts().reset_index(); func.columns=["Status","Count"]
+            cmap = {"Fully Functional":"#10B981","Partially Functional":"#F59E0B",
+                    "Non-Functional":"#EF4444","Under Construction":"#8B5CF6"}
+            fig = px.pie(func, values="Count", names="Status", hole=0.50,
+                         color="Status", color_discrete_map=cmap, title="Infrastructure Functionality")
+            fig.update_traces(textinfo="percent+label", marker=dict(line=dict(color="white",width=2)))
+            add_chart(fig, width_inches=4.5, height_px=270,
+                      caption_text="Figure 6 — WASH infrastructure functionality status")
+
+        # Sex disaggregation
+        if has(df_w,"Reached_Female") and has(df_w,"Reached_Male"):
+            tf = df_w["Reached_Female"].sum(); tm = df_w["Reached_Male"].sum()
+            body_text(f"Gender breakdown — Female: {tf:,.0f} ({tf/(tf+tm):.0%}), Male: {tm:,.0f} ({tm/(tf+tm):.0%}).")
+            if has(df_w,"State"):
+                sg = df_w.groupby("State")[["Reached_Female","Reached_Male"]].sum().reset_index()
+                fig = px.bar(sg, x="State", y=["Reached_Female","Reached_Male"], barmode="stack",
+                             color_discrete_map={"Reached_Female":"#EC4899","Reached_Male":"#3B82F6"},
+                             title="WASH — Sex Disaggregation by State")
+                add_chart(fig, width_inches=6.0, height_px=280,
+                          caption_text="Figure 7 — WASH sex disaggregation by state")
+    else:
+        body_text("No WASH data available.")
+
+    doc.add_page_break()
+
+    # ═════════════════════════════════════════════════════════════════════════
+    # 4. FSL
+    # ═════════════════════════════════════════════════════════════════════════
+    heading("4. Food Security & Livelihoods (FSL)", 1)
+    hr_line()
+    if not df_f.empty:
+        hht = int(ssum(df_f,"HH_Targeted"))
+        hhr = int(ssum(df_f,"HH_Reached"))
+        qp  = ssum(df_f,"Quantity_Planned")
+        qd  = ssum(df_f,"Quantity_Distributed")
+        fem_fsl = int(ssum(df_f,"Female_HHH_Reached"))
+        pb  = slen(df_f,"Pipeline_Status","Pipeline break")
+        cov = hhr/hht if hht else 0
+
+        body_text(
+            f"FSL distributions reached {hhr:,} households of a target of {hht:,} "
+            f"(coverage: {cov:.0%}). Female-headed households: {fem_fsl:,} ({fem_fsl/hhr:.0%} of reached). "
+            f"Quantity distributed: {qd:,.0f} units of {qp:,.0f} planned.")
+        if pb:
+            body_text(f"⚠  Supply Chain Alert: {pb} pipeline breaks recorded during the reporting period.")
+        add_kpi_row([
+            ("HH Reached", f"{hhr:,}", f"{cov:.0%} of target"),
+            ("Qty Distributed", f"{qd:,.0f}", "units"),
+            ("Female HHH", f"{fem_fsl:,}", f"{fem_fsl/hhr:.0%}" if hhr else ""),
+            ("Pipeline Breaks", str(pb), "alerts"),
+        ])
+
+        # Commodity chart
+        if has(df_f,"Commodity_Type"):
+            comm = df_f.groupby("Commodity_Type")["HH_Reached"].sum().reset_index()
+            comm = comm.sort_values("HH_Reached",ascending=True).tail(10); comm.columns=["Commodity","HH_Reached"]
+            fig = px.bar(comm, x="HH_Reached", y="Commodity", orientation="h",
+                         color="HH_Reached", color_continuous_scale=["#14532D","#34D399"],
+                         title="HH Reached by Commodity Type")
+            fig.update_layout(coloraxis_showscale=False)
+            add_chart(fig, width_inches=6.0, height_px=320,
+                      caption_text="Figure 8 — Households reached by commodity type")
+            heading("Table 4 — FSL by Commodity Type",3)
+            add_table(["Commodity","HH Reached"],
+                      [[r["Commodity"],f"{int(r['HH_Reached']):,}"] for _,r in comm.iterrows()],
+                      col_widths=[Cm(10),Cm(5)])
+
+        # Pipeline status
+        if has(df_f,"Pipeline_Status"):
+            pipe = df_f["Pipeline_Status"].value_counts().reset_index(); pipe.columns=["Status","Count"]
+            cmap = {"In stock":"#10B981","Low stock":"#F59E0B",
+                    "Pipeline break":"#EF4444","Awaiting delivery":"#8B5CF6"}
+            fig = px.pie(pipe, values="Count", names="Status", hole=0.50,
+                         color="Status", color_discrete_map=cmap, title="Pipeline Status")
+            fig.update_traces(textinfo="percent+label", marker=dict(line=dict(color="white",width=2)))
+            add_chart(fig, width_inches=4.0, height_px=260,
+                      caption_text="Figure 9 — FSL supply chain pipeline status")
+
+        # Donor chart
+        if has(df_f,"Donor"):
+            don = df_f.groupby("Donor")["HH_Reached"].sum().reset_index()
+            fig = px.bar(don, x="Donor", y="HH_Reached", color="Donor",
+                         color_discrete_sequence=CHART_COLORS, title="HH Reached by Donor",
+                         text="HH_Reached")
+            fig.update_traces(texttemplate="%{text:,.0f}", textposition="outside")
+            fig.update_layout(showlegend=False)
+            add_chart(fig, width_inches=5.5, height_px=270,
+                      caption_text="Figure 10 — HH reached by donor")
+
+        # PDM satisfaction
+        if has(df_f,"Beneficiary_Satisfaction"):
+            sat = df_f["Beneficiary_Satisfaction"].value_counts().reset_index(); sat.columns=["Level","Count"]
+            cmap = {"Above 80%":"#10B981","60–80%":"#F59E0B","Below 60%":"#EF4444","N/A":"#94A3B8"}
+            fig = px.bar(sat, x="Level", y="Count", color="Level",
+                         color_discrete_map=cmap, title="Beneficiary Satisfaction (PDM)", text="Count")
+            fig.update_traces(textposition="outside"); fig.update_layout(showlegend=False)
+            add_chart(fig, width_inches=5.0, height_px=260,
+                      caption_text="Figure 11 — Post-Distribution Monitoring: satisfaction")
+    else:
+        body_text("No FSL data available.")
+
+    doc.add_page_break()
+
+    # ═════════════════════════════════════════════════════════════════════════
+    # 5. CVA
+    # ═════════════════════════════════════════════════════════════════════════
+    heading("5. Cash & Voucher Assistance (CVA)", 1)
+    hr_line()
+    if not df_c.empty:
+        paid_df = sfilt(df_c,"Transfer_Status","Paid")
+        pend_df = sfilt(df_c,"Transfer_Status","Pending")
+        fail_df = sfilt(df_c,"Transfer_Status","Failed")
+        usd2    = paid_df["Transfer_Value_USD"].sum() if has(paid_df,"Transfer_Value_USD") and len(paid_df)>0 else 0
+        avg_v   = paid_df["Transfer_Value_USD"].mean() if has(paid_df,"Transfer_Value_USD") and len(paid_df)>0 else 0
+        fem_cva = slen(df_c,"Female_Headed_HH","Yes")
+
+        body_text(
+            f"{len(paid_df):,} transfers paid totalling ${usd2:,.0f} USD (avg ${avg_v:,.0f}/HH). "
+            f"Pending: {len(pend_df):,}. Failed: {len(fail_df):,}. "
+            f"Female-headed HH: {fem_cva:,} ({fem_cva/len(df_c):.0%}).")
+        if len(fail_df) > 0:
+            body_text(f"⚠  {len(fail_df)} failed transfers require investigation before the next payment round.")
+        add_kpi_row([
+            ("Total Paid", f"${usd2:,.0f}", "USD"),
+            ("Paid Transfers", f"{len(paid_df):,}", "completed"),
+            ("Pending", f"{len(pend_df):,}", "awaiting"),
+            ("Failed", f"{len(fail_df):,}", "to check"),
+        ])
+
+        # Status donut
+        if has(df_c,"Transfer_Status"):
+            sc = df_c["Transfer_Status"].value_counts().reset_index(); sc.columns=["Status","Count"]
+            cmap={"Paid":"#10B981","Pending":"#F59E0B","Failed":"#EF4444","Cancelled":"#8B5CF6"}
+            fig = px.pie(sc, values="Count", names="Status", hole=0.55,
+                         color="Status", color_discrete_map=cmap, title="Transfer Status")
+            fig.update_traces(textinfo="percent+label", marker=dict(line=dict(color="white",width=2)))
+            add_chart(fig, width_inches=4.0, height_px=260,
+                      caption_text="Figure 12 — CVA transfer status breakdown")
+
+        # Payment method bar
+        if has(df_c,"Payment_Method") and has(df_c,"Transfer_Value_USD"):
+            pm = df_c.groupby("Payment_Method")["Transfer_Value_USD"].sum().reset_index()
+            pm = pm.sort_values("Transfer_Value_USD",ascending=True)
+            fig = px.bar(pm, x="Transfer_Value_USD", y="Payment_Method", orientation="h",
+                         color="Transfer_Value_USD", color_continuous_scale=["#1E3A6E","#60A5FA"],
+                         title="USD Disbursed by Payment Method", text="Transfer_Value_USD")
+            fig.update_traces(texttemplate="$%{text:,.0f}", textposition="outside")
+            fig.update_layout(coloraxis_showscale=False)
+            add_chart(fig, width_inches=5.5, height_px=280,
+                      caption_text="Figure 13 — USD disbursed by payment method")
+
+        # Transfer timeline
+        if has(df_c,"Transfer_Date") and has(df_c,"Transfer_Value_USD"):
+            df_tl = df_c.copy()
+            df_tl["Transfer_Date"] = pd.to_datetime(df_tl["Transfer_Date"],errors="coerce")
+            df_tl = df_tl.dropna(subset=["Transfer_Date"])
+            df_tl["Month"] = df_tl["Transfer_Date"].dt.to_period("M").astype(str)
+            if has(df_tl,"Transfer_Status"):
+                agg = df_tl.groupby(["Month","Transfer_Status"])["Transfer_Value_USD"].sum().reset_index()
+                cmap={"Paid":"#10B981","Pending":"#F59E0B","Failed":"#EF4444","Cancelled":"#8B5CF6"}
+                fig = px.bar(agg, x="Month", y="Transfer_Value_USD", color="Transfer_Status",
+                             color_discrete_map=cmap, title="Monthly Transfer Volume (USD)")
+                add_chart(fig, width_inches=6.0, height_px=280,
+                          caption_text="Figure 14 — Monthly CVA transfer volume by status")
+
+        heading("Table 5 — USD Disbursed by Payment Method",3)
+        if has(df_c,"Payment_Method") and has(df_c,"Transfer_Value_USD"):
+            pm2 = df_c.groupby("Payment_Method")["Transfer_Value_USD"].sum().reset_index()
+            pm2 = pm2.sort_values("Transfer_Value_USD",ascending=False)
+            add_table(["Payment Method","Total USD"],
+                      [[r["Payment_Method"],f"${r['Transfer_Value_USD']:,.0f}"] for _,r in pm2.iterrows()],
+                      col_widths=[Cm(9),Cm(6)])
+    else:
+        body_text("No CVA data available.")
+
+    doc.add_page_break()
+
+    # ═════════════════════════════════════════════════════════════════════════
+    # 6. PROGRAM INDICATORS
+    # ═════════════════════════════════════════════════════════════════════════
+    heading("6. Program Indicators — Results Framework", 1)
+    hr_line()
+    if not df_i.empty:
+        body_text(
+            f"The results framework tracks {ti} indicators. "
+            f"On Track: {on_t} ({on_t/ti:.0%})  At Risk: {at_r} ({at_r/ti:.0%})  "
+            f"Off Track: {off_t} ({off_t/ti:.0%}).")
+
+        # Status by sector chart
+        if has(df_i,"Sector") and has(df_i,"Status"):
+            perf = df_i.groupby(["Sector","Status"]).size().reset_index(name="Count")
+            cmap = {"On track":"#10B981","At risk":"#F59E0B","Off track":"#EF4444"}
+            fig = px.bar(perf, x="Sector", y="Count", color="Status",
+                         color_discrete_map=cmap, barmode="stack",
+                         title="Indicator Status by Sector")
+            add_chart(fig, width_inches=6.0, height_px=280,
+                      caption_text="Figure 15 — Indicator performance by sector")
+
+        # Full indicator table
+        heading("Table 6 — Full Indicator Tracking Table",3)
+        ind_rows = []
+        for _, row in df_i.iterrows():
+            ind  = str(row.get("Indicator",""))[:60]
+            unit = str(row.get("Unit",""))
+            targ = row.get("Annual Target",None)
+            cum  = row.get("Cumulative",None)
+            stat = str(row.get("Status",""))
+            try:
+                t = float(str(targ).replace(",","").replace("%","")) if pd.notna(targ) and str(targ) not in ["","nan"] else None
+                c = float(str(cum).replace(",","").replace("%",""))  if pd.notna(cum)  and str(cum)  not in ["","nan"] else 0
+                ts = f"{t:,.0f}" if t else "N/A"
+                cs = f"{c:,.0f}"
+                ps = f"{c/t:.0%}" if t and t>0 else "N/A"
+            except: ts = str(targ); cs = str(cum); ps = "N/A"
+            ind_rows.append([ind, unit, ts, cs, ps, stat])
+        add_table(
+            ["Indicator","Unit","Target","Achieved","% vs Target","Status"],
+            ind_rows,
+            col_widths=[Cm(5.8),Cm(1.5),Cm(1.8),Cm(1.8),Cm(2),Cm(2.1)]
+        )
+    else:
+        body_text("No indicator data available.")
+
+    doc.add_page_break()
+
+    # ═════════════════════════════════════════════════════════════════════════
+    # 7. RECOMMENDATIONS
+    # ═════════════════════════════════════════════════════════════════════════
+    heading("7. Recommendations", 1)
+    hr_line()
+    recs = [
+        ("Data Quality", "Enforce 48-hour data submission deadlines and implement automated daily quality checks to catch missing or inconsistent records before reporting."),
+        ("WASH Coverage", f"Current coverage is {int(ssum(df_w,'Reached_Beneficiaries'))/max(int(ssum(df_w,'Target_Beneficiaries')),1):.0%}. Underperforming states require supervisory support and resource reallocation."),
+        ("CVA Failed Transfers", f"{slen(df_c,'Transfer_Status','Failed')} transfers failed. Coordinate with payment agents to identify root causes and reprocess eligible cases before the next round."),
+        ("FSL Pipeline", f"{slen(df_f,'Pipeline_Status','Pipeline break')} pipeline breaks recorded. Establish minimum buffer stock thresholds and increase monitoring frequency."),
+        ("Off-Track Indicators", f"{slen(df_i,'Status','Off track')} indicators are off track. Program managers must review plans and propose corrective measures at the next Monthly Program Review."),
+        ("MEAL Capacity", "Conduct a refresher training for field data collectors on KoBoToolbox protocols, GPS accuracy, and data quality standards."),
+    ]
+    for i,(title,text) in enumerate(recs,1):
+        heading(f"7.{i} {title}", 2)
+        body_text(text, space_after=8)
+
+    doc.add_page_break()
+
+    # ═════════════════════════════════════════════════════════════════════════
+    # ANNEX
+    # ═════════════════════════════════════════════════════════════════════════
+    heading("Annex — Data Sources & Methodology", 1)
+    hr_line()
+    add_table(
+        ["Dataset","Sheet Name","Records","Key Variables"],
+        [
+            ["Beneficiary Registry","Beneficiary_Registration",f"{len(df_b):,}","ID, State, Sector, Sex, Age, GPS"],
+            ["WASH Activities","WASH_Monitoring",f"{len(df_w):,}","Activity, Target, Reached, Functionality"],
+            ["FSL Distributions","FSL_Distribution",f"{len(df_f):,}","Commodity, HH Reached, Pipeline, Donor"],
+            ["CVA Transfers","CVA_Cash_Transfers",f"{len(df_c):,}","Type, Value USD, Status, Method"],
+            ["Indicator Tracker","Indicator_Tracker",f"{len(df_i):,}","Indicator, Target, Q1–Q4, Status"],
+        ],
+        col_widths=[Cm(4),Cm(4),Cm(2.5),Cm(5)]
+    )
+    body_text(
+        "All data collected via KoBoToolbox electronic forms and processed with Python/pandas. "
+        "Geographic data captured via GPS-enabled Android devices. "
+        "Indicator targets agreed with donors at project inception.", space_after=10)
+
+    # Footer line
+    hr_line()
+    p_footer = doc.add_paragraph(
+        f"Solidarites International — Sudan Mission IM Unit | Report generated {now} | CONFIDENTIAL")
+    p_footer.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    for run in p_footer.runs:
+        run.font.size = Pt(8); run.font.color.rgb = C_GRAY; run.italic = True
+
+    doc.save(buf)
+    return buf.getvalue()
+
+
 def page_report(dfs):
-    ph("Automatic Report Generator","Generate a comprehensive program report in PDF or text format")
+    ph("Automatic Report Generator", "Generate a comprehensive program report — PDF, Word, or Text")
     if not dfs:
         st.info("Load the Excel database first to generate a report.")
         return
 
+    th = TH()
     sh("Report Configuration")
-    c1,c2,c3 = st.columns(3)
+    c1, c2, c3 = st.columns(3)
     with c1:
-        report_type = st.selectbox("Report Format", ["PDF (full report)","Plain Text (summary)"])
+        report_type = st.selectbox("Report Format", [
+            "📄 Word (.docx) — Full report with charts",
+            "🖨️ PDF — Full report",
+            "📝 Plain Text — Summary",
+        ])
     with c2:
-        st.markdown("<div style='padding:.5rem 0;font-size:.82rem;color:#64748B;'>Report language</div>",unsafe_allow_html=True)
-        st.markdown("<div style='font-weight:600;color:#E2E8F0;'>English</div>",unsafe_allow_html=True)
+        st.markdown(f"<div style='padding:.5rem 0;font-size:.82rem;color:{th['muted']};'>Report language</div>", unsafe_allow_html=True)
+        st.markdown(f"<div style='font-weight:600;color:{th['text']};'>English</div>", unsafe_allow_html=True)
     with c3:
-        st.markdown("<div style='padding:.5rem 0;font-size:.82rem;color:#64748B;'>Generation date</div>",unsafe_allow_html=True)
-        st.markdown(f"<div style='font-weight:600;color:#E2E8F0;'>{datetime.now().strftime('%B %d, %Y')}</div>",unsafe_allow_html=True)
+        st.markdown(f"<div style='padding:.5rem 0;font-size:.82rem;color:{th['muted']};'>Generation date</div>", unsafe_allow_html=True)
+        st.markdown(f"<div style='font-weight:600;color:{th['text']};'>{datetime.now().strftime('%B %d, %Y')}</div>", unsafe_allow_html=True)
 
-    # Preview statistics
-    sh("Report Preview — Key Figures")
-    df_b=dfs.get("Beneficiary_Registration",pd.DataFrame())
-    df_w=dfs.get("WASH_Monitoring",pd.DataFrame())
-    df_f=dfs.get("FSL_Distribution",pd.DataFrame())
-    df_c=dfs.get("CVA_Cash_Transfers",pd.DataFrame())
-    df_i=dfs.get("Indicator_Tracker",pd.DataFrame())
-    tot=len(df_b); wr=int(ssum(df_w,"Reached_Beneficiaries"))
-    fhh=int(ssum(df_f,"HH_Reached"))
-    paid=sfilt(df_c,"Transfer_Status","Paid")
-    usd=paid["Transfer_Value_USD"].sum() if has(paid,"Transfer_Value_USD") and len(paid)>0 else 0
-    on_t=slen(df_i,"Status","On track"); ti=len(df_i)
+    # Preview KPIs
+    sh("Key Figures — Report Preview")
+    df_b = dfs.get("Beneficiary_Registration", pd.DataFrame())
+    df_w = dfs.get("WASH_Monitoring",           pd.DataFrame())
+    df_f = dfs.get("FSL_Distribution",          pd.DataFrame())
+    df_c = dfs.get("CVA_Cash_Transfers",        pd.DataFrame())
+    df_i = dfs.get("Indicator_Tracker",         pd.DataFrame())
+    tot  = len(df_b)
+    wr   = int(ssum(df_w, "Reached_Beneficiaries"))
+    fhh  = int(ssum(df_f, "HH_Reached"))
+    paid = sfilt(df_c, "Transfer_Status", "Paid")
+    usd  = paid["Transfer_Value_USD"].sum() if has(paid, "Transfer_Value_USD") and len(paid) > 0 else 0
+    on_t = slen(df_i, "Status", "On track"); ti = len(df_i)
 
-    c1,c2,c3,c4,c5 = st.columns(5)
-    c1.markdown(kpi("Beneficiaries",N(tot),"registered","blue","👤"),unsafe_allow_html=True)
-    c2.markdown(kpi("WASH Reached",N(wr),"individuals","teal","💧"),unsafe_allow_html=True)
-    c3.markdown(kpi("FSL HH",N(fhh),"households","green","🌾"),unsafe_allow_html=True)
-    c4.markdown(kpi("Cash Paid",f"${N(usd)}","USD","amber","💵"),unsafe_allow_html=True)
-    c5.markdown(kpi("Indicators",f"{on_t}/{ti}","on track","green","📊"),unsafe_allow_html=True)
+    c1, c2, c3, c4, c5 = st.columns(5)
+    c1.markdown(kpi("Beneficiaries", N(tot),   "registered",  "blue",  "👤"), unsafe_allow_html=True)
+    c2.markdown(kpi("WASH Reached",  N(wr),    "individuals", "teal",  "💧"), unsafe_allow_html=True)
+    c3.markdown(kpi("FSL HH",        N(fhh),   "households",  "green", "🌾"), unsafe_allow_html=True)
+    c4.markdown(kpi("Cash Paid",     f"${N(usd)}", "USD",     "amber", "💵"), unsafe_allow_html=True)
+    c5.markdown(kpi("Indicators",    f"{on_t}/{ti}", "on track", "green", "📊"), unsafe_allow_html=True)
 
     st.markdown("<br>", unsafe_allow_html=True)
     sh("Report Contents")
-    st.markdown("""<div style='background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:1.2rem 1.5rem;'>
-      <div style='font-size:.85rem;color:var(--text);line-height:2;'>
-        ✅ &nbsp;Cover page with mission details and generation date<br>
-        ✅ &nbsp;Executive summary with consolidated KPIs<br>
-        ✅ &nbsp;Section 2 — Beneficiary registration (tables by sector, displacement, sex)<br>
-        ✅ &nbsp;Section 3 — WASH program performance (coverage, activities, infrastructure)<br>
-        ✅ &nbsp;Section 4 — FSL distribution (commodities, pipeline, gender)<br>
-        ✅ &nbsp;Section 5 — CVA cash transfers (status, payment methods)<br>
-        ✅ &nbsp;Section 6 — Program indicators (results framework, all sectors)<br>
-        ✅ &nbsp;Section 7 — Recommendations based on actual data<br>
-        ✅ &nbsp;Annex — Data sources and methodology
+    st.markdown(f"""<div style='background:{th["panel"]};border:1px solid {th["border"]};border-radius:10px;padding:1.2rem 1.5rem;'>
+      <div style='font-size:.85rem;color:{th["text"]};line-height:2.2;'>
+        ✅ &nbsp;Cover page · Mission header · Date · Confidentiality notice<br>
+        ✅ &nbsp;Executive summary — consolidated KPIs table<br>
+        ✅ &nbsp;Section 2 — Beneficiary Registration (tables + <b>pie chart, bar charts</b>)<br>
+        ✅ &nbsp;Section 3 — WASH Monitoring (performance table + <b>target vs reached chart, functionality pie</b>)<br>
+        ✅ &nbsp;Section 4 — FSL Distribution (commodity table + <b>pipeline chart, coverage bar</b>)<br>
+        ✅ &nbsp;Section 5 — CVA Cash Transfers (transfer table + <b>status donut, payment method bar</b>)<br>
+        ✅ &nbsp;Section 6 — Program Indicators (full results framework + <b>status bar chart</b>)<br>
+        ✅ &nbsp;Section 7 — Recommendations (data-driven)<br>
+        ✅ &nbsp;Annex — Data sources & methodology
       </div>
-    </div>""",unsafe_allow_html=True)
+    </div>""", unsafe_allow_html=True)
 
-    st.markdown("<br>",unsafe_allow_html=True)
-    if st.button("🖨️ Generate Report", use_container_width=False):
-        if "PDF" in report_type:
+    st.markdown("<br>", unsafe_allow_html=True)
+    if st.button("🚀 Generate Report", use_container_width=False):
+        fname_date = datetime.now().strftime("%Y%m%d")
+        if "Word" in report_type:
+            with st.spinner("Building Word report with charts… this may take 20–30 seconds."):
+                try:
+                    docx_bytes = build_word_report(dfs)
+                    st.download_button(
+                        "⬇ Download Word Report (.docx)", docx_bytes,
+                        file_name=f"SI_Sudan_IM_Report_{fname_date}.docx",
+                        mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                    )
+                    st.success("✅ Word report generated successfully!")
+                except Exception as e:
+                    st.error(f"Word generation error: {e}")
+                    import traceback; st.code(traceback.format_exc())
+
+        elif "PDF" in report_type:
             if HAS_PDF:
                 with st.spinner("Building PDF report…"):
                     try:
                         pdf_bytes = build_pdf_report(dfs)
-                        fname = f"SI_Sudan_IM_Report_{datetime.now().strftime('%Y%m%d')}.pdf"
-                        st.download_button("⬇ Download PDF Report", pdf_bytes, file_name=fname,
-                                           mime="application/pdf", use_container_width=False)
-                        st.success("✅ PDF report generated successfully!")
+                        st.download_button(
+                            "⬇ Download PDF Report", pdf_bytes,
+                            file_name=f"SI_Sudan_IM_Report_{fname_date}.pdf",
+                            mime="application/pdf",
+                        )
+                        st.success("✅ PDF report generated!")
                     except Exception as e:
-                        st.error(f"PDF generation error: {e}")
+                        st.error(f"PDF error: {e}")
             else:
                 st.warning("ReportLab not installed. Run: pip install reportlab")
         else:
             txt = build_text_report(dfs)
-            fname = f"SI_Sudan_IM_Report_{datetime.now().strftime('%Y%m%d')}.txt"
-            st.download_button("⬇ Download Text Report", txt.encode(), file_name=fname,
-                               mime="text/plain", use_container_width=False)
+            st.download_button(
+                "⬇ Download Text Report", txt.encode(),
+                file_name=f"SI_Sudan_IM_Report_{fname_date}.txt",
+                mime="text/plain",
+            )
             st.success("✅ Text report ready!")
             st.code(txt, language=None)
+
 
 
 # ══════════════════════════════════════════════════════════════════════════════
