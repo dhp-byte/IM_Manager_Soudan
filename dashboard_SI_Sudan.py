@@ -362,77 +362,105 @@ def load_data(file):
     return out
 
 # ══════════════════════════════════════════════════════════════════════════════
-# TOP NAVIGATION  — pure Streamlit buttons, no JS tricks
+# TOP NAVIGATION  — reliable active-tab highlighting via nth-child CSS
 # ══════════════════════════════════════════════════════════════════════════════
 def top_nav():
     th   = TH()
     page = st.session_state.get("page", "Overview")
     user = st.session_state.get("user", "")
     dark = st.session_state.get("dark", True)
-    src  = st.session_state.get("data_source","—")
+    src  = st.session_state.get("data_source", "—")
     src_icon = "🔗" if src == "kobo" else "📊"
 
-    # ── Brand bar (pure HTML, cosmetic only) ─────────────────────────────────
+    labels = [label for _, label in NAV_ITEMS]
+    active_idx = labels.index(page) + 1 if page in labels else 1   # 1-based for nth-child
+
+    # Brand bar
     st.markdown(f"""
     <div style='background:{th["navbg"]};border-bottom:1px solid {th["navborder"]};
-         padding:.6rem 1.5rem;display:flex;align-items:center;gap:10px;
-         position:sticky;top:0;z-index:1000;backdrop-filter:blur(12px);'>
-      <span style='font-size:1rem;font-weight:800;color:{th["text"]};font-family:Outfit,sans-serif;'>
-        🌍 <span style='color:{th["accent"]};'>SI</span> Sudan IM
+         padding:.55rem 1.6rem;display:flex;align-items:center;gap:10px;
+         position:sticky;top:0;z-index:1000;backdrop-filter:blur(14px);'>
+      <span style='font-size:.98rem;font-weight:800;color:{th["text"]};font-family:Outfit,sans-serif;letter-spacing:-.01em;'>
+        🌍&nbsp;<span style='color:{th["accent"]};'>SI</span>&nbsp;Sudan&nbsp;IM
       </span>
-      <span style='margin-left:auto;font-size:.75rem;color:{th["muted"]};background:{th["dim"]};
-            padding:3px 10px;border-radius:20px;'>{src_icon} {user}</span>
+      <span style='margin-left:auto;font-size:.73rem;color:{th["muted"]};
+           background:{th["dim"]};padding:3px 11px;border-radius:20px;border:1px solid {th["border"]};'>
+        {src_icon}&nbsp;{user}
+      </span>
     </div>""", unsafe_allow_html=True)
 
-    # ── Tab row — one Streamlit button per page ───────────────────────────────
-    labels  = [label for _, label in NAV_ITEMS]
-    n       = len(NAV_ITEMS)
-    # Extra 2 cols: theme + logout
-    cols    = st.columns(n + 2)
+    # Global nav button CSS — reset all nav buttons, then highlight the active one by nth-child
+    n_nav = len(NAV_ITEMS)
+    st.markdown(f"""
+    <style>
+    /* Reset ALL buttons in the nav row */
+    div[data-testid="stHorizontalBlock"] > div > [data-testid="stButton"] button {{
+        background: transparent !important;
+        border: none !important;
+        border-bottom: 2px solid transparent !important;
+        border-radius: 0 !important;
+        color: {th["muted"]} !important;
+        font-family: Outfit, sans-serif !important;
+        font-size: .82rem !important;
+        font-weight: 500 !important;
+        padding: .58rem .35rem !important;
+        width: 100% !important;
+        transition: color .15s, border-color .15s, background .15s !important;
+    }}
+    div[data-testid="stHorizontalBlock"] > div > [data-testid="stButton"] button:hover {{
+        color: {th["text"]} !important;
+        background: {th["dim"]} !important;
+        border-bottom-color: {th["border2"]} !important;
+    }}
+    /* Active tab — nth-child targets the column wrapper */
+    div[data-testid="stHorizontalBlock"] > div:nth-child({active_idx}) > [data-testid="stButton"] button {{
+        color: {th["accent"]} !important;
+        border-bottom: 2px solid {th["accent"]} !important;
+        font-weight: 700 !important;
+        background: {"rgba(59,130,246,0.10)" if th["accent"]=="3B82F6" else "rgba(37,99,235,0.10)"} !important;
+    }}
+    /* Theme + logout buttons (last 2 cols) — keep them subtle */
+    div[data-testid="stHorizontalBlock"] > div:nth-child({n_nav+1}) > [data-testid="stButton"] button,
+    div[data-testid="stHorizontalBlock"] > div:nth-child({n_nav+2}) > [data-testid="stButton"] button {{
+        font-size: .82rem !important;
+        border-radius: 6px !important;
+        background: {th["dim"]} !important;
+        border: 1px solid {th["border"]} !important;
+        color: {th["muted"]} !important;
+    }}
+    div[data-testid="stHorizontalBlock"] > div:nth-child({n_nav+1}) > [data-testid="stButton"] button:hover,
+    div[data-testid="stHorizontalBlock"] > div:nth-child({n_nav+2}) > [data-testid="stButton"] button:hover {{
+        background: {th["border2"]} !important;
+        color: {th["text"]} !important;
+    }}
+    /* Remove gap between nav columns */
+    div[data-testid="stHorizontalBlock"] {{ gap: 2px !important; margin: 0 !important; padding: 0 !important; }}
+    </style>
+    """, unsafe_allow_html=True)
+
+    # Render all nav buttons + theme + logout in one horizontal row
+    cols = st.columns([1]*n_nav + [0.6, 0.6])
 
     for i, (icon, label) in enumerate(NAV_ITEMS):
         with cols[i]:
-            is_active = page == label
-            # Use custom CSS class via a tiny container
-            btn_style = f"""
-            <style>
-            div[data-testid="stButton"]:has(button[kind="secondary"][aria-label="nav_{label}"]) button {{
-                background: {"rgba(59,130,246,0.15)" if is_active else "transparent"} !important;
-                color: {th["accent"] if is_active else th["muted"]} !important;
-                border: none !important;
-                border-bottom: {"2px solid " + th["accent"] if is_active else "2px solid transparent"} !important;
-                border-radius: 0 !important;
-                font-weight: {"700" if is_active else "400"} !important;
-                font-size: .83rem !important;
-                padding: .55rem .6rem !important;
-                width: 100% !important;
-                white-space: nowrap !important;
-            }}
-            div[data-testid="stButton"]:has(button[kind="secondary"][aria-label="nav_{label}"]) button:hover {{
-                background: {th["dim"]} !important;
-                color: {th["text"]} !important;
-            }}
-            </style>"""
-            st.markdown(btn_style, unsafe_allow_html=True)
             if st.button(f"{icon} {label}", key=f"nav_{label}",
-                         help=label, use_container_width=True,
-                         kwargs={"aria-label": f"nav_{label}"}):
+                         use_container_width=True, help=label):
                 if st.session_state.get("page") != label:
                     st.session_state["page"] = label
                     st.rerun()
 
     with cols[-2]:
         theme_lbl = "☀️" if dark else "🌙"
-        if st.button(theme_lbl, key="theme_btn", help="Toggle light/dark theme",
-                     use_container_width=True):
+        if st.button(theme_lbl, key="theme_btn", use_container_width=True, help="Toggle theme"):
             st.session_state["dark"] = not dark
             st.rerun()
 
     with cols[-1]:
-        if st.button("🚪", key="logout_btn", help="Logout", use_container_width=True):
+        if st.button("🚪", key="logout_btn", use_container_width=True, help="Logout"):
             st.session_state.clear(); st.rerun()
 
-    st.markdown(f"<div style='padding:1.5rem 2rem 0;'>", unsafe_allow_html=True)
+    st.markdown("<div style='padding:1.4rem 2rem 0;'>", unsafe_allow_html=True)
+
 
 
 # LOGIN - KOBO INTEGRATION BEFORE THIS
@@ -773,76 +801,254 @@ def login_page():
 # ══════════════════════════════════════════════════════════════════════════════
 # MAP PAGE  (enriched)
 # ══════════════════════════════════════════════════════════════════════════════
-def make_folium(df, th):
-    tiles = "CartoDB dark_matter" if st.session_state.get("dark",True) else "CartoDB positron"
-    m = folium.Map(location=[14.5,29.5], zoom_start=5, tiles=tiles, attr="CartoDB")
-    MiniMap(toggle_display=True, position="bottomleft").add_to(m)
+# SUDAN GEOGRAPHIC CONSTANTS
+# All coordinates verified within Sudan bounding box:
+#   Lat: 8.68 – 23.15   Lon: 21.83 – 38.61
+# ══════════════════════════════════════════════════════════════════════════════
+SUDAN_LAT_MIN, SUDAN_LAT_MAX = 8.68,  23.15
+SUDAN_LON_MIN, SUDAN_LON_MAX = 21.83, 38.61
 
-    if has(df,"GPS_Latitude") and has(df,"GPS_Longitude"):
-        dfm = df.copy()
-        dfm["GPS_Latitude"]  = pd.to_numeric(dfm["GPS_Latitude"],  errors="coerce")
-        dfm["GPS_Longitude"] = pd.to_numeric(dfm["GPS_Longitude"], errors="coerce")
-        dfm = dfm.dropna(subset=["GPS_Latitude","GPS_Longitude"])
-        dfm = dfm[dfm["GPS_Latitude"].between(8,24) & dfm["GPS_Longitude"].between(20,40)]
+# State centroids (verified)
+STATE_CENTROIDS = {
+    "West Darfur":     (13.58, 22.72),
+    "North Darfur":    (15.85, 24.90),
+    "South Darfur":    (11.50, 25.10),
+    "Central Darfur":  (13.10, 24.10),
+    "East Darfur":     (12.85, 26.80),
+    "Khartoum":        (15.50, 32.53),
+    "Gedaref":         (14.03, 35.39),
+    "Kassala":         (15.47, 36.40),
+    "River Nile":      (18.50, 33.80),
+    "Northern":        (20.80, 30.20),
+    "North Kordofan":  (13.80, 29.40),
+    "South Kordofan":  (11.00, 29.40),
+    "White Nile":      (13.10, 32.20),
+    "Blue Nile":       (11.80, 34.00),
+    "Sennar":          (13.55, 33.60),
+    "Red Sea":         (20.00, 37.20),
+    "Al Jazirah":      (14.40, 33.40),
+}
 
-        if not dfm.empty:
-            HeatMap(dfm[["GPS_Latitude","GPS_Longitude"]].values.tolist(),
-                    radius=14, blur=18, min_opacity=0.25).add_to(m)
-            cl = MarkerCluster(options={"maxClusterRadius":45,"showCoverageOnHover":False}).add_to(m)
-            for _, row in dfm.iterrows():
-                sec   = str(row.get("Sector","")) if has(df,"Sector") else ""
-                color = SC.get(sec,"#64748B")
-                pop   = f"""<div style='font-family:Outfit,sans-serif;font-size:12px;min-width:170px;'>
-                  <b>{row.get('Beneficiary_ID','—')}</b><br>
-                  <span style='color:#64748b;'>State:</span> {row.get('State','—')}<br>
-                  <span style='color:#64748b;'>Locality:</span> {row.get('Locality','—')}<br>
-                  <span style='color:#64748b;'>Sector:</span> <b style='color:{color};'>{sec}</b><br>
-                  <span style='color:#64748b;'>Displacement:</span> {row.get('Displacement_Status','—')}<br>
-                  <span style='color:#64748b;'>Vulnerability:</span> {row.get('Vulnerability_Level','—')}
-                </div>"""
-                folium.CircleMarker(
-                    location=[row["GPS_Latitude"],row["GPS_Longitude"]],
-                    radius=6, color=color, fill=True, fill_color=color,
-                    fill_opacity=0.8, weight=1,
-                    popup=folium.Popup(pop,max_width=230),
-                    tooltip=f"{row.get('Locality','—')} · {sec}"
-                ).add_to(cl)
+def _clean_gps(df):
+    """Return df with valid Sudan GPS coordinates only."""
+    if not (has(df,"GPS_Latitude") and has(df,"GPS_Longitude")):
+        return pd.DataFrame()
+    dfm = df.copy()
+    dfm["GPS_Latitude"]  = pd.to_numeric(dfm["GPS_Latitude"],  errors="coerce")
+    dfm["GPS_Longitude"] = pd.to_numeric(dfm["GPS_Longitude"], errors="coerce")
+    dfm = dfm.dropna(subset=["GPS_Latitude","GPS_Longitude"])
+    # Strict Sudan bounding box
+    dfm = dfm[
+        dfm["GPS_Latitude"].between(SUDAN_LAT_MIN, SUDAN_LAT_MAX) &
+        dfm["GPS_Longitude"].between(SUDAN_LON_MIN, SUDAN_LON_MAX)
+    ]
+    return dfm
 
-    # Sudan state boundaries approximation markers
-    states_coords = {
-        "West Darfur":  (13.45,22.44), "North Darfur": (13.63,25.35),
-        "Gedaref":      (14.04,35.38), "Khartoum":     (15.55,32.52),
-    }
-    for state, (lat,lon) in states_coords.items():
+def _add_state_labels(m, dark=True):
+    """Add state name labels at centroids."""
+    for state, (lat,lon) in STATE_CENTROIDS.items():
         folium.Marker(
-            location=[lat,lon],
-            icon=folium.DivIcon(html=f"""
-            <div style='background:rgba(59,130,246,0.85);color:#fff;padding:3px 8px;
-            border-radius:12px;font-family:Outfit,sans-serif;font-size:11px;
-            font-weight:700;white-space:nowrap;border:1px solid rgba(255,255,255,0.3);'>{state}</div>""",
-            icon_size=(120,28), icon_anchor=(60,14)),
+            location=[lat, lon],
+            icon=folium.DivIcon(
+                html=f"""<div style='background:rgba(30,58,138,0.82);color:#e2e8f0;
+                         padding:2px 7px;border-radius:10px;font-family:Outfit,sans-serif;
+                         font-size:10px;font-weight:600;white-space:nowrap;
+                         border:1px solid rgba(147,197,253,0.3);'>{state}</div>""",
+                icon_size=(130,22), icon_anchor=(65,11)
+            )
         ).add_to(m)
 
-    leg_bg = "rgba(13,23,48,0.95)" if st.session_state.get("dark",True) else "rgba(255,255,255,0.95)"
-    leg_text = "#e2e8f0" if st.session_state.get("dark",True) else "#1e293b"
-    leg_sub  = "#94a3b8"  if st.session_state.get("dark",True) else "#64748b"
-    leg = f"""<div style='position:fixed;bottom:28px;right:16px;z-index:9999;
-      background:{leg_bg};border:1px solid rgba(99,140,210,0.2);border-radius:10px;
-      padding:12px 16px;font-family:Outfit,sans-serif;'>
-      <div style='font-weight:700;font-size:11px;color:{leg_text};margin-bottom:8px;
-      letter-spacing:.07em;text-transform:uppercase;'>Sectors</div>"""
-    for s,c in SC.items():
-        leg += f"<div style='display:flex;align-items:center;gap:7px;margin-bottom:4px;'><span style='width:9px;height:9px;border-radius:50%;background:{c};display:inline-block;'></span><span style='font-size:11px;color:{leg_sub};'>{s}</span></div>"
-    leg += "</div>"
-    m.get_root().html.add_child(folium.Element(leg))
+def _base_map(dark=True, location=(14.5,29.5), zoom=5):
+    tiles = "CartoDB dark_matter" if dark else "CartoDB positron"
+    m = folium.Map(location=location, zoom_start=zoom, tiles=tiles, attr="CartoDB")
+    MiniMap(toggle_display=True, position="bottomleft", tile_layer=tiles).add_to(m)
+    return m
+
+def _map_legend(m, items, title="Legend", dark=True):
+    """Add a legend div to a folium map."""
+    bg   = "rgba(13,23,48,0.93)" if dark else "rgba(255,255,255,0.93)"
+    tc   = "#e2e8f0" if dark else "#1e293b"
+    sc   = "#94a3b8" if dark else "#64748b"
+    html = f"""<div style='position:fixed;bottom:28px;right:16px;z-index:9999;
+      background:{bg};border:1px solid rgba(99,140,210,0.25);border-radius:10px;
+      padding:11px 15px;font-family:Outfit,sans-serif;min-width:130px;'>
+      <div style='font-weight:700;font-size:10px;color:{tc};margin-bottom:7px;
+           letter-spacing:.08em;text-transform:uppercase;'>{title}</div>"""
+    for label, color in items:
+        html += f"<div style='display:flex;align-items:center;gap:7px;margin-bottom:4px;'><span style='width:9px;height:9px;border-radius:50%;background:{color};display:inline-block;flex-shrink:0;'></span><span style='font-size:10px;color:{sc};'>{label}</span></div>"
+    html += "</div>"
+    m.get_root().html.add_child(folium.Element(html))
+
+# ── MAP 1: Beneficiary density with clusters + heatmap ───────────────────────
+def map_beneficiaries(df, dark=True):
+    dfm = _clean_gps(df)
+    m   = _base_map(dark)
+    _add_state_labels(m, dark)
+
+    if not dfm.empty:
+        # Heatmap layer
+        HeatMap(dfm[["GPS_Latitude","GPS_Longitude"]].values.tolist(),
+                radius=16, blur=20, min_opacity=0.2, max_zoom=10).add_to(m)
+        # Clustered markers
+        cl = MarkerCluster(
+            options={"maxClusterRadius":50,"showCoverageOnHover":False,
+                     "spiderfyOnMaxZoom":True}
+        ).add_to(m)
+        for _, row in dfm.iterrows():
+            sec   = str(row.get("Sector","")) if has(df,"Sector") else ""
+            color = SC.get(sec,"#64748B")
+            pop   = f"""<div style='font-family:Outfit,sans-serif;font-size:12px;min-width:175px;'>
+              <b style='color:#1e293b;'>{row.get('Beneficiary_ID','—')}</b><br>
+              <span style='color:#64748b;'>State:</span> {row.get('State','—')}<br>
+              <span style='color:#64748b;'>Locality:</span> {row.get('Locality','—')}<br>
+              <span style='color:#64748b;'>Sector:</span> <b style='color:{color};'>{sec}</b><br>
+              <span style='color:#64748b;'>Displacement:</span> {row.get('Displacement_Status','—')}<br>
+              <span style='color:#64748b;'>Vulnerability:</span> {row.get('Vulnerability_Level','—')}
+            </div>"""
+            folium.CircleMarker(
+                location=[row["GPS_Latitude"], row["GPS_Longitude"]],
+                radius=5, color=color, fill=True, fill_color=color,
+                fill_opacity=0.8, weight=1,
+                popup=folium.Popup(pop, max_width=240),
+                tooltip=f"{row.get('Locality','—')} · {sec}"
+            ).add_to(cl)
+
+    _map_legend(m, list(SC.items()), "Sectors", dark)
+    return m
+
+# ── MAP 2: Sector coverage — one circle per state, sized by count ─────────────
+def map_sector_coverage(df, dark=True):
+    m = _base_map(dark)
+    _add_state_labels(m, dark)
+
+    if has(df,"State") and has(df,"Sector"):
+        for state, (lat, lon) in STATE_CENTROIDS.items():
+            sub = df[df["State"]==state] if has(df,"State") else pd.DataFrame()
+            if sub.empty: continue
+            total = len(sub)
+            for sec, color in SC.items():
+                n = len(sub[sub["Sector"]==sec]) if has(sub,"Sector") else 0
+                if n == 0: continue
+                radius = max(8, min(40, n / max(total,1) * 50))
+                folium.CircleMarker(
+                    location=[lat + (list(SC.keys()).index(sec)-1.5)*0.18,
+                              lon + (list(SC.keys()).index(sec)-1.5)*0.18],
+                    radius=radius,
+                    color=color, fill=True, fill_color=color, fill_opacity=0.65, weight=1,
+                    tooltip=f"{state} · {sec}: {n:,} beneficiaries",
+                    popup=folium.Popup(
+                        f"<b>{state}</b><br>{sec}: {n:,}<br>({n/total:.0%} of state total)",
+                        max_width=200)
+                ).add_to(m)
+
+    _map_legend(m, list(SC.items()), "Sectors", dark)
+    return m
+
+# ── MAP 3: Displacement status — colour = displacement type ──────────────────
+def map_displacement(df, dark=True):
+    dfm = _clean_gps(df)
+    m   = _base_map(dark)
+    _add_state_labels(m, dark)
+
+    DISP_COLORS = {
+        "IDP":            "#EF4444",
+        "Refugee":        "#3B82F6",
+        "Host Community": "#10B981",
+        "Returnee":       "#F59E0B",
+    }
+
+    if not dfm.empty and has(dfm,"Displacement_Status"):
+        for disp, color in DISP_COLORS.items():
+            sub = dfm[dfm["Displacement_Status"]==disp]
+            if sub.empty: continue
+            cl = MarkerCluster(
+                name=disp,
+                options={"maxClusterRadius":40,"showCoverageOnHover":False}
+            ).add_to(m)
+            for _, row in sub.iterrows():
+                folium.CircleMarker(
+                    location=[row["GPS_Latitude"], row["GPS_Longitude"]],
+                    radius=5, color=color, fill=True, fill_color=color,
+                    fill_opacity=0.8, weight=0.8,
+                    tooltip=f"{row.get('Locality','—')} · {disp}",
+                    popup=folium.Popup(
+                        f"<b>{disp}</b><br>State: {row.get('State','—')}<br>Locality: {row.get('Locality','—')}",
+                        max_width=200)
+                ).add_to(cl)
+
+    folium.LayerControl(position="topright").add_to(m)
+    _map_legend(m, list(DISP_COLORS.items()), "Displacement", dark)
+    return m
+
+# ── MAP 4: Vulnerability heatmap ─────────────────────────────────────────────
+def map_vulnerability(df, dark=True):
+    dfm = _clean_gps(df)
+    m   = _base_map(dark)
+    _add_state_labels(m, dark)
+
+    VULN_COLORS = {
+        "Extremely Vulnerable": "#EF4444",
+        "Vulnerable":           "#F59E0B",
+        "Moderately Vulnerable":"#10B981",
+    }
+
+    if not dfm.empty and has(dfm,"Vulnerability_Level"):
+        for vl, color in VULN_COLORS.items():
+            sub = dfm[dfm["Vulnerability_Level"]==vl]
+            if sub.empty: continue
+            coords = sub[["GPS_Latitude","GPS_Longitude"]].values.tolist()
+            weight = {"Extremely Vulnerable":1.0,"Vulnerable":0.65,"Moderately Vulnerable":0.35}.get(vl,0.5)
+            HeatMap(coords, radius=14, blur=18, min_opacity=0.3,
+                    gradient={0.4: color+"44", 0.7: color+"99", 1.0: color}).add_to(m)
+
+    _map_legend(m, list(VULN_COLORS.items()), "Vulnerability", dark)
+    return m
+
+# ── MAP 5: State-level bubble map (total beneficiaries per state) ─────────────
+def map_state_bubbles(df, dark=True):
+    m = _base_map(dark, zoom=5)
+
+    if has(df,"State"):
+        state_counts = df.groupby("State").size().reset_index(name="n")
+        max_n = state_counts["n"].max() or 1
+
+        for _, row in state_counts.iterrows():
+            state = row["State"]
+            if state not in STATE_CENTROIDS: continue
+            lat, lon = STATE_CENTROIDS[state]
+            n = row["n"]
+            radius = max(12, min(55, (n/max_n)**0.5 * 55))
+            color  = "#3B82F6"
+            folium.CircleMarker(
+                location=[lat, lon],
+                radius=radius,
+                color=color, fill=True, fill_color=color, fill_opacity=0.45, weight=2,
+                tooltip=f"{state}: {n:,} beneficiaries",
+                popup=folium.Popup(f"<b>{state}</b><br>{n:,} beneficiaries", max_width=180)
+            ).add_to(m)
+            # Label inside bubble
+            folium.Marker(
+                location=[lat, lon],
+                icon=folium.DivIcon(
+                    html=f"""<div style='text-align:center;font-family:Outfit,sans-serif;
+                             font-size:9px;font-weight:700;color:#fff;line-height:1.2;'>
+                             {state.split()[0]}<br>{N(n)}</div>""",
+                    icon_size=(80,30), icon_anchor=(40,15)
+                )
+            ).add_to(m)
+
+    folium.TileLayer("CartoDB dark_matter" if dark else "CartoDB positron",
+                     attr="CartoDB").add_to(m)
     return m
 
 def page_map(dfs):
-    ph("Geographic Coverage", "Interactive map — beneficiary locations, clustering, heatmap, and spatial analysis")
+    ph("Geographic Coverage", "Multi-map spatial analysis — Sudan-validated coordinates")
     df = dfs.get("Beneficiary_Registration", pd.DataFrame())
     if df.empty: st.info("Load the Excel database to view geographic data."); return
-    th = TH()
+    th   = TH()
+    dark = st.session_state.get("dark", True)
 
+    # ── Filters ──────────────────────────────────────────────────────────────
     c1,c2,c3,c4 = st.columns(4)
     with c1: s1 = st.selectbox("State",        sopts(df,"State"),               key="m_s")
     with c2: s2 = st.selectbox("Sector",       sopts(df,"Sector"),              key="m_sec")
@@ -850,121 +1056,143 @@ def page_map(dfs):
     with c4: s4 = st.selectbox("Vulnerability",sopts(df,"Vulnerability_Level"), key="m_v")
 
     df_f = sfilt(sfilt(sfilt(sfilt(df.copy(),"State",s1),"Sector",s2),"Displacement_Status",s3),"Vulnerability_Level",s4)
+    dfm  = _clean_gps(df_f)   # GPS-valid, Sudan-only points
     nb   = len(df_f)
+    nb_gps = len(dfm)
     fem  = slen(df_f,"Sex","Female")
 
+    # ── KPIs ─────────────────────────────────────────────────────────────────
     c1,c2,c3,c4,c5,c6 = st.columns(6)
-    c1.markdown(kpi("Shown",       N(nb),                      "beneficiaries",   "blue",  "📍"), unsafe_allow_html=True)
-    c2.markdown(kpi("States",      N(suniq(df_f,"State")),     "covered",         "teal",  "🗺️"), unsafe_allow_html=True)
-    c3.markdown(kpi("Localities",  N(suniq(df_f,"Locality")),  "zones",           "amber", "📌"), unsafe_allow_html=True)
-    c4.markdown(kpi("Female",      f"{100*fem/nb:.0f}%" if nb else "—","of shown","purple","♀"), unsafe_allow_html=True)
-    c5.markdown(kpi("IDP",         N(slen(df_f,"Displacement_Status","IDP")),    "","green","🏕️"), unsafe_allow_html=True)
-    c6.markdown(kpi("Active",      N(slen(df_f,"Registration_Status","Active")), "","teal","✅"), unsafe_allow_html=True)
+    c1.markdown(kpi("Beneficiaries",N(nb),            "in selection",  "blue",  "📊"), unsafe_allow_html=True)
+    c2.markdown(kpi("Mapped Points",N(nb_gps),         "valid GPS",     "teal",  "📍"), unsafe_allow_html=True)
+    c3.markdown(kpi("States",       N(suniq(df_f,"State")),"covered",  "amber", "🗺️"), unsafe_allow_html=True)
+    c4.markdown(kpi("Localities",   N(suniq(df_f,"Locality")),"zones", "purple","📌"), unsafe_allow_html=True)
+    c5.markdown(kpi("Female",       f"{100*fem/nb:.0f}%" if nb else "—","","green","♀"), unsafe_allow_html=True)
+    c6.markdown(kpi("IDP",          N(slen(df_f,"Displacement_Status","IDP")),"","red","🏕️"), unsafe_allow_html=True)
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # ── MAP + side charts ─────────────────────────────────────────────────
-    col_map, col_right = st.columns([2.4, 1])
-    with col_map:
-        sh("Interactive Beneficiary Map")
-        st_folium(make_folium(df_f, th), use_container_width=True, height=480, returned_objects=[])
+    if nb_gps == 0:
+        st.info("⚠️ No GPS coordinates found within Sudan's boundaries for the current selection. Maps will show state labels only.")
 
-    with col_right:
-        sh("State Distribution")
-        if has(df_f,"State") and nb > 0:
+    # ════════════════════════════════════════════════════════════════════════
+    # MAP 1 — Beneficiaries (clusters + heatmap)
+    # ════════════════════════════════════════════════════════════════════════
+    sh("Map 1 — Beneficiary Locations (Clusters + Heatmap)")
+    col_m1, col_r1 = st.columns([2.5, 1])
+    with col_m1:
+        st.markdown(f"<div style='font-size:.78rem;color:{th['muted']};margin-bottom:.5rem;'>Click clusters to zoom. Click markers for details. {nb_gps:,} geo-validated points shown.</div>", unsafe_allow_html=True)
+        st_folium(map_beneficiaries(df_f, dark), use_container_width=True, height=440, returned_objects=[], key="map1")
+    with col_r1:
+        if has(df_f,"State") and nb>0:
             by_s = df_f.groupby("State").size().reset_index(name="n").sort_values("n")
-            fig = px.bar(by_s, x="n", y="State", orientation="h",
-                         color="n", color_continuous_scale=["#1E3A6E","#60A5FA"],
-                         title="Beneficiaries by State")
+            fig = px.bar(by_s,x="n",y="State",orientation="h",color="n",
+                         color_continuous_scale=["#1E3A6E","#60A5FA"],title="Beneficiaries by State")
             fig.update_layout(coloraxis_showscale=False)
-            pc(T(fig, h=220, leg=False))
-
-        if has(df_f,"Sector") and nb > 0:
+            pc(T(fig,h=200,leg=False))
+        if has(df_f,"Sector") and nb>0:
             by_sec = df_f.groupby("Sector").size().reset_index(name="n")
-            fig = px.pie(by_sec, values="n", names="Sector", hole=0.55,
-                         color="Sector", color_discrete_map=SC, title="By Sector")
-            fig.update_traces(textinfo="none", marker=dict(line=dict(color=th["bg"],width=2)))
-            pc(T(fig, h=220))
+            fig = px.pie(by_sec,values="n",names="Sector",hole=0.55,
+                         color="Sector",color_discrete_map=SC,title="By Sector")
+            fig.update_traces(textinfo="none",marker=dict(line=dict(color=th["bg"],width=2)))
+            pc(T(fig,h=210))
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # ── SPATIAL ANALYSIS CHARTS ───────────────────────────────────────────
-    sh("Spatial Analysis — Multi-Dimensional Breakdown")
-    c1, c2, c3 = st.columns(3)
+    # ════════════════════════════════════════════════════════════════════════
+    # MAP 2 & 3 side by side — Sector coverage + Displacement
+    # ════════════════════════════════════════════════════════════════════════
+    sh("Map 2 & 3 — Sector Coverage · Displacement Status")
+    col_m2, col_m3 = st.columns(2)
+    with col_m2:
+        st.markdown(f"<div style='font-size:.78rem;color:{th['muted']};margin-bottom:.4rem;'>Bubble size = share per sector within each state.</div>", unsafe_allow_html=True)
+        st_folium(map_sector_coverage(df_f, dark), use_container_width=True, height=380, returned_objects=[], key="map2")
+    with col_m3:
+        st.markdown(f"<div style='font-size:.78rem;color:{th['muted']};margin-bottom:.4rem;'>Colour = displacement category. Clustered markers.</div>", unsafe_allow_html=True)
+        st_folium(map_displacement(df_f, dark), use_container_width=True, height=380, returned_objects=[], key="map3")
 
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    # ════════════════════════════════════════════════════════════════════════
+    # MAP 4 & 5 side by side — Vulnerability heatmap + State bubbles
+    # ════════════════════════════════════════════════════════════════════════
+    sh("Map 4 & 5 — Vulnerability Heatmap · State-Level Bubble Map")
+    col_m4, col_m5 = st.columns(2)
+    with col_m4:
+        st.markdown(f"<div style='font-size:.78rem;color:{th['muted']};margin-bottom:.4rem;'>Red = extremely vulnerable. Heatmap intensity shows concentration.</div>", unsafe_allow_html=True)
+        st_folium(map_vulnerability(df_f, dark), use_container_width=True, height=380, returned_objects=[], key="map4")
+    with col_m5:
+        st.markdown(f"<div style='font-size:.78rem;color:{th['muted']};margin-bottom:.4rem;'>Bubble size = total beneficiaries per state. Hover for details.</div>", unsafe_allow_html=True)
+        st_folium(map_state_bubbles(df_f, dark), use_container_width=True, height=380, returned_objects=[], key="map5")
+
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    # ════════════════════════════════════════════════════════════════════════
+    # SPATIAL ANALYSIS CHARTS
+    # ════════════════════════════════════════════════════════════════════════
+    sh("Spatial Analysis — Cross-Dimensional Charts")
+    c1,c2,c3 = st.columns(3)
     with c1:
-        if has(df_f,"State") and has(df_f,"Sector") and nb > 0:
-            ct = df_f.groupby(["State","Sector"]).size().reset_index(name="Count")
-            fig = px.bar(ct, x="State", y="Count", color="Sector",
-                         barmode="stack", color_discrete_map=SC,
-                         title="Beneficiaries by State & Sector")
-            pc(T(fig, h=310))
-
+        if has(df_f,"State") and has(df_f,"Sector") and nb>0:
+            ct=df_f.groupby(["State","Sector"]).size().reset_index(name="Count")
+            fig=px.bar(ct,x="State",y="Count",color="Sector",barmode="stack",
+                       color_discrete_map=SC,title="Beneficiaries by State & Sector")
+            pc(T(fig,h=300))
     with c2:
-        if has(df_f,"Displacement_Status") and has(df_f,"Sector") and nb > 0:
-            ct = df_f.groupby(["Displacement_Status","Sector"]).size().reset_index(name="Count")
-            fig = px.bar(ct, x="Displacement_Status", y="Count", color="Sector",
-                         barmode="stack", color_discrete_map=SC,
-                         title="Displacement Status by Sector")
+        if has(df_f,"Displacement_Status") and has(df_f,"Sector") and nb>0:
+            ct=df_f.groupby(["Displacement_Status","Sector"]).size().reset_index(name="Count")
+            fig=px.bar(ct,x="Displacement_Status",y="Count",color="Sector",barmode="stack",
+                       color_discrete_map=SC,title="Displacement × Sector")
             fig.update_xaxes(tickangle=-20)
-            pc(T(fig, h=310))
-
+            pc(T(fig,h=300))
     with c3:
-        if has(df_f,"Vulnerability_Level") and has(df_f,"Sex") and nb > 0:
-            ct = df_f.groupby(["Vulnerability_Level","Sex"]).size().reset_index(name="Count")
-            fig = px.bar(ct, x="Vulnerability_Level", y="Count", color="Sex",
-                         barmode="group",
-                         color_discrete_map={"Female":"#EC4899","Male":"#3B82F6"},
-                         title="Vulnerability × Sex")
-            pc(T(fig, h=310))
-
-    c1, c2, c3 = st.columns(3)
-
-    with c1:
-        if has(df_f,"State") and has(df_f,"Sex") and nb > 0:
-            sg = df_f.groupby("State")[["Sex"]].value_counts().reset_index(name="Count") if False else \
-                 df_f.groupby(["State","Sex"]).size().reset_index(name="Count")
-            fig = px.bar(sg, x="State", y="Count", color="Sex",
-                         color_discrete_map={"Female":"#EC4899","Male":"#3B82F6"},
-                         barmode="stack", title="Sex Disaggregation by State")
-            pc(T(fig, h=290))
-
-    with c2:
-        if has(df_f,"Age") and nb > 0:
-            df_age = df_f.copy()
-            df_age["Age"] = pd.to_numeric(df_age["Age"], errors="coerce")
-            df_age = df_age.dropna(subset=["Age"])
-            bins = [0,5,18,35,50,120]
-            labels = ["0–4","5–17","18–34","35–49","50+"]
-            df_age["Age_Group"] = pd.cut(df_age["Age"], bins=bins, labels=labels, right=False)
-            age_grp = df_age.groupby("Age_Group").size().reset_index(name="Count")
-            fig = px.bar(age_grp, x="Age_Group", y="Count",
-                         color="Age_Group", color_discrete_sequence=COLORS,
-                         title="Age Group Distribution")
+        if has(df_f,"Age") and nb>0:
+            df_age=df_f.copy()
+            df_age["Age"]=pd.to_numeric(df_age["Age"],errors="coerce")
+            df_age=df_age.dropna(subset=["Age"])
+            bins=[0,5,18,35,50,120]; labs=["0–4","5–17","18–34","35–49","50+"]
+            df_age["Age_Group"]=pd.cut(df_age["Age"],bins=bins,labels=labs,right=False)
+            ag=df_age.groupby("Age_Group",observed=True).size().reset_index(name="Count")
+            fig=px.bar(ag,x="Age_Group",y="Count",color="Age_Group",
+                       color_discrete_sequence=COLORS,title="Age Groups")
             fig.update_layout(showlegend=False)
-            pc(T(fig, h=290))
+            pc(T(fig,h=300))
 
+    c1,c2,c3 = st.columns(3)
+    with c1:
+        if has(df_f,"State") and has(df_f,"Sex") and nb>0:
+            sg=df_f.groupby(["State","Sex"]).size().reset_index(name="Count")
+            fig=px.bar(sg,x="State",y="Count",color="Sex",
+                       color_discrete_map={"Female":"#EC4899","Male":"#3B82F6"},
+                       barmode="stack",title="Sex by State")
+            pc(T(fig,h=280))
+    with c2:
+        if has(df_f,"Vulnerability_Level") and has(df_f,"Sex") and nb>0:
+            ct=df_f.groupby(["Vulnerability_Level","Sex"]).size().reset_index(name="Count")
+            fig=px.bar(ct,x="Vulnerability_Level",y="Count",color="Sex",barmode="group",
+                       color_discrete_map={"Female":"#EC4899","Male":"#3B82F6"},
+                       title="Vulnerability × Sex")
+            pc(T(fig,h=280))
     with c3:
-        if has(df_f,"Registration_Date") and nb > 0:
-            df_t = df_f.copy()
-            df_t["Registration_Date"] = pd.to_datetime(df_t["Registration_Date"], errors="coerce")
-            df_t = df_t.dropna(subset=["Registration_Date"])
-            df_t["Month"] = df_t["Registration_Date"].dt.to_period("M").astype(str)
-            trend = df_t.groupby("Month").size().reset_index(name="Count")
-            fig = px.line(trend, x="Month", y="Count",
-                          title="Registration Timeline", markers=True)
-            fig.update_traces(line_color="#3B82F6", marker_color="#60A5FA", line_width=2)
-            pc(T(fig, h=290))
+        if has(df_f,"Registration_Date") and nb>0:
+            df_t=df_f.copy()
+            df_t["Registration_Date"]=pd.to_datetime(df_t["Registration_Date"],errors="coerce")
+            df_t=df_t.dropna(subset=["Registration_Date"])
+            df_t["Month"]=df_t["Registration_Date"].dt.to_period("M").astype(str)
+            trend=df_t.groupby("Month").size().reset_index(name="Count")
+            fig=px.line(trend,x="Month",y="Count",title="Registration Timeline",markers=True)
+            fig.update_traces(line_color="#3B82F6",marker_color="#60A5FA",line_width=2)
+            pc(T(fig,h=280))
 
-    # ── HEATMAP TABLE ──────────────────────────────────────────────────────
     sh("Coverage Heatmap — State × Sector")
-    if has(df_f,"State") and has(df_f,"Sector") and nb > 0:
-        heat = df_f.groupby(["State","Sector"]).size().reset_index(name="Count")
-        fig = px.density_heatmap(heat, x="Sector", y="State", z="Count",
-                                 color_continuous_scale="Blues",
-                                 title="Beneficiary Density by State & Sector")
-        fig.update_layout(coloraxis_colorbar=dict(tickfont=dict(color=TH()["fontc"])))
-        pc(T(fig, h=300, leg=False))
+    if has(df_f,"State") and has(df_f,"Sector") and nb>0:
+        heat=df_f.groupby(["State","Sector"]).size().reset_index(name="Count")
+        fig=px.density_heatmap(heat,x="Sector",y="State",z="Count",
+                               color_continuous_scale="Blues",
+                               title="Beneficiary Density by State & Sector")
+        fig.update_layout(coloraxis_colorbar=dict(tickfont=dict(color=th["fontc"])))
+        pc(T(fig,h=300,leg=False))
+
 
 # ══════════════════════════════════════════════════════════════════════════════
 # OVERVIEW
