@@ -36,253 +36,262 @@ st.set_page_config(
 )
 
 # ══════════════════════════════════════════════════════════════════════════════
-# THEME TOKENS
 # ══════════════════════════════════════════════════════════════════════════════
+# SI BRAND  (from solidarites.org)
+# ══════════════════════════════════════════════════════════════════════════════
+SI_RED  = "#E3001B"
+SI_RED2 = "#B50016"
+
+SI_IMAGES = [
+    "https://images.unsplash.com/photo-1488521787991-ed7bbaae773c?w=1400&q=80",
+    "https://images.unsplash.com/photo-1532629345422-7515f3d16bb6?w=1400&q=80",
+    "https://images.unsplash.com/photo-1509099836639-18ba1795216d?w=1400&q=80",
+    "https://images.unsplash.com/photo-1578496479914-7ef3b0193be3?w=1400&q=80",
+    "https://images.unsplash.com/photo-1559027615-cd4628902d4a?w=1400&q=80",
+]
+
 DARK = dict(
-    bg="#060D1F", surface="#0F1B2D", panel="#131F35",
-    border="rgba(99,140,210,0.13)", border2="rgba(99,140,210,0.24)",
-    text="#E2E8F0", muted="#64748B", dim="#1E293B",
-    navbg="#0F1B2D", navborder="rgba(99,140,210,0.18)",
-    card="#131F35", input="#0F1B2D",
+    bg="#12151C", surface="#1C2130", panel="#222840",
+    border="rgba(227,0,27,0.18)", border2="rgba(227,0,27,0.35)",
+    text="#F1F5F9", muted="#94A3B8", dim="#2A3050",
+    navbg="#0E1120", navborder="rgba(227,0,27,0.3)",
+    card="#1C2130", input="#161B2E",
     plotbg="rgba(0,0,0,0)", gridc="rgba(255,255,255,0.05)",
-    fontc="#64748B", title="#CBD5E1",
-    accent="#3B82F6", accent2="#60A5FA",
-    sbg="#060D1F",
+    fontc="#64748B", title="#E2E8F0",
+    accent="#E3001B", accent2="#FF3355",
+    sbg="#12151C",
 )
 LIGHT = dict(
-    bg="#F0F4FA", surface="#FFFFFF", panel="#FFFFFF",
-    border="rgba(59,130,246,0.15)", border2="rgba(59,130,246,0.28)",
-    text="#1E293B", muted="#64748B", dim="#E2E8F0",
-    navbg="#FFFFFF", navborder="rgba(59,130,246,0.15)",
+    bg="#F8F9FB", surface="#FFFFFF", panel="#FFFFFF",
+    border="rgba(227,0,27,0.12)", border2="rgba(227,0,27,0.28)",
+    text="#0F172A", muted="#64748B", dim="#F1F5F9",
+    navbg="#FFFFFF", navborder="rgba(227,0,27,0.2)",
     card="#FFFFFF", input="#F8FAFC",
     plotbg="rgba(0,0,0,0)", gridc="rgba(0,0,0,0.04)",
-    fontc="#94A3B8", title="#334155",
-    accent="#2563EB", accent2="#3B82F6",
-    sbg="#F8FAFC",
+    fontc="#94A3B8", title="#1E293B",
+    accent="#E3001B", accent2="#B50016",
+    sbg="#F8F9FB",
 )
-COLORS  = ["#3B82F6","#10B981","#F59E0B","#EF4444","#8B5CF6","#14B8A6","#EC4899","#F97316"]
-SC = {"WASH":"#3B82F6","FSL":"#10B981","Shelter & NFI":"#F59E0B","Cash & Voucher Assistance":"#EF4444"}
+COLORS  = ["#E3001B","#3B82F6","#F59E0B","#10B981","#8B5CF6","#14B8A6","#EC4899","#F97316"]
+SC = {"WASH":"#3B82F6","FSL":"#10B981","Shelter & NFI":"#F59E0B","Cash & Voucher Assistance":"#E3001B"}
 CREDENTIALS = {"im_manager": "15062026"}
 
 NAV_ITEMS = [
-    ("🏠", "Overview"),("🗺️", "Map"),("💧", "WASH"),
-    ("🌾", "FSL"),("💵", "CVA"),("📊", "Indicators"),
-    ("🗂️", "Raw Data"),("📄", "Report"),
+    ("\U0001f3e0", "Overview"),("\U0001f5fa\ufe0f", "Map"),("\U0001f4a7", "WASH"),
+    ("\U0001f33e", "FSL"),("\U0001f4b5", "CVA"),("\U0001f4ca", "Indicators"),
+    ("\U0001f5c2\ufe0f", "Raw Data"),("\U0001f4c4", "Report"),
 ]
 
 # ══════════════════════════════════════════════════════════════════════════════
-# CSS INJECTOR
+# CSS INJECTOR  —  SI brand identity
 # ══════════════════════════════════════════════════════════════════════════════
 def inject_css(T):
-    st.markdown(f"""
-<style>
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
+    is_dark = T.get("bg","") == DARK.get("bg","")
+    shadow     = "0 4px 24px rgba(0,0,0,0.4)" if is_dark else "0 4px 24px rgba(0,0,0,0.08)"
+    nav_shadow = "0 2px 20px rgba(0,0,0,0.5)" if is_dark else "0 2px 12px rgba(0,0,0,0.1)"
+    img_filter = "brightness(0.65) saturate(1.2)" if is_dark else "brightness(0.8) saturate(1.1)"
+    login_sh   = "0 40px 80px rgba(0,0,0,0.6)" if is_dark else "0 40px 80px rgba(0,0,0,0.15)"
+    ac  = T["accent"]
+    ac2 = T["accent2"]
+    css = (
+        "@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900"
+        "&family=JetBrains+Mono:wght@400;500&display=swap');\n"
+        ":root{"
+        "--bg:" + T["bg"] + ";--surface:" + T["surface"] + ";--panel:" + T["panel"] + ";"
+        "--border:" + T["border"] + ";--border2:" + T["border2"] + ";"
+        "--text:" + T["text"] + ";--muted:" + T["muted"] + ";--dim:" + T["dim"] + ";"
+        "--navbg:" + T["navbg"] + ";--navbdr:" + T["navborder"] + ";"
+        "--card:" + T["card"] + ";--input:" + T["input"] + ";"
+        "--accent:" + ac + ";--accent2:" + ac2 + ";"
+        "--si-red:" + SI_RED + ";--si-red2:" + SI_RED2 + ";"
+        "--font:'Outfit',sans-serif;--mono:'JetBrains Mono',monospace;"
+        "--r:12px;--shadow:" + shadow + ";}"
+        "*,*::before,*::after{box-sizing:border-box;}"
+        "html,body{font-family:var(--font);background:var(--bg);color:var(--text);margin:0;}"
+        "[data-testid='stAppViewContainer'],[data-testid='stMain'],.main .block-container{background:var(--bg)!important;}"
+        "[data-testid='stHeader']{background:var(--navbg)!important;border-bottom:3px solid " + SI_RED + "!important;}"
+        "[data-testid='stSidebar']{display:none!important;}"
+        "[data-testid='block-container']{padding:0!important;max-width:100%!important;}"
+        "::-webkit-scrollbar{width:5px;height:5px;}"
+        "::-webkit-scrollbar-thumb{background:" + SI_RED + ";border-radius:3px;}"
 
-:root {{
-  --bg:      {T['bg']};
-  --surface: {T['surface']};
-  --panel:   {T['panel']};
-  --border:  {T['border']};
-  --border2: {T['border2']};
-  --text:    {T['text']};
-  --muted:   {T['muted']};
-  --dim:     {T['dim']};
-  --navbg:   {T['navbg']};
-  --navbdr:  {T['navborder']};
-  --card:    {T['card']};
-  --input:   {T['input']};
-  --accent:  {T['accent']};
-  --accent2: {T['accent2']};
-  --sbg:     {T['sbg']};
-  --font:    'Outfit',sans-serif;
-  --mono:    'JetBrains Mono',monospace;
-  --r:       10px;
-}}
+        # HERO
+        ".si-hero{position:relative;overflow:hidden;border-radius:14px;margin-bottom:1.5rem;min-height:200px;"
+        "background:linear-gradient(135deg,#1A0004 0%,#2A0008 50%,#1A0004 100%);}"
+        ".si-hero img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;"
+        "opacity:0.3;filter:" + img_filter + ";}"
+        ".si-hero-content{position:relative;z-index:2;padding:2rem 2.5rem;min-height:200px;"
+        "display:flex;flex-direction:column;justify-content:flex-end;}"
+        ".si-tag{display:inline-block;background:" + SI_RED + ";color:#fff;font-size:.68rem;"
+        "font-weight:800;letter-spacing:.12em;text-transform:uppercase;"
+        "padding:3px 10px;border-radius:3px;margin-bottom:.7rem;width:fit-content;}"
+        ".si-hero-title{font-size:1.9rem;font-weight:900;color:#fff;margin:0 0 .4rem;"
+        "letter-spacing:-.02em;text-shadow:0 2px 20px rgba(0,0,0,0.5);}"
+        ".si-hero-sub{font-size:.85rem;color:rgba(255,255,255,.7);margin:0;}"
+        ".si-hero-bar{position:absolute;bottom:0;left:0;right:0;height:4px;"
+        "background:linear-gradient(90deg," + SI_RED + "," + SI_RED2 + "," + SI_RED + ");"
+        "animation:redpulse 3s ease-in-out infinite;}"
+        "@keyframes redpulse{0%,100%{opacity:1}50%{opacity:.6}}"
 
-*,*::before,*::after {{ box-sizing:border-box; }}
-html,body {{ font-family:var(--font); background:var(--bg); color:var(--text); margin:0; }}
+        # IMAGE SLIDER
+        ".img-slider{overflow:hidden;border-radius:10px;margin:1rem 0;}"
+        ".img-track{display:flex;gap:10px;animation:slide 32s linear infinite;width:max-content;}"
+        ".img-track img{height:145px;width:240px;object-fit:cover;border-radius:8px;"
+        "flex-shrink:0;filter:" + img_filter + ";transition:filter .3s;"
+        "border:1px solid rgba(227,0,27,0.2);}"
+        ".img-track img:hover{filter:brightness(1) saturate(1.3);}"
+        "@keyframes slide{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}"
 
-/* APP BACKGROUND */
-[data-testid="stAppViewContainer"],
-[data-testid="stMain"],
-.main .block-container {{ background:var(--bg) !important; }}
-[data-testid="stHeader"] {{ background:var(--navbg) !important;
-  border-bottom:1px solid var(--navbdr) !important; }}
-[data-testid="stSidebar"] {{ display:none !important; }}
+        # TOPBAR
+        ".si-topbar{background:var(--navbg);border-bottom:3px solid " + SI_RED + ";"
+        "padding:.55rem 1.8rem;display:flex;align-items:center;gap:14px;"
+        "position:sticky;top:0;z-index:1000;backdrop-filter:blur(16px);"
+        "box-shadow:" + nav_shadow + ";}"
+        ".si-logo-box{width:36px;height:36px;background:" + SI_RED + ";border-radius:6px;"
+        "display:flex;align-items:center;justify-content:center;font-size:1.15rem;"
+        "color:#fff;font-weight:900;flex-shrink:0;}"
+        ".si-brand{font-size:.95rem;font-weight:900;color:#fff;font-family:var(--font);}"
+        ".si-brand small{display:block;font-size:.59rem;color:rgba(255,255,255,.4);"
+        "font-weight:400;letter-spacing:.09em;text-transform:uppercase;}"
+        ".si-chip{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);"
+        "border-radius:20px;padding:3px 12px;font-size:.71rem;color:rgba(255,255,255,.55);}"
 
-/* BLOCK CONTAINER */
-[data-testid="block-container"] {{
-  padding:0 !important; max-width:100% !important;
-}}
+        # NAV BUTTONS  (active index injected dynamically in top_nav)
+        "div[data-testid='stHorizontalBlock']>div>[data-testid='stButton'] button{"
+        "background:transparent!important;border:none!important;"
+        "border-bottom:3px solid transparent!important;border-radius:0!important;"
+        "color:rgba(255,255,255,0.5)!important;font-family:var(--font)!important;"
+        "font-size:.82rem!important;font-weight:500!important;"
+        "padding:.55rem .35rem!important;width:100%!important;"
+        "transition:all .18s!important;white-space:nowrap!important;}"
+        "div[data-testid='stHorizontalBlock']>div>[data-testid='stButton'] button:hover{"
+        "color:#fff!important;background:rgba(227,0,27,0.1)!important;"
+        "border-bottom-color:rgba(227,0,27,0.5)!important;}"
+        "div[data-testid='stHorizontalBlock']{gap:2px!important;margin:0!important;padding:0!important;}"
 
-/* TOP NAV */
-/* NAV BUTTONS — all Streamlit buttons in the nav row */
-[data-testid="stHorizontalBlock"] > div > [data-testid="stButton"] > button {{
-  background: transparent !important;
-  border: none !important;
-  border-bottom: 2px solid transparent !important;
-  border-radius: 0 !important;
-  color: var(--muted) !important;
-  font-family: var(--font) !important;
-  font-size: 0.82rem !important;
-  font-weight: 500 !important;
-  padding: 0.6rem 0.4rem !important;
-  width: 100% !important;
-  transition: all 0.15s !important;
-  white-space: nowrap !important;
-}}
-[data-testid="stHorizontalBlock"] > div > [data-testid="stButton"] > button:hover {{
-  color: var(--text) !important;
-  background: var(--dim) !important;
-}}
+        # KPI CARDS
+        ".kpi-card{background:var(--card);border:1px solid var(--border);border-radius:var(--r);"
+        "padding:1.1rem 1.2rem .9rem;position:relative;overflow:hidden;"
+        "transition:transform .2s,box-shadow .2s;box-shadow:var(--shadow);}"
+        ".kpi-card:hover{transform:translateY(-2px);box-shadow:0 10px 36px rgba(227,0,27,0.2);}"
+        ".kpi-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;}"
+        ".kpi-card::after{content:'';position:absolute;bottom:0;left:0;width:0;height:2px;"
+        "background:" + SI_RED + ";transition:width .4s;}"
+        ".kpi-card:hover::after{width:100%;}"
+        ".kpi-red::before{background:linear-gradient(90deg," + SI_RED + "," + SI_RED2 + ");}"
+        ".kpi-blue::before{background:linear-gradient(90deg,#3B82F6,#60A5FA);}"
+        ".kpi-green::before{background:linear-gradient(90deg,#10B981,#34D399);}"
+        ".kpi-amber::before{background:linear-gradient(90deg,#F59E0B,#FCD34D);}"
+        ".kpi-purple::before{background:linear-gradient(90deg,#8B5CF6,#A78BFA);}"
+        ".kpi-teal::before{background:linear-gradient(90deg,#14B8A6,#5EEAD4);}"
+        ".kpi-label{font-size:.63rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;"
+        "color:var(--muted);margin-bottom:.4rem;}"
+        ".kpi-value{font-size:1.8rem;font-weight:900;color:var(--text);line-height:1;font-family:var(--font);}"
+        ".kpi-sub{font-size:.7rem;color:var(--muted);margin-top:.3rem;}"
+        ".kpi-icon{position:absolute;top:.85rem;right:.95rem;font-size:1.3rem;opacity:.12;}"
+        ".kpi-delta{font-size:.69rem;font-weight:700;margin-top:.35rem;"
+        "display:inline-flex;align-items:center;gap:3px;padding:1px 7px;border-radius:20px;}"
+        ".d-up{background:rgba(16,185,129,.15);color:#34D399;}"
+        ".d-down{background:rgba(227,0,27,.15);color:#FF6680;}"
+        ".d-mid{background:rgba(245,158,11,.15);color:#FCD34D;}"
 
-/* NAV BRAND */
-.nav-brand {{
-  font-family: var(--font);
-  font-size: 1rem; font-weight: 800; color: var(--text);
-}}
-.nav-brand b {{ color: var(--accent); }}
+        # SECTION HEADER
+        ".sh{font-size:.66rem;font-weight:800;letter-spacing:.14em;text-transform:uppercase;"
+        "color:" + SI_RED + ";margin:1.8rem 0 1rem;display:flex;align-items:center;gap:10px;}"
+        ".sh::before{content:'';width:3px;height:14px;background:" + SI_RED + ";border-radius:2px;flex-shrink:0;}"
+        ".sh::after{content:'';flex:1;height:1px;background:var(--border);}"
 
-/* USER CHIP */
-.user-chip {{
-  background: var(--dim); border: 1px solid var(--border);
-  border-radius: 20px; padding: 3px 10px;
-  font-size: 0.76rem; color: var(--muted); font-family: var(--font);
-}}
+        # PAGE HEADER
+        ".ph{border-bottom:1px solid var(--border);margin-bottom:1.5rem;padding-bottom:.9rem;}"
+        ".ph h1{font-size:1.55rem;font-weight:900;color:var(--text);margin:0 0 3px;"
+        "font-family:var(--font);letter-spacing:-.02em;}"
+        ".ph p{font-size:.81rem;color:var(--muted)!important;margin:0;}"
 
-/* PAGE CONTENT */
-.page-content {{ padding: 1.5rem 2rem; }}
+        # BADGES
+        ".badge{display:inline-block;padding:2px 9px;border-radius:3px;"
+        "font-size:.66rem;font-weight:700;letter-spacing:.04em;}"
+        ".bg{background:rgba(16,185,129,.18);color:#34D399;}"
+        ".ba{background:rgba(245,158,11,.18);color:#FCD34D;}"
+        ".br{background:rgba(227,0,27,.18);color:#FF6680;}"
+        ".bn{background:rgba(100,116,139,.18);color:#94A3B8;}"
+        ".pbar-wrap{background:rgba(128,128,128,.12);border-radius:3px;height:5px;overflow:hidden;margin:5px 0 3px;}"
+        ".pbar{height:100%;border-radius:3px;}"
 
-/* KPI CARDS */
-.kpi-card {{
-  background:var(--card); border:1px solid var(--border);
-  border-radius:var(--r); padding:1.1rem 1.2rem 1rem;
-  position:relative; overflow:hidden;
-}}
-.kpi-card::after {{ content:''; position:absolute; bottom:0; left:0; right:0; height:2px; }}
-.kpi-blue::after   {{ background:linear-gradient(90deg,#3B82F6,#60A5FA); }}
-.kpi-green::after  {{ background:linear-gradient(90deg,#10B981,#34D399); }}
-.kpi-amber::after  {{ background:linear-gradient(90deg,#F59E0B,#FCD34D); }}
-.kpi-red::after    {{ background:linear-gradient(90deg,#EF4444,#F87171); }}
-.kpi-purple::after {{ background:linear-gradient(90deg,#8B5CF6,#A78BFA); }}
-.kpi-teal::after   {{ background:linear-gradient(90deg,#14B8A6,#5EEAD4); }}
-.kpi-pink::after   {{ background:linear-gradient(90deg,#EC4899,#F9A8D4); }}
+        # IND CARD
+        ".ind-card{background:var(--card);border:1px solid var(--border);border-left:3px solid " + SI_RED + ";"
+        "border-radius:var(--r);padding:.9rem 1.1rem;margin-bottom:.5rem;transition:border-color .2s;}"
+        ".ind-card:hover{border-left-color:" + SI_RED2 + ";}"
+        ".ind-name{font-size:.87rem;font-weight:600;color:var(--text);}"
+        ".ind-vals{font-size:.71rem;color:var(--muted);font-family:var(--mono);}"
 
-.kpi-label {{ font-size:0.65rem; font-weight:700; letter-spacing:.1em;
-  text-transform:uppercase; color:var(--muted); margin-bottom:0.4rem; }}
-.kpi-value {{ font-size:1.75rem; font-weight:800; color:var(--text);
-  line-height:1; font-family:var(--font); }}
-.kpi-sub  {{ font-size:0.7rem; color:var(--muted); margin-top:0.3rem; }}
-.kpi-icon {{ position:absolute; top:0.9rem; right:1rem; font-size:1.3rem; opacity:0.15; }}
-.kpi-delta {{ font-size:0.7rem; font-weight:700; margin-top:0.35rem;
-  display:inline-flex; align-items:center; gap:3px;
-  padding:1px 7px; border-radius:20px; }}
-.d-up   {{ background:rgba(16,185,129,0.15); color:#34D399; }}
-.d-down {{ background:rgba(239,68,68,0.15);  color:#F87171; }}
-.d-mid  {{ background:rgba(245,158,11,0.15); color:#FCD34D; }}
+        # ALERT
+        ".alert-banner{background:rgba(227,0,27,.07);border:1px solid rgba(227,0,27,.22);"
+        "border-left:3px solid " + SI_RED + ";border-radius:var(--r);padding:.72rem 1rem;margin-bottom:.55rem;}"
+        ".alert-banner span{font-size:.82rem;color:#FF9AAA;}"
 
-/* SECTION HEADER */
-.sh {{
-  font-size:0.67rem; font-weight:700; letter-spacing:.12em; text-transform:uppercase;
-  color:var(--accent2); margin:1.6rem 0 0.9rem;
-  display:flex; align-items:center; gap:8px;
-}}
-.sh::after {{ content:''; flex:1; height:1px; background:var(--border); }}
+        # INPUTS
+        "[data-testid='stSelectbox']>div>div{background:var(--input)!important;"
+        "border:1px solid var(--border2)!important;border-radius:var(--r)!important;color:var(--text)!important;}"
+        "[data-testid='stTextInput']>div>div>input{background:var(--input)!important;"
+        "border:1px solid var(--border2)!important;color:var(--text)!important;border-radius:var(--r)!important;}"
+        "[data-baseweb='select']*{color:var(--text)!important;}"
+        "[data-baseweb='menu']{background:var(--input)!important;}"
+        "label{color:var(--muted)!important;font-size:.81rem!important;}"
+        "p{color:var(--muted)!important;}"
 
-/* PAGE HEADER */
-.ph {{ border-bottom:1px solid var(--border); margin-bottom:1.5rem; padding-bottom:0.9rem; }}
-.ph h1 {{ font-size:1.55rem; font-weight:800; color:var(--text); margin:0 0 3px; font-family:var(--font); }}
-.ph p  {{ font-size:0.81rem; color:var(--muted) !important; margin:0; }}
+        # BUTTONS
+        ".stButton>button{background:" + SI_RED + "!important;color:#fff!important;"
+        "border:none!important;border-radius:6px!important;"
+        "font-family:var(--font)!important;font-weight:700!important;"
+        "font-size:.88rem!important;padding:.55rem 1.4rem!important;"
+        "transition:all .2s!important;letter-spacing:.01em!important;}"
+        ".stButton>button:hover{background:" + SI_RED2 + "!important;"
+        "transform:translateY(-1px)!important;box-shadow:0 4px 16px rgba(227,0,27,.4)!important;}"
+        "[data-testid='stDownloadButton']>button{background:var(--card)!important;"
+        "border:1px solid " + SI_RED + "!important;color:" + SI_RED + "!important;border-radius:6px!important;}"
+        "[data-testid='stDownloadButton']>button:hover{background:" + SI_RED + "!important;color:#fff!important;}"
+        "[data-testid='stFileUploader']{background:var(--card)!important;"
+        "border:1px dashed var(--border2)!important;border-radius:var(--r)!important;}"
+        "[data-testid='stDataFrame']{border-radius:var(--r);overflow:hidden;box-shadow:var(--shadow);}"
+        "[data-testid='stVerticalBlock']{gap:0!important;}"
+        "div[data-testid='stHorizontalBlock']{gap:12px!important;}"
 
-/* BADGES */
-.badge {{ display:inline-block; padding:2px 9px; border-radius:20px;
-  font-size:0.67rem; font-weight:700; letter-spacing:.04em; }}
-.bg  {{ background:rgba(16,185,129,0.18);  color:#34D399; }}
-.ba  {{ background:rgba(245,158,11,0.18);  color:#FCD34D; }}
-.br  {{ background:rgba(239,68,68,0.18);   color:#F87171; }}
-.bn  {{ background:rgba(100,116,139,0.18); color:#94A3B8; }}
+        # DS CARDS
+        ".ds-card{background:var(--card);border:1px solid var(--border);border-radius:var(--r);"
+        "padding:2rem 1.8rem;text-align:center;transition:all .22s;position:relative;overflow:hidden;}"
+        ".ds-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;"
+        "background:" + SI_RED + ";transform:scaleX(0);transition:transform .3s;transform-origin:left;}"
+        ".ds-card:hover{border-color:" + SI_RED + ";transform:translateY(-3px);"
+        "box-shadow:0 12px 40px rgba(227,0,27,.18);}"
+        ".ds-card:hover::before{transform:scaleX(1);}"
+        ".ds-icon{font-size:2.5rem;margin-bottom:.8rem;}"
+        ".ds-title{font-size:1.05rem;font-weight:800;color:var(--text);margin-bottom:.4rem;}"
+        ".ds-desc{font-size:.82rem;color:var(--muted);line-height:1.6;}"
+        ".step-badge{display:inline-block;background:rgba(227,0,27,.15);color:" + SI_RED + ";"
+        "font-size:.69rem;font-weight:800;letter-spacing:.09em;text-transform:uppercase;"
+        "padding:3px 12px;border-radius:4px;margin-bottom:1.2rem;}"
+        ".kf-card{background:var(--card);border:1px solid var(--border);border-left:3px solid " + SI_RED + ";"
+        "border-radius:var(--r);padding:.8rem 1.1rem;margin-bottom:.45rem;"
+        "display:flex;align-items:center;gap:12px;}"
+        ".kf-name{font-size:.87rem;font-weight:600;color:var(--text);}"
+        ".kf-meta{font-size:.72rem;color:var(--muted);margin-top:2px;}"
+        ".kf-badge{font-size:.7rem;font-weight:700;padding:2px 9px;border-radius:4px;"
+        "background:rgba(16,185,129,.15);color:#34D399;margin-left:auto;white-space:nowrap;}"
+        ".step-row{display:flex;align-items:center;gap:8px;font-size:.8rem;color:var(--muted);margin-bottom:1.5rem;}"
+        ".sdot{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;"
+        "justify-content:center;font-size:.72rem;font-weight:800;flex-shrink:0;}"
+        ".sa{background:" + SI_RED + ";color:#fff;} .sd{background:#10B981;color:#fff;}"
+        ".sn{background:var(--dim);color:var(--muted);}"
+        ".sline{flex:1;height:1px;background:var(--border);}"
 
-/* PROGRESS BAR */
-.pbar-wrap {{ background:rgba(128,128,128,0.12); border-radius:4px; height:5px; overflow:hidden; margin:5px 0 3px; }}
-.pbar {{ height:100%; border-radius:4px; }}
+        # LOGIN
+        ".login-card{background:var(--card);border:1px solid var(--border2);"
+        "border-top:4px solid " + SI_RED + ";border-radius:16px;padding:2.8rem 2.5rem;"
+        "box-shadow:" + login_sh + ";}"
+    )
+    st.markdown(f"<style>{css}</style>", unsafe_allow_html=True)
 
-/* INDICATOR CARD */
-.ind-card {{
-  background:var(--card); border:1px solid var(--border);
-  border-radius:var(--r); padding:0.9rem 1.1rem; margin-bottom:0.5rem;
-}}
-.ind-name {{ font-size:0.86rem; font-weight:500; color:var(--text); }}
-.ind-vals {{ font-size:0.71rem; color:var(--muted); font-family:var(--mono); }}
 
-/* ALERT BANNER */
-.alert-banner {{
-  background:rgba(239,68,68,0.07); border:1px solid rgba(239,68,68,0.2);
-  border-left:3px solid #EF4444; border-radius:var(--r);
-  padding:0.72rem 1rem; margin-bottom:0.55rem;
-}}
-.alert-banner span {{ font-size:0.82rem; color:#FCA5A5; }}
-
-/* INPUTS OVERRIDES */
-[data-testid="stSelectbox"] > div > div {{
-  background:var(--input) !important; border:1px solid var(--border2) !important;
-  border-radius:var(--r) !important; color:var(--text) !important;
-}}
-[data-testid="stTextInput"] > div > div > input {{
-  background:var(--input) !important; border:1px solid var(--border2) !important;
-  color:var(--text) !important; border-radius:var(--r) !important;
-}}
-[data-baseweb="select"] * {{ color:var(--text) !important; }}
-[data-baseweb="menu"]    {{ background:var(--input) !important; }}
-label {{ color:var(--muted) !important; font-size:0.81rem !important; }}
-p     {{ color:var(--muted) !important; }}
-
-/* BUTTONS */
-.stButton > button {{
-  background:var(--accent) !important; color:#fff !important;
-  border:none !important; border-radius:var(--r) !important;
-  font-family:var(--font) !important; font-weight:600 !important;
-  font-size:0.88rem !important; padding:0.55rem 1.3rem !important;
-  transition:all .2s !important;
-}}
-.stButton > button:hover {{ opacity:.88 !important; transform:translateY(-1px) !important; }}
-[data-testid="stDownloadButton"] > button {{
-  background:var(--card) !important; border:1px solid var(--border2) !important;
-  color:var(--text) !important; border-radius:var(--r) !important;
-}}
-[data-testid="stFileUploader"] {{
-  background:var(--card) !important; border:1px dashed var(--border2) !important;
-  border-radius:var(--r) !important;
-}}
-
-/* DATAFRAME */
-[data-testid="stDataFrame"] {{ border-radius:var(--r); overflow:hidden; }}
-
-/* LOGIN */
-.login-card {{
-  background:var(--surface); border:1px solid var(--border2);
-  border-radius:18px; padding:2.8rem 2.5rem;
-  box-shadow:0 30px 80px rgba(0,0,0,0.3);
-}}
-.login-badge {{
-  display:inline-block; background:rgba(59,130,246,0.12); color:var(--accent2);
-  font-size:0.69rem; font-weight:700; letter-spacing:.1em; text-transform:uppercase;
-  padding:3px 10px; border-radius:20px; margin-bottom:1rem;
-}}
-.login-title {{ font-size:1.55rem; font-weight:800; color:var(--text); margin-bottom:0.3rem; }}
-.login-sub   {{ font-size:0.82rem; color:var(--muted); margin-bottom:2rem; }}
-
-/* SCROLLBAR */
-::-webkit-scrollbar {{ width:4px; height:4px; }}
-::-webkit-scrollbar-thumb {{ background:rgba(100,116,139,0.4); border-radius:2px; }}
-
-/* STREAMLIT MISC */
-[data-testid="stVerticalBlock"] {{ gap:0 !important; }}
-div[data-testid="stHorizontalBlock"] {{ gap:12px !important; }}
-.stTabs [data-baseweb="tab-panel"] {{ padding:0 !important; }}
-</style>
-""", unsafe_allow_html=True)
-
-# ══════════════════════════════════════════════════════════════════════════════
 # HELPERS
 # ══════════════════════════════════════════════════════════════════════════════
 def N(n, d=0):
@@ -365,98 +374,66 @@ def load_data(file):
 # TOP NAVIGATION  — reliable active-tab highlighting via nth-child CSS
 # ══════════════════════════════════════════════════════════════════════════════
 def top_nav():
-    th   = TH()
     page = st.session_state.get("page", "Overview")
     user = st.session_state.get("user", "")
     dark = st.session_state.get("dark", True)
     src  = st.session_state.get("data_source", "—")
     src_icon = "🔗" if src == "kobo" else "📊"
+    labels    = [lbl for _, lbl in NAV_ITEMS]
+    active_idx = labels.index(page) + 1 if page in labels else 1
+    n_nav     = len(NAV_ITEMS)
 
-    labels = [label for _, label in NAV_ITEMS]
-    active_idx = labels.index(page) + 1 if page in labels else 1   # 1-based for nth-child
-
-    # Brand bar
+    # ── SI branded topbar ─────────────────────────────────────────────────────
     st.markdown(f"""
-    <div style='background:{th["navbg"]};border-bottom:1px solid {th["navborder"]};
-         padding:.55rem 1.6rem;display:flex;align-items:center;gap:10px;
-         position:sticky;top:0;z-index:1000;backdrop-filter:blur(14px);'>
-      <span style='font-size:.98rem;font-weight:800;color:{th["text"]};font-family:Outfit,sans-serif;letter-spacing:-.01em;'>
-        🌍&nbsp;<span style='color:{th["accent"]};'>SI</span>&nbsp;Sudan&nbsp;IM
-      </span>
-      <span style='margin-left:auto;font-size:.73rem;color:{th["muted"]};
-           background:{th["dim"]};padding:3px 11px;border-radius:20px;border:1px solid {th["border"]};'>
-        {src_icon}&nbsp;{user}
-      </span>
+    <div class='si-topbar'>
+      <div class='si-logo-box'>SI</div>
+      <div>
+        <div class='si-brand'>SOLIDARITES INTERNATIONAL
+          <small>Sudan Mission · Information Management</small>
+        </div>
+      </div>
+      <div style='margin-left:auto;display:flex;align-items:center;gap:10px;'>
+        <div class='si-chip'>{src_icon} {user}</div>
+      </div>
     </div>""", unsafe_allow_html=True)
 
-    # Global nav button CSS — reset all nav buttons, then highlight the active one by nth-child
-    n_nav = len(NAV_ITEMS)
-    st.markdown(f"""
-    <style>
-    /* Reset ALL buttons in the nav row */
-    div[data-testid="stHorizontalBlock"] > div > [data-testid="stButton"] button {{
-        background: transparent !important;
-        border: none !important;
-        border-bottom: 2px solid transparent !important;
-        border-radius: 0 !important;
-        color: {th["muted"]} !important;
-        font-family: Outfit, sans-serif !important;
-        font-size: .82rem !important;
-        font-weight: 500 !important;
-        padding: .58rem .35rem !important;
-        width: 100% !important;
-        transition: color .15s, border-color .15s, background .15s !important;
-    }}
-    div[data-testid="stHorizontalBlock"] > div > [data-testid="stButton"] button:hover {{
-        color: {th["text"]} !important;
-        background: {th["dim"]} !important;
-        border-bottom-color: {th["border2"]} !important;
-    }}
-    /* Active tab — nth-child targets the column wrapper */
-    div[data-testid="stHorizontalBlock"] > div:nth-child({active_idx}) > [data-testid="stButton"] button {{
-        color: {th["accent"]} !important;
-        border-bottom: 2px solid {th["accent"]} !important;
-        font-weight: 700 !important;
-        background: {"rgba(59,130,246,0.10)" if th["accent"]=="3B82F6" else "rgba(37,99,235,0.10)"} !important;
-    }}
-    /* Theme + logout buttons (last 2 cols) — keep them subtle */
-    div[data-testid="stHorizontalBlock"] > div:nth-child({n_nav+1}) > [data-testid="stButton"] button,
-    div[data-testid="stHorizontalBlock"] > div:nth-child({n_nav+2}) > [data-testid="stButton"] button {{
-        font-size: .82rem !important;
-        border-radius: 6px !important;
-        background: {th["dim"]} !important;
-        border: 1px solid {th["border"]} !important;
-        color: {th["muted"]} !important;
-    }}
-    div[data-testid="stHorizontalBlock"] > div:nth-child({n_nav+1}) > [data-testid="stButton"] button:hover,
-    div[data-testid="stHorizontalBlock"] > div:nth-child({n_nav+2}) > [data-testid="stButton"] button:hover {{
-        background: {th["border2"]} !important;
-        color: {th["text"]} !important;
-    }}
-    /* Remove gap between nav columns */
-    div[data-testid="stHorizontalBlock"] {{ gap: 2px !important; margin: 0 !important; padding: 0 !important; }}
-    </style>
-    """, unsafe_allow_html=True)
+    # ── Active tab nth-child injection ────────────────────────────────────────
+    st.markdown(
+        "<style>"
+        f"div[data-testid='stHorizontalBlock']>div:nth-child({active_idx})"
+        f">[data-testid='stButton'] button{{"
+        f"color:#fff!important;"
+        f"border-bottom:3px solid {SI_RED}!important;"
+        f"font-weight:700!important;"
+        f"background:rgba(227,0,27,0.13)!important;}}"
+        f"div[data-testid='stHorizontalBlock']>div:nth-child({n_nav+1})"
+        f">[data-testid='stButton'] button,"
+        f"div[data-testid='stHorizontalBlock']>div:nth-child({n_nav+2})"
+        f">[data-testid='stButton'] button{{"
+        f"font-size:.78rem!important;border-radius:20px!important;"
+        f"background:rgba(255,255,255,0.08)!important;"
+        f"border:1px solid rgba(255,255,255,0.15)!important;"
+        f"color:rgba(255,255,255,.6)!important;padding:.35rem .8rem!important;}}"
+        "</style>",
+        unsafe_allow_html=True
+    )
 
-    # Render all nav buttons + theme + logout in one horizontal row
-    cols = st.columns([1]*n_nav + [0.6, 0.6])
-
-    for i, (icon, label) in enumerate(NAV_ITEMS):
+    # ── Nav button row ────────────────────────────────────────────────────────
+    cols = st.columns([1]*n_nav + [0.55, 0.55])
+    for i, (icon, lbl) in enumerate(NAV_ITEMS):
         with cols[i]:
-            if st.button(f"{icon} {label}", key=f"nav_{label}",
-                         use_container_width=True, help=label):
-                if st.session_state.get("page") != label:
-                    st.session_state["page"] = label
+            if st.button(f"{icon} {lbl}", key=f"nav_{lbl}",
+                         use_container_width=True, help=lbl):
+                if st.session_state.get("page") != lbl:
+                    st.session_state["page"] = lbl
                     st.rerun()
-
     with cols[-2]:
-        theme_lbl = "☀️" if dark else "🌙"
-        if st.button(theme_lbl, key="theme_btn", use_container_width=True, help="Toggle theme"):
-            st.session_state["dark"] = not dark
-            st.rerun()
-
+        if st.button("☀️" if dark else "🌙", key="theme_btn",
+                     use_container_width=True, help="Toggle theme"):
+            st.session_state["dark"] = not dark; st.rerun()
     with cols[-1]:
-        if st.button("🚪", key="logout_btn", use_container_width=True, help="Logout"):
+        if st.button("🚪", key="logout_btn",
+                     use_container_width=True, help="Logout"):
             st.session_state.clear(); st.rerun()
 
     st.markdown("<div style='padding:1.4rem 2rem 0;'>", unsafe_allow_html=True)
@@ -776,27 +753,123 @@ def datasource_page():
                 if st.button("← Start over",key="k3rst"): st.session_state["kobo_step"]=0; st.rerun()
 
 # ══════════════════════════════════════════════════════════════════════════════
-# LOGIN
+# LOGIN — SI brand with animated image slider
 # ══════════════════════════════════════════════════════════════════════════════
 def login_page():
     inject_css(DARK)
-    c1,c2,c3 = st.columns([1,1.2,1])
-    with c2:
-        st.markdown("<br><br>", unsafe_allow_html=True)
-        st.markdown("""<div class='login-card'>
-          <div class='login-badge'>🌍 Restricted Access</div>
-          <div class='login-title'>SI Sudan IM Dashboard</div>
-          <div class='login-sub'>Solidarites International · Sudan Mission 2025–2026<br>Enter your credentials to continue.</div>
-        </div>""", unsafe_allow_html=True)
-        st.markdown("<br>", unsafe_allow_html=True)
-        user = st.text_input("Username", placeholder="im_manager", label_visibility="collapsed")
-        pw   = st.text_input("Password", type="password", placeholder="Password", label_visibility="collapsed")
-        if st.button("Sign in →", use_container_width=True):
+
+    # Build image track (doubled for seamless loop)
+    imgs_html = "".join(f"<img src='{u}' alt='SI humanitarian'>" for u in SI_IMAGES * 2)
+
+    st.markdown(f"""
+    <div style='min-height:100vh;display:flex;flex-direction:column;
+         background:linear-gradient(160deg,#0E0004 0%,#180008 40%,#0E0004 100%);'>
+
+      <!-- TOP BAR -->
+      <div style='background:rgba(0,0,0,0.4);border-bottom:3px solid {SI_RED};
+           padding:.7rem 2.5rem;display:flex;align-items:center;gap:14px;
+           backdrop-filter:blur(12px);'>
+        <div style='width:38px;height:38px;background:{SI_RED};border-radius:7px;
+             display:flex;align-items:center;justify-content:center;
+             font-size:1.1rem;font-weight:900;color:#fff;flex-shrink:0;'>SI</div>
+        <div>
+          <div style='font-size:.95rem;font-weight:900;color:#fff;
+               font-family:Outfit,sans-serif;letter-spacing:.01em;'>
+            SOLIDARITES INTERNATIONAL
+          </div>
+          <div style='font-size:.6rem;color:rgba(255,255,255,.4);
+               letter-spacing:.1em;text-transform:uppercase;'>
+            Sudan Mission · Information Management Platform
+          </div>
+        </div>
+        <div style='margin-left:auto;background:{SI_RED};color:#fff;
+             font-size:.68rem;font-weight:800;letter-spacing:.1em;
+             text-transform:uppercase;padding:4px 14px;border-radius:4px;'>
+          Restricted Access
+        </div>
+      </div>
+
+      <!-- HERO IMAGE SLIDER -->
+      <div class='img-slider' style='margin:0;border-radius:0;height:170px;'>
+        <div class='img-track' style='height:170px;'>
+          {imgs_html}
+        </div>
+      </div>
+
+      <!-- MAIN CONTENT -->
+      <div style='flex:1;display:flex;align-items:center;justify-content:center;padding:2.5rem;'>
+        <div style='width:100%;max-width:900px;display:grid;grid-template-columns:1fr 1fr;gap:3rem;align-items:center;'>
+
+          <!-- LEFT: Mission info -->
+          <div>
+            <div style='display:inline-block;background:{SI_RED};color:#fff;
+                 font-size:.68rem;font-weight:800;letter-spacing:.12em;
+                 text-transform:uppercase;padding:3px 10px;border-radius:3px;
+                 margin-bottom:1.2rem;'>Sudan Mission 2025–2026</div>
+            <h1 style='font-size:2.4rem;font-weight:900;color:#fff;margin:0 0 .6rem;
+                line-height:1.1;letter-spacing:-.03em;font-family:Outfit,sans-serif;'>
+              Information<br><span style='color:{SI_RED};'>Management</span><br>Dashboard
+            </h1>
+            <p style='font-size:.9rem;color:rgba(255,255,255,.6);line-height:1.7;margin:0 0 1.5rem;'>
+              Real-time monitoring of multi-sector humanitarian response across WASH,
+              Food Security, Shelter & NFI, and Cash & Voucher programs in Sudan.
+            </p>
+            <div style='display:flex;flex-direction:column;gap:.5rem;'>
+              <div style='display:flex;align-items:center;gap:10px;font-size:.82rem;color:rgba(255,255,255,.5);'>
+                <span style='color:{SI_RED};font-size:1rem;'>💧</span> WASH · Water & Sanitation
+              </div>
+              <div style='display:flex;align-items:center;gap:10px;font-size:.82rem;color:rgba(255,255,255,.5);'>
+                <span style='color:#10B981;font-size:1rem;'>🌾</span> FSL · Food Security & Livelihoods
+              </div>
+              <div style='display:flex;align-items:center;gap:10px;font-size:.82rem;color:rgba(255,255,255,.5);'>
+                <span style='color:#F59E0B;font-size:1rem;'>🏠</span> Shelter & Non-Food Items
+              </div>
+              <div style='display:flex;align-items:center;gap:10px;font-size:.82rem;color:rgba(255,255,255,.5);'>
+                <span style='color:{SI_RED};font-size:1rem;'>💵</span> Cash & Voucher Assistance
+              </div>
+            </div>
+          </div>
+
+          <!-- RIGHT: Login form -->
+          <div class='login-card'>
+            <div style='margin-bottom:1.6rem;'>
+              <div style='font-size:1.35rem;font-weight:900;color:#fff;
+                   font-family:Outfit,sans-serif;margin-bottom:.3rem;'>Sign In</div>
+              <div style='font-size:.81rem;color:#64748B;'>
+                Enter your credentials to access the dashboard.
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- FOOTER -->
+      <div style='text-align:center;padding:.8rem;
+           font-size:.7rem;color:rgba(255,255,255,.25);
+           border-top:1px solid rgba(227,0,27,0.15);'>
+        Solidarites International · Confidential · For authorized users only
+      </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # Streamlit form elements — positioned via CSS overlay trick
+    # We render them in a centered column
+    _, col, _ = st.columns([1, 1, 1])
+    with col:
+        st.markdown("<div style='margin-top:-120px;'>", unsafe_allow_html=True)
+        user = st.text_input("Username", placeholder="im_manager",
+                             label_visibility="collapsed", key="login_user")
+        pw   = st.text_input("Password", type="password", placeholder="Password",
+                             label_visibility="collapsed", key="login_pw")
+        if st.button("Sign in →", use_container_width=True, key="login_btn"):
             if CREDENTIALS.get(user) == pw:
                 st.session_state.update(auth=True, user=user, dark=True, page="Overview")
                 st.rerun()
-            else: st.error("Invalid credentials.")
-        st.markdown("<div style='text-align:center;font-size:.7rem;color:#334155;margin-top:1.2rem;'>Confidential · SI © 2026</div>", unsafe_allow_html=True)
+            else:
+                st.error("Invalid username or password.")
+        st.markdown("</div>", unsafe_allow_html=True)
+
 
 # ══════════════════════════════════════════════════════════════════════════════
 # MAP PAGE  (enriched)
@@ -1640,7 +1713,6 @@ def page_map(dfs):
 # OVERVIEW
 # ══════════════════════════════════════════════════════════════════════════════
 def page_overview(dfs):
-    ph("Program Overview", "Consolidated metrics — all sectors · Sudan Mission 2025–2026")
     th = TH()
     df_b = dfs.get("Beneficiary_Registration", pd.DataFrame())
     df_w = dfs.get("WASH_Monitoring",           pd.DataFrame())
@@ -1654,6 +1726,28 @@ def page_overview(dfs):
     paid = sfilt(df_c,"Transfer_Status","Paid")
     usd  = paid["Transfer_Value_USD"].sum() if has(paid,"Transfer_Value_USD") and len(paid)>0 else 0
     on_t = slen(df_i,"Status","On track"); ti = len(df_i)
+
+    # ── SI HERO BANNER ────────────────────────────────────────────────────────
+    imgs_html = "".join(f"<img src='{u}' alt='SI'>" for u in SI_IMAGES * 2)
+    st.markdown(f"""
+    <div class='si-hero'>
+      <img src='{SI_IMAGES[1]}' alt='SI Sudan humanitarian response'>
+      <div class='si-hero-content'>
+        <div class='si-tag'>Sudan Mission · {datetime.now().strftime("%B %Y")}</div>
+        <div class='si-hero-title'>Program Overview Dashboard</div>
+        <div class='si-hero-sub'>
+          Multi-sector humanitarian response ·
+          {tot:,} beneficiaries registered ·
+          {suniq(df_b,"State")} states covered
+        </div>
+      </div>
+      <div class='si-hero-bar'></div>
+    </div>
+    <div class='img-slider'>
+      <div class='img-track'>{imgs_html}</div>
+    </div>
+    """, unsafe_allow_html=True)
+
 
     sh("Programme Scale")
     c1,c2,c3,c4,c5,c6 = st.columns(6)
