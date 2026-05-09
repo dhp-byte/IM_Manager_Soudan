@@ -850,10 +850,7 @@ def login_page():
     st.markdown(f"<div style='background:rgba(28,33,48,0.95);border:1px solid rgba(227,0,27,0.35);border-top:none;border-radius:0 0 16px 16px;padding:2rem 2rem 2rem;box-shadow:0 30px 80px rgba(0,0,0,0.5);'>", unsafe_allow_html=True)
 
     # Correctif CSS immédiat
-    st.markdown(""" <style>
-    div[data-testid="stTextInput"] {
-        margin-top: 0.6rem;
-    } </style> """, unsafe_allow_html=True)
+    st.markdown(""" <style> div[data-testid="stTextInput"] {margin-top: 0.6rem;} </style> """, unsafe_allow_html=True)
 
     st.markdown(f"<div style='font-size:.72rem;font-weight:700;color:#64748B;letter-spacing:.07em;text-transform:uppercase;margin-bottom:.1rem;'>Username</div>", unsafe_allow_html=True)
     user = st.text_input("Username", placeholder="im_manager",
