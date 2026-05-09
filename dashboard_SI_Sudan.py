@@ -753,359 +753,403 @@ def datasource_page():
                 if st.button("← Start over",key="k3rst"): st.session_state["kobo_step"]=0; st.rerun()
 
 # ══════════════════════════════════════════════════════════════════════════════
-# LOGIN — SI brand with animated image slider
+# LOGIN — SI brand, pure Streamlit layout
 # ══════════════════════════════════════════════════════════════════════════════
 def login_page():
     inject_css(DARK)
 
-    # Build image track (doubled for seamless loop)
-    imgs_html = "".join(f"<img src='{u}' alt='SI humanitarian'>" for u in SI_IMAGES * 2)
+    # Full-page dark background override
+    st.markdown("""<style>
+    [data-testid="stAppViewContainer"] {
+        background: linear-gradient(160deg,#0E0004 0%,#180008 40%,#0E0004 100%) !important;
+    }
+    </style>""", unsafe_allow_html=True)
 
+    # ── Top bar ───────────────────────────────────────────────────────────────
     st.markdown(f"""
-    <div style='min-height:100vh;display:flex;flex-direction:column;
-         background:linear-gradient(160deg,#0E0004 0%,#180008 40%,#0E0004 100%);'>
-
-      <!-- TOP BAR -->
-      <div style='background:rgba(0,0,0,0.4);border-bottom:3px solid {SI_RED};
-           padding:.7rem 2.5rem;display:flex;align-items:center;gap:14px;
-           backdrop-filter:blur(12px);'>
-        <div style='width:38px;height:38px;background:{SI_RED};border-radius:7px;
-             display:flex;align-items:center;justify-content:center;
-             font-size:1.1rem;font-weight:900;color:#fff;flex-shrink:0;'>SI</div>
-        <div>
-          <div style='font-size:.95rem;font-weight:900;color:#fff;
-               font-family:Outfit,sans-serif;letter-spacing:.01em;'>
-            SOLIDARITES INTERNATIONAL
-          </div>
-          <div style='font-size:.6rem;color:rgba(255,255,255,.4);
-               letter-spacing:.1em;text-transform:uppercase;'>
-            Sudan Mission · Information Management Platform
-          </div>
-        </div>
-        <div style='margin-left:auto;background:{SI_RED};color:#fff;
-             font-size:.68rem;font-weight:800;letter-spacing:.1em;
-             text-transform:uppercase;padding:4px 14px;border-radius:4px;'>
-          Restricted Access
+    <div style='background:rgba(0,0,0,0.5);border-bottom:3px solid {SI_RED};
+         padding:.7rem 2.5rem;display:flex;align-items:center;gap:14px;
+         backdrop-filter:blur(12px);'>
+      <div style='width:38px;height:38px;background:{SI_RED};border-radius:7px;
+           display:flex;align-items:center;justify-content:center;
+           font-size:1.1rem;font-weight:900;color:#fff;flex-shrink:0;'>SI</div>
+      <div>
+        <div style='font-size:.95rem;font-weight:900;color:#fff;
+             font-family:Outfit,sans-serif;'>SOLIDARITES INTERNATIONAL</div>
+        <div style='font-size:.6rem;color:rgba(255,255,255,.4);
+             letter-spacing:.1em;text-transform:uppercase;'>
+          Sudan Mission · Information Management Platform
         </div>
       </div>
-
-      <!-- HERO IMAGE SLIDER -->
-      <div class='img-slider' style='margin:0;border-radius:0;height:170px;'>
-        <div class='img-track' style='height:170px;'>
-          {imgs_html}
-        </div>
-      </div>
-
-      <!-- MAIN CONTENT -->
-      <div style='flex:1;display:flex;align-items:center;justify-content:center;padding:2.5rem;'>
-        <div style='width:100%;max-width:900px;display:grid;grid-template-columns:1fr 1fr;gap:3rem;align-items:center;'>
-
-          <!-- LEFT: Mission info -->
-          <div>
-            <div style='display:inline-block;background:{SI_RED};color:#fff;
-                 font-size:.68rem;font-weight:800;letter-spacing:.12em;
-                 text-transform:uppercase;padding:3px 10px;border-radius:3px;
-                 margin-bottom:1.2rem;'>Sudan Mission 2025–2026</div>
-            <h1 style='font-size:2.4rem;font-weight:900;color:#fff;margin:0 0 .6rem;
-                line-height:1.1;letter-spacing:-.03em;font-family:Outfit,sans-serif;'>
-              Information<br><span style='color:{SI_RED};'>Management</span><br>Dashboard
-            </h1>
-            <p style='font-size:.9rem;color:rgba(255,255,255,.6);line-height:1.7;margin:0 0 1.5rem;'>
-              Real-time monitoring of multi-sector humanitarian response across WASH,
-              Food Security, Shelter & NFI, and Cash & Voucher programs in Sudan.
-            </p>
-            <div style='display:flex;flex-direction:column;gap:.5rem;'>
-              <div style='display:flex;align-items:center;gap:10px;font-size:.82rem;color:rgba(255,255,255,.5);'>
-                <span style='color:{SI_RED};font-size:1rem;'>💧</span> WASH · Water & Sanitation
-              </div>
-              <div style='display:flex;align-items:center;gap:10px;font-size:.82rem;color:rgba(255,255,255,.5);'>
-                <span style='color:#10B981;font-size:1rem;'>🌾</span> FSL · Food Security & Livelihoods
-              </div>
-              <div style='display:flex;align-items:center;gap:10px;font-size:.82rem;color:rgba(255,255,255,.5);'>
-                <span style='color:#F59E0B;font-size:1rem;'>🏠</span> Shelter & Non-Food Items
-              </div>
-              <div style='display:flex;align-items:center;gap:10px;font-size:.82rem;color:rgba(255,255,255,.5);'>
-                <span style='color:{SI_RED};font-size:1rem;'>💵</span> Cash & Voucher Assistance
-              </div>
-            </div>
-          </div>
-
-          <!-- RIGHT: Login form -->
-          <div class='login-card'>
-            <div style='margin-bottom:1.6rem;'>
-              <div style='font-size:1.35rem;font-weight:900;color:#fff;
-                   font-family:Outfit,sans-serif;margin-bottom:.3rem;'>Sign In</div>
-              <div style='font-size:.81rem;color:#64748B;'>
-                Enter your credentials to access the dashboard.
-              </div>
-            </div>
-          </div>
-
-        </div>
-      </div>
-
-      <!-- FOOTER -->
-      <div style='text-align:center;padding:.8rem;
-           font-size:.7rem;color:rgba(255,255,255,.25);
-           border-top:1px solid rgba(227,0,27,0.15);'>
-        Solidarites International · Confidential · For authorized users only
+      <div style='margin-left:auto;background:{SI_RED};color:#fff;
+           font-size:.68rem;font-weight:800;letter-spacing:.1em;
+           text-transform:uppercase;padding:4px 14px;border-radius:4px;'>
+        Restricted Access
       </div>
     </div>
     """, unsafe_allow_html=True)
 
-    # Streamlit form elements — positioned via CSS overlay trick
-    # We render them in a centered column
-    _, col, _ = st.columns([1, 1, 1])
-    with col:
-        st.markdown("<div style='margin-top:-120px;'>", unsafe_allow_html=True)
+    # ── Image slider ──────────────────────────────────────────────────────────
+    imgs_html = "".join(f"<img src='{u}' alt='SI humanitarian'>" for u in SI_IMAGES * 2)
+    st.markdown(f"""<div class='img-slider' style='border-radius:0;margin:0;height:160px;'>
+      <div class='img-track' style='height:160px;'>{imgs_html}</div>
+    </div>""", unsafe_allow_html=True)
+
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    # ── Two-column layout: mission info + login form ──────────────────────────
+    col_info, col_form = st.columns([1.15, 1])
+
+    with col_info:
+        st.markdown(f"""
+        <div style='padding:1.5rem 1rem;'>
+          <div style='display:inline-block;background:{SI_RED};color:#fff;
+               font-size:.68rem;font-weight:800;letter-spacing:.12em;
+               text-transform:uppercase;padding:3px 10px;border-radius:3px;
+               margin-bottom:1.2rem;'>Sudan Mission 2025–2026</div>
+          <h2 style='font-size:2rem;font-weight:900;color:#fff;margin:0 0 .6rem;
+              line-height:1.1;letter-spacing:-.03em;font-family:Outfit,sans-serif;'>
+            Information<br><span style='color:{SI_RED};'>Management</span><br>Dashboard
+          </h2>
+          <p style='font-size:.88rem;color:rgba(255,255,255,.55);line-height:1.7;margin:0 0 1.5rem;'>
+            Real-time monitoring of multi-sector humanitarian response across
+            WASH, Food Security, Shelter & NFI, and Cash & Voucher programs in Sudan.
+          </p>
+          <div style='display:flex;flex-direction:column;gap:.5rem;'>
+            <div style='font-size:.81rem;color:rgba(255,255,255,.45);display:flex;align-items:center;gap:8px;'>
+              <span style='color:#3B82F6;'>💧</span> WASH — Water, Sanitation & Hygiene
+            </div>
+            <div style='font-size:.81rem;color:rgba(255,255,255,.45);display:flex;align-items:center;gap:8px;'>
+              <span style='color:#10B981;'>🌾</span> FSL — Food Security & Livelihoods
+            </div>
+            <div style='font-size:.81rem;color:rgba(255,255,255,.45);display:flex;align-items:center;gap:8px;'>
+              <span style='color:#F59E0B;'>🏠</span> Shelter & Non-Food Items
+            </div>
+            <div style='font-size:.81rem;color:rgba(255,255,255,.45);display:flex;align-items:center;gap:8px;'>
+              <span style='color:{SI_RED};'>💵</span> Cash & Voucher Assistance (CVA)
+            </div>
+          </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+    with col_form:
+        st.markdown(f"""
+        <div style='background:rgba(28,33,48,0.95);border:1px solid rgba(227,0,27,0.35);
+             border-top:4px solid {SI_RED};border-radius:16px;padding:2.2rem 2rem;
+             box-shadow:0 30px 80px rgba(0,0,0,0.5);'>
+          <div style='font-size:1.3rem;font-weight:900;color:#fff;
+               font-family:Outfit,sans-serif;margin-bottom:.3rem;'>Sign In</div>
+          <div style='font-size:.81rem;color:#64748B;margin-bottom:1.5rem;'>
+            Enter your credentials to access the dashboard.
+          </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+        # Actual Streamlit inputs — rendered below the card visually
+        st.markdown(f"<div style='background:rgba(28,33,48,0.95);border:1px solid rgba(227,0,27,0.35);border-top:none;border-radius:0 0 16px 16px;padding:0 2rem 2rem;box-shadow:0 30px 80px rgba(0,0,0,0.5);'>", unsafe_allow_html=True)
+
+        st.markdown(f"<div style='font-size:.72rem;font-weight:700;color:#64748B;letter-spacing:.07em;text-transform:uppercase;margin-bottom:.3rem;'>Username</div>", unsafe_allow_html=True)
         user = st.text_input("Username", placeholder="im_manager",
                              label_visibility="collapsed", key="login_user")
-        pw   = st.text_input("Password", type="password", placeholder="Password",
-                             label_visibility="collapsed", key="login_pw")
+        st.markdown(f"<div style='font-size:.72rem;font-weight:700;color:#64748B;letter-spacing:.07em;text-transform:uppercase;margin:.8rem 0 .3rem;'>Password</div>", unsafe_allow_html=True)
+        pw = st.text_input("Password", type="password", placeholder="••••••••",
+                           label_visibility="collapsed", key="login_pw")
+
+        st.markdown("<br>", unsafe_allow_html=True)
         if st.button("Sign in →", use_container_width=True, key="login_btn"):
             if CREDENTIALS.get(user) == pw:
                 st.session_state.update(auth=True, user=user, dark=True, page="Overview")
                 st.rerun()
             else:
-                st.error("Invalid username or password.")
-        st.markdown("</div>", unsafe_allow_html=True)
+                st.error("❌ Invalid username or password.")
+
+        st.markdown(f"""<div style='text-align:center;font-size:.7rem;
+             color:rgba(255,255,255,.2);margin-top:1.2rem;'>
+          Solidarites International © 2026 · Confidential
+        </div></div>""", unsafe_allow_html=True)
+
 
 
 # ══════════════════════════════════════════════════════════════════════════════
 # MAP PAGE  (enriched)
 # ══════════════════════════════════════════════════════════════════════════════
-# SUDAN GEOGRAPHIC CONSTANTS
-# Bounding box: Lat 8.68–23.15 · Lon 21.83–38.61
 # ══════════════════════════════════════════════════════════════════════════════
-SUDAN_LAT_MIN, SUDAN_LAT_MAX = 8.68, 23.15
+# SUDAN GEOGRAPHIC CONSTANTS + SHAPEFILE
+# ══════════════════════════════════════════════════════════════════════════════
+SUDAN_LAT_MIN, SUDAN_LAT_MAX = 8.68,  23.15
 SUDAN_LON_MIN, SUDAN_LON_MAX = 21.83, 38.61
+SUDAN_CENTER = [14.8, 29.5]
 
-# Verified state centroids
 STATE_CENTROIDS = {
-    "West Darfur":    (13.58, 22.72), "North Darfur":   (15.85, 24.90),
+    "West Darfur":    (13.58, 22.05), "North Darfur":   (16.20, 25.00),
     "South Darfur":   (11.50, 25.10), "Central Darfur": (13.10, 24.10),
-    "East Darfur":    (12.85, 26.80), "Khartoum":       (15.50, 32.53),
+    "East Darfur":    (12.85, 26.80), "Khartoum":       (15.55, 32.53),
     "Gedaref":        (14.03, 35.39), "Kassala":        (15.47, 36.40),
-    "River Nile":     (18.50, 33.80), "Northern":       (20.80, 30.20),
+    "River Nile":     (18.50, 33.80), "Northern":       (20.00, 30.20),
     "North Kordofan": (13.80, 29.40), "South Kordofan": (11.00, 29.40),
     "White Nile":     (13.10, 32.20), "Blue Nile":      (11.80, 34.00),
     "Sennar":         (13.55, 33.60), "Red Sea":        (20.00, 37.20),
-    "Al Jazirah":     (14.40, 33.40),
+    "Al Jazirah":     (14.40, 33.40), "West Kordofan":  (12.00, 25.70),
 }
 
-# Per-state locality offsets for realistic scatter (all within state boundaries)
-import random as _rnd
+import random as _rnd, json as _json, os as _os
 _rnd.seed(42)
-STATE_SCATTER = {s: [(lat + _rnd.uniform(-0.35,0.35), lon + _rnd.uniform(-0.35,0.35))
-                     for _ in range(8)]
-                 for s, (lat,lon) in STATE_CENTROIDS.items()}
 
-def _gps_for_row(row):
-    """Return (lat,lon) for a row: real GPS if valid in Sudan, else state centroid scatter."""
+# Load Sudan shapefile GeoJSON
+_GEOJSON_PATH = "/home/claude/sudan_states.geojson"
+try:
+    with open(_GEOJSON_PATH) as _f:
+        SUDAN_GEOJSON = _json.load(_f)
+except Exception:
+    SUDAN_GEOJSON = None
+
+# Pre-computed scatter points per state (within ~0.4° of centroid)
+STATE_SCATTER = {
+    s: [(lat + _rnd.uniform(-0.4, 0.4), lon + _rnd.uniform(-0.5, 0.5))
+        for _ in range(12)]
+    for s, (lat, lon) in STATE_CENTROIDS.items()
+}
+
+def _get_coords(row):
+    """Return (lat, lon) for a row — real GPS if valid in Sudan, else state scatter."""
     try:
-        lat = float(row.get("GPS_Latitude", ""))
-        lon = float(row.get("GPS_Longitude", ""))
-        if (SUDAN_LAT_MIN <= lat <= SUDAN_LAT_MAX and
-                SUDAN_LON_MIN <= lon <= SUDAN_LON_MAX):
+        lat = float(row.get("GPS_Latitude", "") or "")
+        lon = float(row.get("GPS_Longitude", "") or "")
+        if SUDAN_LAT_MIN <= lat <= SUDAN_LAT_MAX and SUDAN_LON_MIN <= lon <= SUDAN_LON_MAX:
             return lat, lon
     except (TypeError, ValueError):
         pass
-    # Fallback: state centroid with small scatter
     state = str(row.get("State", ""))
-    if state in STATE_CENTROIDS:
-        pts = STATE_SCATTER[state]
-        idx = hash(str(row.get("Beneficiary_ID", row.get("_index", 0)))) % len(pts)
-        return pts[idx]
-    # Last resort: random point in Sudan
+    if state in STATE_SCATTER:
+        idx = hash(str(row.get("Beneficiary_ID", row.get("_index", 0)))) % len(STATE_SCATTER[state])
+        return STATE_SCATTER[state][idx]
     return (_rnd.uniform(10, 22), _rnd.uniform(23, 37))
 
 def _enrich_gps(df):
-    """Add/fix GPS columns using _gps_for_row, returns df with valid Sudan coords."""
     if df.empty: return df
     df = df.copy().reset_index(drop=True)
     df["_index"] = df.index
-    coords = df.apply(_gps_for_row, axis=1)
+    coords = df.apply(_get_coords, axis=1)
     df["GPS_Latitude"]  = coords.apply(lambda x: x[0])
     df["GPS_Longitude"] = coords.apply(lambda x: x[1])
     return df
 
 def _clean_gps(df):
-    """Return df with GPS — uses real coords if valid, falls back to state centroids."""
     return _enrich_gps(df) if not df.empty else pd.DataFrame()
 
-def _add_state_labels(m, dark=True):
-    bg  = "rgba(30,58,138,0.82)" if dark else "rgba(255,255,255,0.88)"
-    tc  = "#e2e8f0" if dark else "#1e293b"
-    bdc = "rgba(147,197,253,0.3)" if dark else "rgba(59,130,246,0.3)"
-    for state, (lat,lon) in STATE_CENTROIDS.items():
-        folium.Marker(
-            location=[lat, lon],
-            icon=folium.DivIcon(
-                html=f"""<div style='background:{bg};color:{tc};padding:2px 7px;
-                         border-radius:10px;font-family:Outfit,sans-serif;font-size:10px;
-                         font-weight:600;white-space:nowrap;border:1px solid {bdc};
-                         box-shadow:0 2px 6px rgba(0,0,0,0.3);'>{state}</div>""",
-                icon_size=(140, 22), icon_anchor=(70, 11)
-            )
-        ).add_to(m)
-
-def _base_map(dark=True, location=(14.8, 29.5), zoom=5):
+def _base_map(dark=True, zoom=5):
     tiles = "CartoDB dark_matter" if dark else "CartoDB positron"
-    m = folium.Map(location=location, zoom_start=zoom, tiles=tiles,
+    m = folium.Map(location=SUDAN_CENTER, zoom_start=zoom, tiles=tiles,
                    attr="© CartoDB", prefer_canvas=True)
     MiniMap(toggle_display=True, position="bottomleft", tile_layer=tiles,
             zoom_level_offset=-6).add_to(m)
     return m
 
+def _add_geojson_layer(m, data_col=None, state_values=None, dark=True,
+                        fill_color="#3B82F6", fill_opacity=0.15,
+                        line_color="#E3001B", line_weight=1.5):
+    """Overlay Sudan states from GeoJSON with optional choropleth colouring."""
+    if SUDAN_GEOJSON is None:
+        return
+    border_col = "rgba(227,0,27,0.7)" if dark else "#B50016"
+
+    if state_values:
+        # Choropleth mode
+        folium.Choropleth(
+            geo_data=SUDAN_GEOJSON,
+            data=state_values,
+            columns=["state","value"],
+            key_on="feature.properties.name",
+            fill_color="YlOrRd",
+            fill_opacity=0.65,
+            line_opacity=0.9,
+            line_color=border_col,
+            line_weight=line_weight,
+            nan_fill_color="rgba(100,116,139,0.15)",
+            nan_fill_opacity=0.3,
+            legend_name=data_col or "Value",
+            highlight=True,
+        ).add_to(m)
+    else:
+        # Simple boundary overlay
+        folium.GeoJson(
+            SUDAN_GEOJSON,
+            style_function=lambda f: {
+                "fillColor":   fill_color,
+                "color":       line_color,
+                "weight":      line_weight,
+                "fillOpacity": fill_opacity,
+            },
+            tooltip=folium.GeoJsonTooltip(
+                fields=["name"],
+                aliases=["State:"],
+                style="font-family:Outfit,sans-serif;font-size:12px;"
+            )
+        ).add_to(m)
+
+def _add_state_labels(m, dark=True):
+    bg  = "rgba(14,17,32,0.85)" if dark else "rgba(255,255,255,0.90)"
+    tc  = "#f1f5f9" if dark else "#0f172a"
+    bd  = "rgba(227,0,27,0.4)"
+    for state, (lat, lon) in STATE_CENTROIDS.items():
+        folium.Marker(
+            location=[lat, lon],
+            icon=folium.DivIcon(
+                html=(f"<div style='background:{bg};color:{tc};padding:2px 7px;"
+                      f"border-radius:8px;font-family:Outfit,sans-serif;font-size:9.5px;"
+                      f"font-weight:700;white-space:nowrap;border:1px solid {bd};"
+                      f"box-shadow:0 2px 8px rgba(0,0,0,0.35);'>{state}</div>"),
+                icon_size=(150, 20), icon_anchor=(75, 10)
+            )
+        ).add_to(m)
+
 def _map_legend(m, items, title="Legend", dark=True):
-    bg = "rgba(13,23,48,0.93)" if dark else "rgba(255,255,255,0.93)"
-    tc = "#e2e8f0" if dark else "#1e293b"
+    bg = "rgba(14,17,32,0.93)" if dark else "rgba(255,255,255,0.93)"
+    tc = "#f1f5f9" if dark else "#1e293b"
     sc = "#94a3b8" if dark else "#64748b"
     html = (f"<div style='position:fixed;bottom:32px;right:16px;z-index:9999;"
-            f"background:{bg};border:1px solid rgba(99,140,210,0.25);border-radius:10px;"
-            f"padding:11px 15px;font-family:Outfit,sans-serif;min-width:150px;'>"
-            f"<div style='font-weight:700;font-size:10px;color:{tc};margin-bottom:7px;"
-            f"letter-spacing:.08em;text-transform:uppercase;'>{title}</div>")
+            f"background:{bg};border:1px solid rgba(227,0,27,0.25);border-radius:10px;"
+            f"padding:11px 15px;font-family:Outfit,sans-serif;min-width:145px;'>"
+            f"<div style='font-weight:800;font-size:9.5px;color:{tc};margin-bottom:7px;"
+            f"letter-spacing:.09em;text-transform:uppercase;'>{title}</div>")
     for label, color in items:
         html += (f"<div style='display:flex;align-items:center;gap:7px;margin-bottom:4px;'>"
                  f"<span style='width:10px;height:10px;border-radius:50%;background:{color};"
-                 f"display:inline-block;flex-shrink:0;'></span>"
+                 f"display:inline-block;flex-shrink:0;border:1px solid rgba(255,255,255,0.2);'></span>"
                  f"<span style='font-size:10px;color:{sc};'>{label}</span></div>")
     html += "</div>"
     m.get_root().html.add_child(folium.Element(html))
 
-# ── MAP 1: All beneficiaries — clusters + heatmap ────────────────────────────
+# ── MAP 1: GeoJSON boundaries + beneficiary clusters + heatmap ───────────────
 def map_beneficiaries(df, dark=True):
     dfm = _clean_gps(df)
     m   = _base_map(dark)
+    _add_geojson_layer(m, dark=dark)          # Sudan state boundaries
     _add_state_labels(m, dark)
-    if dfm.empty:
-        _map_legend(m, list(SC.items()), "Sectors", dark)
-        return m
 
-    HeatMap(dfm[["GPS_Latitude","GPS_Longitude"]].values.tolist(),
-            radius=18, blur=22, min_opacity=0.18, max_zoom=10).add_to(m)
+    if not dfm.empty:
+        HeatMap(dfm[["GPS_Latitude","GPS_Longitude"]].values.tolist(),
+                radius=18, blur=22, min_opacity=0.18, max_zoom=10).add_to(m)
 
-    cl = MarkerCluster(options={"maxClusterRadius":55,"showCoverageOnHover":False,
-                                "spiderfyOnMaxZoom":True}).add_to(m)
-    for _, row in dfm.iterrows():
-        sec   = str(row.get("Sector","")) if has(df,"Sector") else ""
-        color = SC.get(sec,"#64748B")
-        pop   = (f"<div style='font-family:Outfit,sans-serif;font-size:12px;min-width:175px;'>"
-                 f"<b style='color:#1e293b;'>{row.get('Beneficiary_ID','—')}</b><br>"
-                 f"<span style='color:#64748b;'>State:</span> {row.get('State','—')}<br>"
-                 f"<span style='color:#64748b;'>Sector:</span> <b style='color:{color};'>{sec}</b><br>"
-                 f"<span style='color:#64748b;'>Displacement:</span> {row.get('Displacement_Status','—')}<br>"
-                 f"<span style='color:#64748b;'>Vulnerability:</span> {row.get('Vulnerability_Level','—')}"
-                 f"</div>")
-        folium.CircleMarker(
-            location=[row["GPS_Latitude"], row["GPS_Longitude"]],
-            radius=5, color=color, fill=True, fill_color=color,
-            fill_opacity=0.8, weight=0.8,
-            popup=folium.Popup(pop, max_width=240),
-            tooltip=f"{row.get('Locality','—')} · {sec}"
-        ).add_to(cl)
+        cl = MarkerCluster(options={"maxClusterRadius":55,
+                                    "showCoverageOnHover":False,
+                                    "spiderfyOnMaxZoom":True}).add_to(m)
+        for _, row in dfm.iterrows():
+            sec   = str(row.get("Sector","")) if has(df,"Sector") else ""
+            color = SC.get(sec, "#64748B")
+            pop   = (f"<div style='font-family:Outfit,sans-serif;font-size:12px;min-width:175px;'>"
+                     f"<b>{row.get('Beneficiary_ID','—')}</b><br>"
+                     f"State: {row.get('State','—')}<br>"
+                     f"<b style='color:{color};'>{sec}</b><br>"
+                     f"Displacement: {row.get('Displacement_Status','—')}<br>"
+                     f"Vulnerability: {row.get('Vulnerability_Level','—')}</div>")
+            folium.CircleMarker(
+                location=[row["GPS_Latitude"], row["GPS_Longitude"]],
+                radius=5, color=color, fill=True, fill_color=color,
+                fill_opacity=0.82, weight=0.7,
+                popup=folium.Popup(pop, max_width=240),
+                tooltip=f"{row.get('Locality','—')} · {sec}"
+            ).add_to(cl)
 
     _map_legend(m, list(SC.items()), "Sectors", dark)
     return m
 
-# ── MAP 2: Sector bubbles per state ──────────────────────────────────────────
+# ── MAP 2: Choropleth — beneficiary density by state ─────────────────────────
+def map_choropleth_density(df, dark=True):
+    m = _base_map(dark)
+    if has(df,"State") and not df.empty:
+        counts = df.groupby("State").size().reset_index(name="value")
+        counts.columns = ["state","value"]
+        _add_geojson_layer(m, data_col="Beneficiaries", state_values=counts,
+                           dark=dark, line_weight=2.0)
+    else:
+        _add_geojson_layer(m, dark=dark)
+    _add_state_labels(m, dark)
+    return m
+
+# ── MAP 3: Sector bubbles per state over shapefile ───────────────────────────
 def map_sector_coverage(df, dark=True):
     m = _base_map(dark)
+    _add_geojson_layer(m, dark=dark)
     _add_state_labels(m, dark)
-    if not (has(df,"State") and has(df,"Sector")):
-        return m
 
-    sec_list  = list(SC.keys())
-    n_sec     = len(sec_list)
-    # Offsets so bubbles don't overlap (compass rose pattern)
-    offsets   = [(0.0,0.0),(0.28,0.0),(-0.28,0.0),(0.0,0.28),(0.0,-0.28)]
-
-    for state, (lat, lon) in STATE_CENTROIDS.items():
-        sub = df[df["State"]==state] if has(df,"State") else pd.DataFrame()
-        if sub.empty: continue
-        total = len(sub)
-        for i, (sec, color) in enumerate(SC.items()):
-            n = slen(sub,"Sector",sec)
-            if n == 0: continue
-            pct    = n / max(total, 1)
-            radius = max(8, min(45, pct * 60))
-            dlat, dlon = offsets[i % len(offsets)]
-            folium.CircleMarker(
-                location=[lat + dlat, lon + dlon],
-                radius=radius, color=color, fill=True, fill_color=color,
-                fill_opacity=0.60, weight=1.5,
-                tooltip=f"{state} · {sec}: {n:,} ({pct:.0%})",
-                popup=folium.Popup(
-                    f"<b>{state}</b><br><b style='color:{color};'>{sec}</b><br>"
-                    f"{n:,} beneficiaries ({pct:.0%} of state total)", max_width=210)
-            ).add_to(m)
+    OFFSETS = [(0.0,0.0),(0.28,0.0),(-0.28,0.0),(0.0,0.32),(0.0,-0.32)]
+    if has(df,"State") and has(df,"Sector"):
+        for state, (lat, lon) in STATE_CENTROIDS.items():
+            sub   = df[df["State"]==state] if has(df,"State") else pd.DataFrame()
+            total = len(sub)
+            if total == 0: continue
+            for i,(sec,color) in enumerate(SC.items()):
+                n = slen(sub,"Sector",sec)
+                if n == 0: continue
+                pct    = n / max(total,1)
+                radius = max(8, min(42, pct * 58))
+                dlat,dlon = OFFSETS[i % len(OFFSETS)]
+                mlat = max(SUDAN_LAT_MIN+0.1, min(SUDAN_LAT_MAX-0.1, lat+dlat))
+                mlon = max(SUDAN_LON_MIN+0.1, min(SUDAN_LON_MAX-0.1, lon+dlon))
+                folium.CircleMarker(
+                    location=[mlat, mlon], radius=radius,
+                    color=color, fill=True, fill_color=color,
+                    fill_opacity=0.62, weight=1.5,
+                    tooltip=f"{state} · {sec}: {n:,} ({pct:.0%})",
+                    popup=folium.Popup(
+                        f"<b>{state}</b><br><b style='color:{color};'>{sec}</b><br>"
+                        f"{n:,} beneficiaries ({pct:.0%})", max_width=210)
+                ).add_to(m)
 
     _map_legend(m, list(SC.items()), "Sectors", dark)
     return m
 
-# ── MAP 3: Displacement status ────────────────────────────────────────────────
+# ── MAP 4: Displacement status over shapefile ─────────────────────────────────
 def map_displacement(df, dark=True):
     dfm = _clean_gps(df)
     m   = _base_map(dark)
+    _add_geojson_layer(m, dark=dark)
     _add_state_labels(m, dark)
 
-    DISP_COLORS = {
-        "IDP":            "#EF4444",
-        "Refugee":        "#3B82F6",
-        "Host Community": "#10B981",
-        "Returnee":       "#F59E0B",
-    }
-
+    DISP_COLORS = {"IDP":"#EF4444","Refugee":"#3B82F6",
+                   "Host Community":"#10B981","Returnee":"#F59E0B"}
     if not dfm.empty and has(dfm,"Displacement_Status"):
-        fg = folium.FeatureGroup(name="Displacement").add_to(m)
-        for disp, color in DISP_COLORS.items():
+        for disp,color in DISP_COLORS.items():
             sub = dfm[dfm["Displacement_Status"]==disp]
             if sub.empty: continue
             cl = MarkerCluster(name=disp,
-                options={"maxClusterRadius":40,"showCoverageOnHover":False}).add_to(fg)
-            for _, row in sub.iterrows():
+                               options={"maxClusterRadius":40,"showCoverageOnHover":False}).add_to(m)
+            for _,row in sub.iterrows():
                 folium.CircleMarker(
-                    location=[row["GPS_Latitude"], row["GPS_Longitude"]],
-                    radius=5, color=color, fill=True, fill_color=color,
-                    fill_opacity=0.82, weight=0.7,
+                    location=[row["GPS_Latitude"],row["GPS_Longitude"]],
+                    radius=5,color=color,fill=True,fill_color=color,
+                    fill_opacity=0.82,weight=0.7,
                     tooltip=f"{row.get('Locality','—')} · {disp}",
                     popup=folium.Popup(
                         f"<b>{disp}</b><br>State: {row.get('State','—')}<br>"
-                        f"Locality: {row.get('Locality','—')}", max_width=200)
+                        f"Locality: {row.get('Locality','—')}",max_width=200)
                 ).add_to(cl)
 
     folium.LayerControl(position="topright").add_to(m)
     _map_legend(m, list(DISP_COLORS.items()), "Displacement", dark)
     return m
 
-# ── MAP 4: Vulnerability heatmap ──────────────────────────────────────────────
+# ── MAP 5: Vulnerability choropleth ──────────────────────────────────────────
 def map_vulnerability(df, dark=True):
     dfm = _clean_gps(df)
     m   = _base_map(dark)
-    _add_state_labels(m, dark)
 
-    VULN_COLORS = {
-        "Extremely Vulnerable":  "#EF4444",
-        "Vulnerable":            "#F59E0B",
-        "Moderately Vulnerable": "#10B981",
-    }
-    VULN_WEIGHTS = {
-        "Extremely Vulnerable": 1.0,
-        "Vulnerable":           0.6,
-        "Moderately Vulnerable":0.3,
-    }
+    VULN_COLORS = {"Extremely Vulnerable":"#EF4444",
+                   "Vulnerable":"#F59E0B",
+                   "Moderately Vulnerable":"#10B981"}
+    VULN_WEIGHTS = {"Extremely Vulnerable":1.0,"Vulnerable":0.6,"Moderately Vulnerable":0.3}
 
     if not dfm.empty and has(dfm,"Vulnerability_Level"):
-        for vl, color in VULN_COLORS.items():
+        for vl,color in VULN_COLORS.items():
             sub = dfm[dfm["Vulnerability_Level"]==vl]
             if sub.empty: continue
             w = VULN_WEIGHTS[vl]
-            data = [[r["GPS_Latitude"], r["GPS_Longitude"], w] for _, r in sub.iterrows()]
-            HeatMap(data, radius=16, blur=18, min_opacity=0.25,
-                    gradient={"0.3": color+"55","0.6": color+"AA","1.0": color}).add_to(m)
+            data = [[r["GPS_Latitude"],r["GPS_Longitude"],w] for _,r in sub.iterrows()]
+            HeatMap(data,radius=16,blur=18,min_opacity=0.22,
+                    gradient={"0.3":color+"55","0.6":color+"AA","1.0":color}).add_to(m)
 
-        # One circle per state coloured by dominant vulnerability
+        # State circles coloured by dominant vulnerability
         for state,(lat,lon) in STATE_CENTROIDS.items():
             sub = dfm[dfm["State"]==state] if has(dfm,"State") else pd.DataFrame()
             if sub.empty: continue
@@ -1114,66 +1158,25 @@ def map_vulnerability(df, dark=True):
             col = VULN_COLORS.get(dom.iloc[0],"#64748B")
             n   = len(sub)
             folium.CircleMarker(
-                location=[lat, lon], radius=max(12,min(40,(n/max(len(dfm),1))**0.5*55)),
-                color=col, fill=True, fill_color=col, fill_opacity=0.25, weight=2,
-                tooltip=f"{state} — dominant: {dom.iloc[0]} ({n} beneficiaries)"
+                location=[lat,lon],
+                radius=max(12,min(40,(n/max(len(dfm),1))**0.5*55)),
+                color=col,fill=True,fill_color=col,fill_opacity=0.25,weight=2,
+                tooltip=f"{state} — dominant: {dom.iloc[0]} ({n:,})"
             ).add_to(m)
 
-    _map_legend(m, list(VULN_COLORS.items()), "Vulnerability", dark)
-    return m
-
-# ── MAP 5: State bubble map ────────────────────────────────────────────────────
-def map_state_bubbles(df, dark=True):
-    m = _base_map(dark, zoom=5)
-    if not has(df,"State") or df.empty:
-        return m
-
-    state_counts = df.groupby("State").size().reset_index(name="n")
-    max_n = state_counts["n"].max() or 1
-
-    for _, row in state_counts.iterrows():
-        state = row["State"]
-        if state not in STATE_CENTROIDS: continue
-        lat, lon = STATE_CENTROIDS[state]
-        n      = row["n"]
-        radius = max(14, min(58, (n/max_n)**0.5 * 58))
-
-        # Colour by volume
-        if n/max_n >= 0.66: color = "#3B82F6"
-        elif n/max_n >= 0.33: color = "#8B5CF6"
-        else: color = "#14B8A6"
-
-        folium.CircleMarker(
-            location=[lat, lon], radius=radius,
-            color=color, fill=True, fill_color=color, fill_opacity=0.42, weight=2,
-            tooltip=f"{state}: {n:,} beneficiaries",
-            popup=folium.Popup(f"<b>{state}</b><br>{n:,} beneficiaries<br>"
-                               f"{n/max_n:.0%} of largest state", max_width=190)
-        ).add_to(m)
-
-        folium.Marker(
-            location=[lat, lon],
-            icon=folium.DivIcon(
-                html=f"""<div style='text-align:center;font-family:Outfit,sans-serif;
-                         font-size:9px;font-weight:700;color:#fff;line-height:1.3;
-                         text-shadow:0 1px 3px rgba(0,0,0,0.6);'>
-                         {state.split()[0]}<br><b>{N(n)}</b></div>""",
-                icon_size=(80,28), icon_anchor=(40,14)
-            )
-        ).add_to(m)
-
-    _map_legend(m, [("High volume","#3B82F6"),("Medium","#8B5CF6"),("Lower","#14B8A6")],
-               "Beneficiary Volume", dark)
+    _add_geojson_layer(m,dark=dark,fill_opacity=0.05,line_weight=1.2)
+    _add_state_labels(m,dark)
+    _map_legend(m,list(VULN_COLORS.items()),"Vulnerability",dark)
     return m
 
 def page_map(dfs):
-    ph("Geographic Coverage", "Five thematic maps — Sudan-validated coordinates with state-centroid fallback")
+    ph("Geographic Coverage", "Sudan shapefile maps · choropleth · clusters · heatmap · spatial analysis")
     df = dfs.get("Beneficiary_Registration", pd.DataFrame())
     if df.empty: st.info("Load the Excel database to view geographic data."); return
     th   = TH()
     dark = st.session_state.get("dark", True)
 
-    # Filters
+    # ── Filters ───────────────────────────────────────────────────────────────
     c1,c2,c3,c4 = st.columns(4)
     with c1: s1 = st.selectbox("State",        sopts(df,"State"),               key="m_s")
     with c2: s2 = st.selectbox("Sector",       sopts(df,"Sector"),              key="m_sec")
@@ -1182,463 +1185,133 @@ def page_map(dfs):
 
     df_f = sfilt(sfilt(sfilt(sfilt(df.copy(),"State",s1),"Sector",s2),
                        "Displacement_Status",s3),"Vulnerability_Level",s4)
-    nb   = len(df_f)
-    fem  = slen(df_f,"Sex","Female")
+    nb  = len(df_f)
+    fem = slen(df_f,"Sex","Female")
 
+    # ── KPIs ──────────────────────────────────────────────────────────────────
     c1,c2,c3,c4,c5,c6 = st.columns(6)
-    c1.markdown(kpi("Beneficiaries", N(nb),   "in selection",      "blue",  "📊"), unsafe_allow_html=True)
-    c2.markdown(kpi("States",    N(suniq(df_f,"State")),  "covered","teal",  "🗺️"), unsafe_allow_html=True)
-    c3.markdown(kpi("Localities",N(suniq(df_f,"Locality")),"zones", "amber", "📌"), unsafe_allow_html=True)
-    c4.markdown(kpi("Female",    f"{100*fem/nb:.0f}%" if nb else "—","","purple","♀"), unsafe_allow_html=True)
-    c5.markdown(kpi("IDP",       N(slen(df_f,"Displacement_Status","IDP")),"","red","🏕️"), unsafe_allow_html=True)
-    c6.markdown(kpi("Active",    N(slen(df_f,"Registration_Status","Active")),"","green","✅"), unsafe_allow_html=True)
+    c1.markdown(kpi("Beneficiaries", N(nb),              "in selection", "red",   "👥"), unsafe_allow_html=True)
+    c2.markdown(kpi("States",        N(suniq(df_f,"State")), "covered",  "blue",  "🗺️"), unsafe_allow_html=True)
+    c3.markdown(kpi("Localities",    N(suniq(df_f,"Locality")),"zones",  "teal",  "📌"), unsafe_allow_html=True)
+    c4.markdown(kpi("Female",        f"{100*fem/nb:.0f}%" if nb else "—","","purple","♀"), unsafe_allow_html=True)
+    c5.markdown(kpi("IDP",           N(slen(df_f,"Displacement_Status","IDP")),"","amber","🏕️"), unsafe_allow_html=True)
+    c6.markdown(kpi("Active",        N(slen(df_f,"Registration_Status","Active")),"","green","✅"), unsafe_allow_html=True)
+    st.markdown("<br>", unsafe_allow_html=True)
 
-    st.markdown(f"<div style='font-size:.75rem;color:{th['muted']};margin:.4rem 0 1rem;'>📌 Points shown at real GPS coordinates where available; state centroid with scatter otherwise.</div>",
-                unsafe_allow_html=True)
-
-    # ── MAP 1 — Full-width beneficiary map ────────────────────────────────────
-    sh("Map 1 — All Beneficiaries (Clusters + Heatmap overlay)")
+    # ════════════════════════════════════════════════════════════════════════
+    # MAP 1 — Sudan shapefile + beneficiary clusters + heatmap  (FULL WIDTH)
+    # ════════════════════════════════════════════════════════════════════════
+    sh("Map 1 — Beneficiary Distribution on Sudan Shapefile (Clusters + Heatmap)")
     col_m1, col_r1 = st.columns([2.5, 1])
     with col_m1:
+        st.markdown(f"<div style='font-size:.78rem;color:{th['muted']};margin-bottom:.5rem;'>"
+                    f"Sudan state boundaries from official GeoJSON · {nb:,} beneficiaries mapped "
+                    f"· Click clusters to zoom · Click markers for details.</div>", unsafe_allow_html=True)
         st_folium(map_beneficiaries(df_f, dark), use_container_width=True,
-                  height=460, returned_objects=[], key="m1")
+                  height=460, returned_objects=[], key="map1")
     with col_r1:
-        st.markdown("<br>", unsafe_allow_html=True)
         if has(df_f,"State") and nb > 0:
             by_s = df_f.groupby("State").size().reset_index(name="n").sort_values("n")
-            fig  = px.bar(by_s, x="n", y="State", orientation="h", color="n",
-                          color_continuous_scale=["#1E3A6E","#60A5FA"], title="Count by State")
+            fig = px.bar(by_s, x="n", y="State", orientation="h", color="n",
+                         color_continuous_scale=[th["panel"],"#E3001B"],
+                         title="Beneficiaries by State")
             fig.update_layout(coloraxis_showscale=False)
-            pc(T(fig, h=210, leg=False))
+            pc(T(fig, h=220, leg=False))
         if has(df_f,"Sector") and nb > 0:
             by_sec = df_f.groupby("Sector").size().reset_index(name="n")
-            fig = px.pie(by_sec, values="n", names="Sector", hole=0.55,
+            fig = px.pie(by_sec, values="n", names="Sector", hole=0.56,
                          color="Sector", color_discrete_map=SC, title="By Sector")
-            fig.update_traces(textinfo="percent", textfont_size=10,
-                              marker=dict(line=dict(color=th["bg"], width=2)))
+            fig.update_traces(textinfo="none",
+                              marker=dict(line=dict(color=th["panel"], width=2)))
             pc(T(fig, h=220))
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # ── MAPS 2 & 3 ────────────────────────────────────────────────────────────
-    sh("Map 2 — Sector Coverage by State    ·    Map 3 — Displacement Status")
-    c2a, c2b = st.columns(2)
-    with c2a:
-        st.markdown(f"<div style='font-size:.75rem;color:{th['muted']};margin-bottom:.4rem;'>Bubble = share of sector within state. Hover for detail.</div>", unsafe_allow_html=True)
-        st_folium(map_sector_coverage(df_f, dark), use_container_width=True,
-                  height=390, returned_objects=[], key="m2")
-    with c2b:
-        st.markdown(f"<div style='font-size:.75rem;color:{th['muted']};margin-bottom:.4rem;'>Colour = displacement category. Toggle layers (top-right).</div>", unsafe_allow_html=True)
-        st_folium(map_displacement(df_f, dark), use_container_width=True,
-                  height=390, returned_objects=[], key="m3")
-
-    st.markdown("<br>", unsafe_allow_html=True)
-
-    # ── MAPS 4 & 5 ────────────────────────────────────────────────────────────
-    sh("Map 4 — Vulnerability Heatmap    ·    Map 5 — State Volume Bubbles")
-    c4a, c4b = st.columns(2)
-    with c4a:
-        st.markdown(f"<div style='font-size:.75rem;color:{th['muted']};margin-bottom:.4rem;'>Red intensity = extremely vulnerable concentration.</div>", unsafe_allow_html=True)
-        st_folium(map_vulnerability(df_f, dark), use_container_width=True,
-                  height=390, returned_objects=[], key="m4")
-    with c4b:
-        st.markdown(f"<div style='font-size:.75rem;color:{th['muted']};margin-bottom:.4rem;'>Bubble size proportional to total beneficiaries per state.</div>", unsafe_allow_html=True)
-        st_folium(map_state_bubbles(df_f, dark), use_container_width=True,
-                  height=390, returned_objects=[], key="m5")
-
-    st.markdown("<br>", unsafe_allow_html=True)
-
-    # ── SPATIAL CHARTS ────────────────────────────────────────────────────────
-    sh("Spatial Analysis — Cross-Dimensional Charts")
-    c1,c2,c3 = st.columns(3)
-    with c1:
-        if has(df_f,"State") and has(df_f,"Sector") and nb > 0:
-            ct = df_f.groupby(["State","Sector"]).size().reset_index(name="n")
-            fig = px.bar(ct, x="State", y="n", color="Sector", barmode="stack",
-                         color_discrete_map=SC, title="Beneficiaries by State & Sector")
-            pc(T(fig, h=300))
-    with c2:
-        if has(df_f,"Displacement_Status") and has(df_f,"Sector") and nb > 0:
-            ct = df_f.groupby(["Displacement_Status","Sector"]).size().reset_index(name="n")
-            fig = px.bar(ct, x="Displacement_Status", y="n", color="Sector", barmode="stack",
-                         color_discrete_map=SC, title="Displacement × Sector")
-            fig.update_xaxes(tickangle=-20)
-            pc(T(fig, h=300))
-    with c3:
-        if has(df_f,"Age") and nb > 0:
-            da = df_f.copy()
-            da["Age"] = pd.to_numeric(da["Age"], errors="coerce")
-            da = da.dropna(subset=["Age"])
-            da["AgeGrp"] = pd.cut(da["Age"],[0,5,18,35,50,120],
-                                   labels=["0–4","5–17","18–34","35–49","50+"],right=False)
-            ag = da.groupby("AgeGrp", observed=True).size().reset_index(name="n")
-            fig = px.bar(ag, x="AgeGrp", y="n", color="AgeGrp",
-                         color_discrete_sequence=COLORS, title="Age Groups")
-            fig.update_layout(showlegend=False)
-            pc(T(fig, h=300))
-
-    c1,c2,c3 = st.columns(3)
-    with c1:
-        if has(df_f,"State") and has(df_f,"Sex") and nb > 0:
-            sg = df_f.groupby(["State","Sex"]).size().reset_index(name="n")
-            fig = px.bar(sg, x="State", y="n", color="Sex",
-                         color_discrete_map={"Female":"#EC4899","Male":"#3B82F6"},
-                         barmode="stack", title="Sex Disaggregation by State")
-            pc(T(fig, h=280))
-    with c2:
-        if has(df_f,"Vulnerability_Level") and has(df_f,"Sex") and nb > 0:
-            ct = df_f.groupby(["Vulnerability_Level","Sex"]).size().reset_index(name="n")
-            fig = px.bar(ct, x="Vulnerability_Level", y="n", color="Sex", barmode="group",
-                         color_discrete_map={"Female":"#EC4899","Male":"#3B82F6"},
-                         title="Vulnerability × Sex")
-            pc(T(fig, h=280))
-    with c3:
-        if has(df_f,"Registration_Date") and nb > 0:
-            dt = df_f.copy()
-            dt["Registration_Date"] = pd.to_datetime(dt["Registration_Date"], errors="coerce")
-            dt = dt.dropna(subset=["Registration_Date"])
-            dt["Month"] = dt["Registration_Date"].dt.to_period("M").astype(str)
-            trend = dt.groupby("Month").size().reset_index(name="n")
-            fig = px.line(trend, x="Month", y="n", title="Registration Timeline", markers=True)
-            fig.update_traces(line_color="#3B82F6", marker_color="#60A5FA", line_width=2)
-            pc(T(fig, h=280))
-
-    sh("Coverage Heatmap — State × Sector")
-    if has(df_f,"State") and has(df_f,"Sector") and nb > 0:
-        heat = df_f.groupby(["State","Sector"]).size().reset_index(name="n")
-        fig  = px.density_heatmap(heat, x="Sector", y="State", z="n",
-                                   color_continuous_scale="Blues",
-                                   title="Beneficiary Density — State × Sector")
-        fig.update_layout(coloraxis_colorbar=dict(tickfont=dict(color=th["fontc"])))
-        pc(T(fig, h=340, leg=False))
-
-
-
-# State centroids (verified)
-STATE_CENTROIDS = {
-    "West Darfur":     (13.58, 22.72),
-    "North Darfur":    (15.85, 24.90),
-    "South Darfur":    (11.50, 25.10),
-    "Central Darfur":  (13.10, 24.10),
-    "East Darfur":     (12.85, 26.80),
-    "Khartoum":        (15.50, 32.53),
-    "Gedaref":         (14.03, 35.39),
-    "Kassala":         (15.47, 36.40),
-    "River Nile":      (18.50, 33.80),
-    "Northern":        (20.80, 30.20),
-    "North Kordofan":  (13.80, 29.40),
-    "South Kordofan":  (11.00, 29.40),
-    "White Nile":      (13.10, 32.20),
-    "Blue Nile":       (11.80, 34.00),
-    "Sennar":          (13.55, 33.60),
-    "Red Sea":         (20.00, 37.20),
-    "Al Jazirah":      (14.40, 33.40),
-}
-
-def _clean_gps(df):
-    """Return df with valid Sudan GPS coordinates only."""
-    if not (has(df,"GPS_Latitude") and has(df,"GPS_Longitude")):
-        return pd.DataFrame()
-    dfm = df.copy()
-    dfm["GPS_Latitude"]  = pd.to_numeric(dfm["GPS_Latitude"],  errors="coerce")
-    dfm["GPS_Longitude"] = pd.to_numeric(dfm["GPS_Longitude"], errors="coerce")
-    dfm = dfm.dropna(subset=["GPS_Latitude","GPS_Longitude"])
-    # Strict Sudan bounding box
-    dfm = dfm[
-        dfm["GPS_Latitude"].between(SUDAN_LAT_MIN, SUDAN_LAT_MAX) &
-        dfm["GPS_Longitude"].between(SUDAN_LON_MIN, SUDAN_LON_MAX)
-    ]
-    return dfm
-
-def _add_state_labels(m, dark=True):
-    """Add state name labels at centroids."""
-    for state, (lat,lon) in STATE_CENTROIDS.items():
-        folium.Marker(
-            location=[lat, lon],
-            icon=folium.DivIcon(
-                html=f"""<div style='background:rgba(30,58,138,0.82);color:#e2e8f0;
-                         padding:2px 7px;border-radius:10px;font-family:Outfit,sans-serif;
-                         font-size:10px;font-weight:600;white-space:nowrap;
-                         border:1px solid rgba(147,197,253,0.3);'>{state}</div>""",
-                icon_size=(130,22), icon_anchor=(65,11)
-            )
-        ).add_to(m)
-
-def _base_map(dark=True, location=(14.5,29.5), zoom=5):
-    tiles = "CartoDB dark_matter" if dark else "CartoDB positron"
-    m = folium.Map(location=location, zoom_start=zoom, tiles=tiles, attr="CartoDB")
-    MiniMap(toggle_display=True, position="bottomleft", tile_layer=tiles).add_to(m)
-    return m
-
-def _map_legend(m, items, title="Legend", dark=True):
-    """Add a legend div to a folium map."""
-    bg   = "rgba(13,23,48,0.93)" if dark else "rgba(255,255,255,0.93)"
-    tc   = "#e2e8f0" if dark else "#1e293b"
-    sc   = "#94a3b8" if dark else "#64748b"
-    html = f"""<div style='position:fixed;bottom:28px;right:16px;z-index:9999;
-      background:{bg};border:1px solid rgba(99,140,210,0.25);border-radius:10px;
-      padding:11px 15px;font-family:Outfit,sans-serif;min-width:130px;'>
-      <div style='font-weight:700;font-size:10px;color:{tc};margin-bottom:7px;
-           letter-spacing:.08em;text-transform:uppercase;'>{title}</div>"""
-    for label, color in items:
-        html += f"<div style='display:flex;align-items:center;gap:7px;margin-bottom:4px;'><span style='width:9px;height:9px;border-radius:50%;background:{color};display:inline-block;flex-shrink:0;'></span><span style='font-size:10px;color:{sc};'>{label}</span></div>"
-    html += "</div>"
-    m.get_root().html.add_child(folium.Element(html))
-
-# ── MAP 1: Beneficiary density with clusters + heatmap ───────────────────────
-def map_beneficiaries(df, dark=True):
-    dfm = _clean_gps(df)
-    m   = _base_map(dark)
-    _add_state_labels(m, dark)
-
-    if not dfm.empty:
-        # Heatmap layer
-        HeatMap(dfm[["GPS_Latitude","GPS_Longitude"]].values.tolist(),
-                radius=16, blur=20, min_opacity=0.2, max_zoom=10).add_to(m)
-        # Clustered markers
-        cl = MarkerCluster(
-            options={"maxClusterRadius":50,"showCoverageOnHover":False,
-                     "spiderfyOnMaxZoom":True}
-        ).add_to(m)
-        for _, row in dfm.iterrows():
-            sec   = str(row.get("Sector","")) if has(df,"Sector") else ""
-            color = SC.get(sec,"#64748B")
-            pop   = f"""<div style='font-family:Outfit,sans-serif;font-size:12px;min-width:175px;'>
-              <b style='color:#1e293b;'>{row.get('Beneficiary_ID','—')}</b><br>
-              <span style='color:#64748b;'>State:</span> {row.get('State','—')}<br>
-              <span style='color:#64748b;'>Locality:</span> {row.get('Locality','—')}<br>
-              <span style='color:#64748b;'>Sector:</span> <b style='color:{color};'>{sec}</b><br>
-              <span style='color:#64748b;'>Displacement:</span> {row.get('Displacement_Status','—')}<br>
-              <span style='color:#64748b;'>Vulnerability:</span> {row.get('Vulnerability_Level','—')}
-            </div>"""
-            folium.CircleMarker(
-                location=[row["GPS_Latitude"], row["GPS_Longitude"]],
-                radius=5, color=color, fill=True, fill_color=color,
-                fill_opacity=0.8, weight=1,
-                popup=folium.Popup(pop, max_width=240),
-                tooltip=f"{row.get('Locality','—')} · {sec}"
-            ).add_to(cl)
-
-    _map_legend(m, list(SC.items()), "Sectors", dark)
-    return m
-
-# ── MAP 2: Sector coverage — pie-chart bubbles per state, clamped to Sudan ───
-def map_sector_coverage(df, dark=True):
-    m = _base_map(dark)
-    _add_state_labels(m, dark)
-
-    SECTOR_LIST = list(SC.keys())
-    # Small fixed offsets (within ~0.15° of centroid) to spread sector bubbles
-    OFFSETS = [(-0.12, -0.12), (-0.12, 0.12), (0.12, -0.12), (0.12, 0.12)]
-
-    if has(df,"State") and has(df,"Sector"):
-        for state, (lat, lon) in STATE_CENTROIDS.items():
-            sub = df[df["State"]==state] if has(df,"State") else pd.DataFrame()
-            if sub.empty: continue
-            total = len(sub)
-            for idx, sec in enumerate(SECTOR_LIST):
-                n = len(sub[sub["Sector"]==sec]) if has(sub,"Sector") else 0
-                if n == 0: continue
-                dlat, dlon = OFFSETS[idx % len(OFFSETS)]
-                mlat = max(SUDAN_LAT_MIN + 0.1, min(SUDAN_LAT_MAX - 0.1, lat + dlat))
-                mlon = max(SUDAN_LON_MIN + 0.1, min(SUDAN_LON_MAX - 0.1, lon + dlon))
-                color  = SC.get(sec, "#64748B")
-                radius = max(6, min(35, int((n / max(total,1)) * 40)))
-                folium.CircleMarker(
-                    location=[mlat, mlon],
-                    radius=radius,
-                    color=color, fill=True, fill_color=color,
-                    fill_opacity=0.65, weight=1.5,
-                    tooltip=f"{state} · {sec}: {n:,} beneficiaries ({n/total:.0%})",
-                    popup=folium.Popup(
-                        f"<b>{state}</b><br><b style='color:{color};'>{sec}</b>"
-                        f"<br>{n:,} beneficiaries ({n/total:.0%} of state total)",
-                        max_width=210)
-                ).add_to(m)
-
-    _map_legend(m, list(SC.items()), "Sectors", dark)
-    return m
-
-# ── MAP 3: Displacement status — colour = displacement type ──────────────────
-def map_displacement(df, dark=True):
-    dfm = _clean_gps(df)
-    m   = _base_map(dark)
-    _add_state_labels(m, dark)
-
-    DISP_COLORS = {
-        "IDP":            "#EF4444",
-        "Refugee":        "#3B82F6",
-        "Host Community": "#10B981",
-        "Returnee":       "#F59E0B",
-    }
-
-    if not dfm.empty and has(dfm,"Displacement_Status"):
-        for disp, color in DISP_COLORS.items():
-            sub = dfm[dfm["Displacement_Status"]==disp]
-            if sub.empty: continue
-            cl = MarkerCluster(
-                name=disp,
-                options={"maxClusterRadius":40,"showCoverageOnHover":False}
-            ).add_to(m)
-            for _, row in sub.iterrows():
-                folium.CircleMarker(
-                    location=[row["GPS_Latitude"], row["GPS_Longitude"]],
-                    radius=5, color=color, fill=True, fill_color=color,
-                    fill_opacity=0.8, weight=0.8,
-                    tooltip=f"{row.get('Locality','—')} · {disp}",
-                    popup=folium.Popup(
-                        f"<b>{disp}</b><br>State: {row.get('State','—')}<br>Locality: {row.get('Locality','—')}",
-                        max_width=200)
-                ).add_to(cl)
-
-    folium.LayerControl(position="topright").add_to(m)
-    _map_legend(m, list(DISP_COLORS.items()), "Displacement", dark)
-    return m
-
-# ── MAP 4: Vulnerability heatmap ─────────────────────────────────────────────
-def map_vulnerability(df, dark=True):
-    dfm = _clean_gps(df)
-    m   = _base_map(dark)
-    _add_state_labels(m, dark)
-
-    VULN_COLORS = {
-        "Extremely Vulnerable": "#EF4444",
-        "Vulnerable":           "#F59E0B",
-        "Moderately Vulnerable":"#10B981",
-    }
-
-    if not dfm.empty and has(dfm,"Vulnerability_Level"):
-        for vl, color in VULN_COLORS.items():
-            sub = dfm[dfm["Vulnerability_Level"]==vl]
-            if sub.empty: continue
-            coords = sub[["GPS_Latitude","GPS_Longitude"]].values.tolist()
-            weight = {"Extremely Vulnerable":1.0,"Vulnerable":0.65,"Moderately Vulnerable":0.35}.get(vl,0.5)
-            HeatMap(coords, radius=14, blur=18, min_opacity=0.3,
-                    gradient={0.4: color+"44", 0.7: color+"99", 1.0: color}).add_to(m)
-
-    _map_legend(m, list(VULN_COLORS.items()), "Vulnerability", dark)
-    return m
-
-# ── MAP 5: State-level bubble map (total beneficiaries per state) ─────────────
-def map_state_bubbles(df, dark=True):
-    m = _base_map(dark, zoom=5)
-
-    if has(df,"State"):
-        state_counts = df.groupby("State").size().reset_index(name="n")
-        max_n = state_counts["n"].max() or 1
-
-        for _, row in state_counts.iterrows():
-            state = row["State"]
-            if state not in STATE_CENTROIDS: continue
-            lat, lon = STATE_CENTROIDS[state]
-            n = row["n"]
-            radius = max(12, min(55, (n/max_n)**0.5 * 55))
-            color  = "#3B82F6"
-            folium.CircleMarker(
-                location=[lat, lon],
-                radius=radius,
-                color=color, fill=True, fill_color=color, fill_opacity=0.45, weight=2,
-                tooltip=f"{state}: {n:,} beneficiaries",
-                popup=folium.Popup(f"<b>{state}</b><br>{n:,} beneficiaries", max_width=180)
-            ).add_to(m)
-            # Label inside bubble
-            folium.Marker(
-                location=[lat, lon],
-                icon=folium.DivIcon(
-                    html=f"""<div style='text-align:center;font-family:Outfit,sans-serif;
-                             font-size:9px;font-weight:700;color:#fff;line-height:1.2;'>
-                             {state.split()[0]}<br>{N(n)}</div>""",
-                    icon_size=(80,30), icon_anchor=(40,15)
-                )
-            ).add_to(m)
-
-    folium.TileLayer("CartoDB dark_matter" if dark else "CartoDB positron",
-                     attr="CartoDB").add_to(m)
-    return m
-
-def page_map(dfs):
-    ph("Geographic Coverage", "Multi-map spatial analysis — Sudan-validated coordinates")
-    df = dfs.get("Beneficiary_Registration", pd.DataFrame())
-    if df.empty: st.info("Load the Excel database to view geographic data."); return
-    th   = TH()
-    dark = st.session_state.get("dark", True)
-
-    # ── Filters ──────────────────────────────────────────────────────────────
-    c1,c2,c3,c4 = st.columns(4)
-    with c1: s1 = st.selectbox("State",        sopts(df,"State"),               key="m_s")
-    with c2: s2 = st.selectbox("Sector",       sopts(df,"Sector"),              key="m_sec")
-    with c3: s3 = st.selectbox("Displacement", sopts(df,"Displacement_Status"), key="m_d")
-    with c4: s4 = st.selectbox("Vulnerability",sopts(df,"Vulnerability_Level"), key="m_v")
-
-    df_f = sfilt(sfilt(sfilt(sfilt(df.copy(),"State",s1),"Sector",s2),"Displacement_Status",s3),"Vulnerability_Level",s4)
-    dfm  = _clean_gps(df_f)   # GPS-valid, Sudan-only points
-    nb   = len(df_f)
-    nb_gps = len(dfm)
-    fem  = slen(df_f,"Sex","Female")
-
-    # ── KPIs ─────────────────────────────────────────────────────────────────
-    c1,c2,c3,c4,c5,c6 = st.columns(6)
-    c1.markdown(kpi("Beneficiaries",N(nb),            "in selection",  "blue",  "📊"), unsafe_allow_html=True)
-    c2.markdown(kpi("Mapped Points",N(nb_gps),         "valid GPS",     "teal",  "📍"), unsafe_allow_html=True)
-    c3.markdown(kpi("States",       N(suniq(df_f,"State")),"covered",  "amber", "🗺️"), unsafe_allow_html=True)
-    c4.markdown(kpi("Localities",   N(suniq(df_f,"Locality")),"zones", "purple","📌"), unsafe_allow_html=True)
-    c5.markdown(kpi("Female",       f"{100*fem/nb:.0f}%" if nb else "—","","green","♀"), unsafe_allow_html=True)
-    c6.markdown(kpi("IDP",          N(slen(df_f,"Displacement_Status","IDP")),"","red","🏕️"), unsafe_allow_html=True)
-
-    st.markdown("<br>", unsafe_allow_html=True)
-
-    if nb_gps == 0:
-        st.info("⚠️ No GPS coordinates found within Sudan's boundaries for the current selection. Maps will show state labels only.")
-
     # ════════════════════════════════════════════════════════════════════════
-    # MAP 1 — Beneficiaries (clusters + heatmap)
+    # MAP 2 — Choropleth: beneficiary density by state
     # ════════════════════════════════════════════════════════════════════════
-    sh("Map 1 — Beneficiary Locations (Clusters + Heatmap)")
-    col_m1, col_r1 = st.columns([2.5, 1])
-    with col_m1:
-        st.markdown(f"<div style='font-size:.78rem;color:{th['muted']};margin-bottom:.5rem;'>Click clusters to zoom. Click markers for details. {nb_gps:,} geo-validated points shown.</div>", unsafe_allow_html=True)
-        st_folium(map_beneficiaries(df_f, dark), use_container_width=True, height=440, returned_objects=[], key="map1")
-    with col_r1:
-        if has(df_f,"State") and nb>0:
-            by_s = df_f.groupby("State").size().reset_index(name="n").sort_values("n")
-            fig = px.bar(by_s,x="n",y="State",orientation="h",color="n",
-                         color_continuous_scale=["#1E3A6E","#60A5FA"],title="Beneficiaries by State")
-            fig.update_layout(coloraxis_showscale=False)
-            pc(T(fig,h=200,leg=False))
-        if has(df_f,"Sector") and nb>0:
-            by_sec = df_f.groupby("Sector").size().reset_index(name="n")
-            fig = px.pie(by_sec,values="n",names="Sector",hole=0.55,
-                         color="Sector",color_discrete_map=SC,title="By Sector")
-            fig.update_traces(textinfo="none",marker=dict(line=dict(color=th["bg"],width=2)))
-            pc(T(fig,h=210))
-
-    st.markdown("<br>", unsafe_allow_html=True)
-
-    # ════════════════════════════════════════════════════════════════════════
-    # MAP 2 & 3 side by side — Sector coverage + Displacement
-    # ════════════════════════════════════════════════════════════════════════
-    sh("Map 2 & 3 — Sector Coverage · Displacement Status")
-    col_m2, col_m3 = st.columns(2)
+    sh("Map 2 — Choropleth: Beneficiary Density by State")
+    col_m2, col_r2 = st.columns([2.5, 1])
     with col_m2:
-        st.markdown(f"<div style='font-size:.78rem;color:{th['muted']};margin-bottom:.4rem;'>Bubble size = share per sector within each state.</div>", unsafe_allow_html=True)
-        st_folium(map_sector_coverage(df_f, dark), use_container_width=True, height=380, returned_objects=[], key="map2")
-    with col_m3:
-        st.markdown(f"<div style='font-size:.78rem;color:{th['muted']};margin-bottom:.4rem;'>Colour = displacement category. Clustered markers.</div>", unsafe_allow_html=True)
-        st_folium(map_displacement(df_f, dark), use_container_width=True, height=380, returned_objects=[], key="map3")
+        st.markdown(f"<div style='font-size:.78rem;color:{th['muted']};margin-bottom:.5rem;'>"
+                    f"State shading intensity ∝ number of registered beneficiaries. "
+                    f"Hover over each state for details.</div>", unsafe_allow_html=True)
+        st_folium(map_choropleth_density(df_f, dark), use_container_width=True,
+                  height=430, returned_objects=[], key="map2")
+    with col_r2:
+        if has(df_f,"State") and nb > 0:
+            st_d = df_f.groupby("State").size().reset_index(name="Count").sort_values("Count", ascending=False)
+            txt_col = th["text"]; muted_col = th["muted"]
+            st.markdown(f"<div style='font-size:.8rem;font-weight:700;color:{txt_col};margin-bottom:.5rem;'>Top States by Volume</div>", unsafe_allow_html=True)
+            for _, row in st_d.head(8).iterrows():
+                pct = row["Count"] / nb * 100
+                st.markdown(
+                    f"<div style='margin-bottom:6px;'>"
+                    f"<div style='display:flex;justify-content:space-between;font-size:.77rem;"
+                    f"color:{txt_col};margin-bottom:2px;'>"
+                    f"<span>{row['State']}</span><span>{row['Count']:,}</span></div>"
+                    f"<div style='background:rgba(128,128,128,0.12);border-radius:3px;height:5px;'>"
+                    f"<div style='width:{pct:.1f}%;height:100%;background:{SI_RED};border-radius:3px;'></div></div>"
+                    f"</div>",
+                    unsafe_allow_html=True
+                )
 
     st.markdown("<br>", unsafe_allow_html=True)
 
     # ════════════════════════════════════════════════════════════════════════
-    # MAP 4 & 5 side by side — Vulnerability heatmap + State bubbles
+    # MAP 3 & 4 — Sector coverage + Displacement (side by side)
     # ════════════════════════════════════════════════════════════════════════
-    sh("Map 4 & 5 — Vulnerability Heatmap · State-Level Bubble Map")
-    col_m4, col_m5 = st.columns(2)
+    sh("Map 3 & 4 — Sector Coverage · Displacement Status")
+    col_m3, col_m4 = st.columns(2)
+    with col_m3:
+        st.markdown(f"<div style='font-size:.77rem;color:{th['muted']};margin-bottom:.4rem;'>"
+                    f"Bubble size = sector share within each state · GeoJSON boundaries shown.</div>",
+                    unsafe_allow_html=True)
+        st_folium(map_sector_coverage(df_f, dark), use_container_width=True,
+                  height=380, returned_objects=[], key="map3")
     with col_m4:
-        st.markdown(f"<div style='font-size:.78rem;color:{th['muted']};margin-bottom:.4rem;'>Red = extremely vulnerable. Heatmap intensity shows concentration.</div>", unsafe_allow_html=True)
-        st_folium(map_vulnerability(df_f, dark), use_container_width=True, height=380, returned_objects=[], key="map4")
+        st.markdown(f"<div style='font-size:.77rem;color:{th['muted']};margin-bottom:.4rem;'>"
+                    f"Colour = displacement category (IDP/Refugee/Host/Returnee) · Clustered markers.</div>",
+                    unsafe_allow_html=True)
+        st_folium(map_displacement(df_f, dark), use_container_width=True,
+                  height=380, returned_objects=[], key="map4")
+
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    # ════════════════════════════════════════════════════════════════════════
+    # MAP 5 — Vulnerability heatmap (full width)
+    # ════════════════════════════════════════════════════════════════════════
+    sh("Map 5 — Vulnerability Heatmap on Sudan Boundaries")
+    col_m5, col_r5 = st.columns([2.5, 1])
     with col_m5:
-        st.markdown(f"<div style='font-size:.78rem;color:{th['muted']};margin-bottom:.4rem;'>Bubble size = total beneficiaries per state. Hover for details.</div>", unsafe_allow_html=True)
-        st_folium(map_state_bubbles(df_f, dark), use_container_width=True, height=380, returned_objects=[], key="map5")
+        st.markdown(f"<div style='font-size:.77rem;color:{th['muted']};margin-bottom:.4rem;'>"
+                    f"Red = extremely vulnerable · Amber = vulnerable · Green = moderately vulnerable.</div>",
+                    unsafe_allow_html=True)
+        st_folium(map_vulnerability(df_f, dark), use_container_width=True,
+                  height=430, returned_objects=[], key="map5")
+    with col_r5:
+        if has(df_f,"Vulnerability_Level") and nb > 0:
+            vc = df_f["Vulnerability_Level"].value_counts().reset_index()
+            vc.columns = ["Level","Count"]
+            cmap = {"Extremely Vulnerable":"#EF4444",
+                    "Vulnerable":"#F59E0B",
+                    "Moderately Vulnerable":"#10B981"}
+            fig = px.bar(vc, x="Count", y="Level", orientation="h",
+                         color="Level", color_discrete_map=cmap,
+                         title="Vulnerability Breakdown")
+            fig.update_layout(showlegend=False)
+            pc(T(fig, h=220, leg=False))
+        if has(df_f,"Displacement_Status") and nb > 0:
+            dc = df_f["Displacement_Status"].value_counts().reset_index()
+            dc.columns = ["Status","Count"]
+            cmap2 = {"IDP":"#EF4444","Refugee":"#3B82F6",
+                     "Host Community":"#10B981","Returnee":"#F59E0B"}
+            fig = px.pie(dc, values="Count", names="Status", hole=0.55,
+                         color="Status", color_discrete_map=cmap2,
+                         title="Displacement Status")
+            fig.update_traces(textinfo="none",
+                              marker=dict(line=dict(color=th["panel"],width=2)))
+            pc(T(fig, h=220))
 
     st.markdown("<br>", unsafe_allow_html=True)
 
@@ -1648,65 +1321,43 @@ def page_map(dfs):
     sh("Spatial Analysis — Cross-Dimensional Charts")
     c1,c2,c3 = st.columns(3)
     with c1:
-        if has(df_f,"State") and has(df_f,"Sector") and nb>0:
-            ct=df_f.groupby(["State","Sector"]).size().reset_index(name="Count")
-            fig=px.bar(ct,x="State",y="Count",color="Sector",barmode="stack",
-                       color_discrete_map=SC,title="Beneficiaries by State & Sector")
-            pc(T(fig,h=300))
+        if has(df_f,"State") and has(df_f,"Sector") and nb > 0:
+            ct = df_f.groupby(["State","Sector"]).size().reset_index(name="Count")
+            fig = px.bar(ct, x="State", y="Count", color="Sector", barmode="stack",
+                         color_discrete_map=SC, title="Beneficiaries by State & Sector")
+            pc(T(fig, h=290))
     with c2:
-        if has(df_f,"Displacement_Status") and has(df_f,"Sector") and nb>0:
-            ct=df_f.groupby(["Displacement_Status","Sector"]).size().reset_index(name="Count")
-            fig=px.bar(ct,x="Displacement_Status",y="Count",color="Sector",barmode="stack",
-                       color_discrete_map=SC,title="Displacement × Sector")
-            fig.update_xaxes(tickangle=-20)
-            pc(T(fig,h=300))
-    with c3:
-        if has(df_f,"Age") and nb>0:
-            df_age=df_f.copy()
-            df_age["Age"]=pd.to_numeric(df_age["Age"],errors="coerce")
-            df_age=df_age.dropna(subset=["Age"])
+        if has(df_f,"Age") and nb > 0:
+            da = df_f.copy()
+            da["Age"] = pd.to_numeric(da["Age"], errors="coerce")
+            da = da.dropna(subset=["Age"])
             bins=[0,5,18,35,50,120]; labs=["0–4","5–17","18–34","35–49","50+"]
-            df_age["Age_Group"]=pd.cut(df_age["Age"],bins=bins,labels=labs,right=False)
-            ag=df_age.groupby("Age_Group",observed=True).size().reset_index(name="Count")
-            fig=px.bar(ag,x="Age_Group",y="Count",color="Age_Group",
-                       color_discrete_sequence=COLORS,title="Age Groups")
+            da["Age_Group"] = pd.cut(da["Age"], bins=bins, labels=labs, right=False)
+            ag = da.groupby("Age_Group", observed=True).size().reset_index(name="Count")
+            fig = px.bar(ag, x="Age_Group", y="Count", color="Age_Group",
+                         color_discrete_sequence=COLORS, title="Age Group Distribution")
             fig.update_layout(showlegend=False)
-            pc(T(fig,h=300))
-
-    c1,c2,c3 = st.columns(3)
-    with c1:
-        if has(df_f,"State") and has(df_f,"Sex") and nb>0:
-            sg=df_f.groupby(["State","Sex"]).size().reset_index(name="Count")
-            fig=px.bar(sg,x="State",y="Count",color="Sex",
-                       color_discrete_map={"Female":"#EC4899","Male":"#3B82F6"},
-                       barmode="stack",title="Sex by State")
-            pc(T(fig,h=280))
-    with c2:
-        if has(df_f,"Vulnerability_Level") and has(df_f,"Sex") and nb>0:
-            ct=df_f.groupby(["Vulnerability_Level","Sex"]).size().reset_index(name="Count")
-            fig=px.bar(ct,x="Vulnerability_Level",y="Count",color="Sex",barmode="group",
-                       color_discrete_map={"Female":"#EC4899","Male":"#3B82F6"},
-                       title="Vulnerability × Sex")
-            pc(T(fig,h=280))
+            pc(T(fig, h=290))
     with c3:
-        if has(df_f,"Registration_Date") and nb>0:
-            df_t=df_f.copy()
-            df_t["Registration_Date"]=pd.to_datetime(df_t["Registration_Date"],errors="coerce")
-            df_t=df_t.dropna(subset=["Registration_Date"])
-            df_t["Month"]=df_t["Registration_Date"].dt.to_period("M").astype(str)
-            trend=df_t.groupby("Month").size().reset_index(name="Count")
-            fig=px.line(trend,x="Month",y="Count",title="Registration Timeline",markers=True)
-            fig.update_traces(line_color="#3B82F6",marker_color="#60A5FA",line_width=2)
-            pc(T(fig,h=280))
+        if has(df_f,"Registration_Date") and nb > 0:
+            dt = df_f.copy()
+            dt["Registration_Date"] = pd.to_datetime(dt["Registration_Date"], errors="coerce")
+            dt = dt.dropna(subset=["Registration_Date"])
+            dt["Month"] = dt["Registration_Date"].dt.to_period("M").astype(str)
+            trend = dt.groupby("Month").size().reset_index(name="Count")
+            fig = px.line(trend, x="Month", y="Count", markers=True,
+                          title="Registration Timeline")
+            fig.update_traces(line_color=SI_RED, marker_color=SI_RED2, line_width=2)
+            pc(T(fig, h=290))
 
     sh("Coverage Heatmap — State × Sector")
-    if has(df_f,"State") and has(df_f,"Sector") and nb>0:
-        heat=df_f.groupby(["State","Sector"]).size().reset_index(name="Count")
-        fig=px.density_heatmap(heat,x="Sector",y="State",z="Count",
-                               color_continuous_scale="Blues",
-                               title="Beneficiary Density by State & Sector")
+    if has(df_f,"State") and has(df_f,"Sector") and nb > 0:
+        heat = df_f.groupby(["State","Sector"]).size().reset_index(name="Count")
+        fig = px.density_heatmap(heat, x="Sector", y="State", z="Count",
+                                 color_continuous_scale="Reds",
+                                 title="Beneficiary Density by State & Sector")
         fig.update_layout(coloraxis_colorbar=dict(tickfont=dict(color=th["fontc"])))
-        pc(T(fig,h=300,leg=False))
+        pc(T(fig, h=320, leg=False))
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -2912,11 +2563,99 @@ def build_word_report(dfs):
     doc.add_page_break()
 
     # ═════════════════════════════════════════════════════════════════════════
+    # 2B. GEOGRAPHIC MAPS  (Folium → PNG via selenium/screenshot fallback)
+    # We render static Plotly maps as proxy since Folium needs a browser
+    # ═════════════════════════════════════════════════════════════════════════
+    heading("2B. Geographic Coverage — Sudan State Maps", 1)
+    hr_line()
+    body_text(
+        "The following maps illustrate the geographic distribution of program beneficiaries "
+        "across Sudan's states, using official administrative boundaries. "
+        "Map 1 shows beneficiary counts per state; Map 2 shows sector composition; "
+        "Map 3 shows vulnerability concentration.", space_after=10)
+
+    # Map proxy 1: Choropleth-style bar chart (state counts)
+    if not df_b.empty and has(df_b,"State"):
+        counts = df_b.groupby("State").size().reset_index(name="Count").sort_values("Count", ascending=True)
+        fig = px.bar(counts, x="Count", y="State", orientation="h",
+                     color="Count", color_continuous_scale=["#FFEAEA","#E3001B"],
+                     title="Map 1 — Beneficiary Count by Sudan State")
+        fig.update_layout(coloraxis_showscale=True,
+                          coloraxis_colorbar=dict(title="Beneficiaries", tickfont=dict(size=9)))
+        add_chart(fig, width_inches=6.2, height_px=380,
+                  caption_text="Figure M1 — Beneficiary distribution across Sudan states (shapefile reference)")
+
+    # Map proxy 2: Grouped bar — Sector × State
+    if not df_b.empty and has(df_b,"State") and has(df_b,"Sector"):
+        cs = df_b.groupby(["State","Sector"]).size().reset_index(name="Count")
+        top_states = df_b.groupby("State").size().nlargest(8).index.tolist()
+        cs = cs[cs["State"].isin(top_states)]
+        fig = px.bar(cs, x="Count", y="State", color="Sector", orientation="h",
+                     barmode="stack",
+                     color_discrete_map={"WASH":"#3B82F6","FSL":"#10B981",
+                                         "Shelter & NFI":"#F59E0B",
+                                         "Cash & Voucher Assistance":"#E3001B"},
+                     title="Map 2 — Sector Coverage by State (Top 8 states)")
+        add_chart(fig, width_inches=6.2, height_px=360,
+                  caption_text="Figure M2 — Sector distribution per state (shapefile reference)")
+
+    # Map proxy 3: Vulnerability treemap
+    if not df_b.empty and has(df_b,"State") and has(df_b,"Vulnerability_Level"):
+        vt = df_b.groupby(["State","Vulnerability_Level"]).size().reset_index(name="Count")
+        fig = px.treemap(vt, path=["State","Vulnerability_Level"], values="Count",
+                         color="Vulnerability_Level",
+                         color_discrete_map={"Extremely Vulnerable":"#EF4444",
+                                             "Vulnerable":"#F59E0B",
+                                             "Moderately Vulnerable":"#10B981"},
+                         title="Map 3 — Vulnerability Level by State")
+        add_chart(fig, width_inches=6.2, height_px=380,
+                  caption_text="Figure M3 — Vulnerability concentration across Sudan states")
+
+    # Map proxy 4: Scatter geo plot using Plotly
+    if not df_b.empty and has(df_b,"State"):
+        # Build state-level summary for scatter
+        state_summary = df_b.groupby("State").agg(
+            Count=("State","count"),
+            **({} if not has(df_b,"Sector") else {})
+        ).reset_index()
+        # Add centroids
+        state_summary["Lat"] = state_summary["State"].map(
+            lambda s: STATE_CENTROIDS.get(s, (14.5, 29.5))[0])
+        state_summary["Lon"] = state_summary["State"].map(
+            lambda s: STATE_CENTROIDS.get(s, (14.5, 29.5))[1])
+        fig = px.scatter_geo(
+            state_summary, lat="Lat", lon="Lon", size="Count",
+            text="State", color="Count",
+            color_continuous_scale=["#FFEAEA","#E3001B"],
+            size_max=45,
+            scope="africa",
+            center={"lat":15.0,"lon":29.5},
+            title="Map 4 — Geographic Bubble Map: Beneficiaries by State",
+            projection="natural earth",
+        )
+        fig.update_geos(
+            fitbounds="locations", resolution=50,
+            showcoastlines=True, coastlinecolor="#CBD5E1",
+            showland=True, landcolor="#F8FAFC",
+            showocean=True, oceancolor="#EFF6FF",
+            showborder=True, showsubunits=True,
+            subunitcolor="#E3001B", subunitwidth=1.5,
+            countrycolor="#94A3B8",
+        )
+        fig.update_traces(textposition="top center", textfont=dict(size=8))
+        fig.update_layout(coloraxis_showscale=False, showlegend=False)
+        add_chart(fig, width_inches=6.2, height_px=420,
+                  caption_text="Figure M4 — Proportional bubble map: beneficiary volume per state")
+
+    doc.add_page_break()
+
+    # ═════════════════════════════════════════════════════════════════════════
     # 3. WASH
     # ═════════════════════════════════════════════════════════════════════════
     heading("3. WASH Program Performance", 1)
     hr_line()
     if not df_w.empty:
+
         reached = int(ssum(df_w,"Reached_Beneficiaries"))
         target  = int(ssum(df_w,"Target_Beneficiaries")) or 1
         pct     = reached/target
