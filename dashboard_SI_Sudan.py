@@ -2348,7 +2348,7 @@ def build_word_report(dfs):
         doc.add_paragraph()
 
     # ── Helper: render Plotly fig → bytes → inline image ─────────────────────
-    def add_chart(fig, width_inches=6.0, height_px=320, caption_text=""):
+    def add_chart(fig, width_inches=8.0, height_px=380, caption_text=""):
         fig.update_layout(
             paper_bgcolor="white", plot_bgcolor="white",
             font=dict(family="Arial", color="#334155", size=11),
