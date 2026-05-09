@@ -833,41 +833,51 @@ def login_page():
         """, unsafe_allow_html=True)
 
     with col_form:
-        st.markdown(f"""
-        <div style='background:rgba(28,33,48,0.95);border:1px solid rgba(227,0,27,0.35);
-             border-top:4px solid {SI_RED};border-radius:16px;padding:2.2rem 2rem;
-             box-shadow:0 30px 80px rgba(0,0,0,0.5);'>
-          <div style='font-size:1.3rem;font-weight:900;color:#fff;
-               font-family:Outfit,sans-serif;margin-bottom:.3rem;'>Sign In</div>
-          <div style='font-size:.81rem;color:#64748B;margin-bottom:1.5rem;'>
-            Enter your credentials to access the dashboard.
-          </div>
-        </div>
-        """, unsafe_allow_html=True)
+    # Carte supérieure
+    st.markdown(f"""
+    <div style='background:rgba(28,33,48,0.95);border:1px solid rgba(227,0,27,0.35);
+         border-top:4px solid {SI_RED};border-radius:16px;padding:2.2rem 2rem;
+         box-shadow:0 30px 80px rgba(0,0,0,0.5);'>
+      <div style='font-size:1.3rem;font-weight:900;color:#fff;
+           font-family:Outfit,sans-serif;margin-bottom:.3rem;'>Sign In</div>
+      <div style='font-size:.81rem;color:#64748B;margin-bottom:1.5rem;'>
+        Enter your credentials to access the dashboard.
+      </div>
+    </div>
+    """, unsafe_allow_html=True)
 
-        # Actual Streamlit inputs — rendered below the card visually
-        st.markdown(f"<div style='background:rgba(28,33,48,0.95);border:1px solid rgba(227,0,27,0.35);border-top:none;border-radius:0 0 16px 16px;padding:2rem 2rem 2rem;box-shadow:0 30px 80px rgba(0,0,0,0.5);'>", unsafe_allow_html=True)
+    # Carte inférieure (inputs)
+    st.markdown(f"<div style='background:rgba(28,33,48,0.95);border:1px solid rgba(227,0,27,0.35);border-top:none;border-radius:0 0 16px 16px;padding:2rem 2rem 2rem;box-shadow:0 30px 80px rgba(0,0,0,0.5);'>", unsafe_allow_html=True)
 
-        st.markdown(f"<div style='font-size:.72rem;font-weight:700;color:#64748B;letter-spacing:.07em;text-transform:uppercase;margin-bottom:.3rem;'>Username</div>", unsafe_allow_html=True)
-        user = st.text_input("Username", placeholder="im_manager",
-                             label_visibility="collapsed", key="login_user")
-        st.markdown(f"<div style='font-size:.72rem;font-weight:700;color:#64748B;letter-spacing:.07em;text-transform:uppercase;margin:.8rem 0 .3rem;'>Password</div>", unsafe_allow_html=True)
-        pw = st.text_input("Password", type="password", placeholder="••••••••",
-                           label_visibility="collapsed", key="login_pw")
+    # Correctif CSS immédiat
+    st.markdown("""
+    <style>
+    div[data-testid="stTextInput"] {
+        margin-top: 0.6rem;
+    }
+    </style>
+    """, unsafe_allow_html=True)
 
-        st.markdown("<br>", unsafe_allow_html=True)
-        if st.button("Sign in →", use_container_width=True, key="login_btn"):
-            if CREDENTIALS.get(user) == pw:
-                st.session_state.update(auth=True, user=user, dark=True, page="Overview")
-                st.rerun()
-            else:
-                st.error("❌ Invalid username or password.")
+    st.markdown(f"<div style='font-size:.72rem;font-weight:700;color:#64748B;letter-spacing:.07em;text-transform:uppercase;margin-bottom:.1rem;'>Username</div>", unsafe_allow_html=True)
+    user = st.text_input("Username", placeholder="im_manager",
+                         label_visibility="collapsed", key="login_user")
 
-        st.markdown(f"""<div style='text-align:center;font-size:.7rem;
-             color:rgba(255,255,255,.2);margin-top:1.2rem;'>
-          Solidarites International © 2026 · Confidential
-        </div></div>""", unsafe_allow_html=True)
+    st.markdown(f"<div style='font-size:.72rem;font-weight:700;color:#64748B;letter-spacing:.07em;text-transform:uppercase;margin:.8rem 0 .1rem;'>Password</div>", unsafe_allow_html=True)
+    pw = st.text_input("Password", type="password", placeholder="••••••••",
+                       label_visibility="collapsed", key="login_pw")
 
+    st.markdown("<br>", unsafe_allow_html=True)
+    if st.button("Sign in →", use_container_width=True, key="login_btn"):
+        if CREDENTIALS.get(user) == pw:
+            st.session_state.update(auth=True, user=user, dark=True, page="Overview")
+            st.rerun()
+        else:
+            st.error("❌ Invalid username or password.")
+
+    st.markdown(f"""<div style='text-align:center;font-size:.7rem;
+         color:rgba(255,255,255,.2);margin-top:1.2rem;'>
+      Solidarites International © 2026 · Confidential
+    </div></div>""", unsafe_allow_html=True)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
