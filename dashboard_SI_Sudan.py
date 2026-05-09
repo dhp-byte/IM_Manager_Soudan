@@ -2638,7 +2638,7 @@ def build_word_report(dfs):
             showcoastlines=True, coastlinecolor="#CBD5E1",
             showland=True, landcolor="#F8FAFC",
             showocean=True, oceancolor="#EFF6FF",
-            showborder=True, showsubunits=True,
+            showframe=True, showsubunits=True,
             subunitcolor="#E3001B", subunitwidth=1.5,
             countrycolor="#94A3B8",
         )
