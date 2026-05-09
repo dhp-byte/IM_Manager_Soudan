@@ -896,7 +896,7 @@ import random as _rnd, json as _json, os as _os
 _rnd.seed(42)
 
 # Load Sudan shapefile GeoJSON
-_GEOJSON_PATH = "/home/claude/sudan_states.geojson"
+_GEOJSON_PATH = "/home/im_manager/sudan_states.geojson"
 try:
     with open(_GEOJSON_PATH) as _f:
         SUDAN_GEOJSON = _json.load(_f)
