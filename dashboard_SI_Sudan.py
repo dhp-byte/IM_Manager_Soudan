@@ -157,12 +157,17 @@ def inject_css(T):
         "border-radius:20px;padding:3px 12px;font-size:.71rem;color:rgba(255,255,255,.55);}"
 
         # NAV BUTTONS  (active index injected dynamically in top_nav)
-        nav_css = """
-        div[data-testid='stHorizontalBlock']{gap:8px!important;margin:0!important;padding:4px 8px!important;}
-        div[data-testid='stHorizontalBlock']>div>[data-testid='stButton'] button{background:transparent!important;border:none!important;border-bottom:3px solid transparent!important;border-radius:0!important;color:rgba(255,255,255,0.5)!important;font-family:var(--font)!important;font-size:.85rem!important;font-weight:500!important;padding:.6rem 1rem!important;width:auto!important;min-width:70px!important;transition:all .18s ease!important;white-space:nowrap!important;cursor:pointer!important;margin:0!important;}
-        div[data-testid='stHorizontalBlock']>div>[data-testid='stButton'] button:hover{color:#fff!important;background:rgba(227,0,27,0.1)!important;border-bottom-color:rgba(227,0,27,0.7)!important;}
-        """
-        
+        "div[data-testid='stHorizontalBlock']>div>[data-testid='stButton'] button{"
+        "background:transparent!important;border:none!important;"
+        "border-bottom:3px solid transparent!important;border-radius:0!important;"
+        "color:rgba(255,255,255,0.5)!important;font-family:var(--font)!important;"
+        "font-size:0.85rem!important;font-weight:500!important;"
+        "padding:.55rem .35rem!important;width:auto!important;"
+        "transition:all .18s!important;white-space:nowrap!important;}"
+        "div[data-testid='stHorizontalBlock']>div>[data-testid='stButton'] button:hover{"
+        "color:#fff!important;background:rgba(227,0,27,0.1)!important;"
+        "border-bottom-color:rgba(227,0,27,0.5)!important;}"
+        "div[data-testid='stHorizontalBlock']{gap:2px!important;margin:0!important;padding:0!important;}"
         
         # KPI CARDS
         ".kpi-card{background:var(--card);border:1px solid var(--border);border-radius:var(--r);"
