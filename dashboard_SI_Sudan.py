@@ -1411,14 +1411,14 @@ def login_page():
         """, unsafe_allow_html=True)
         
         # Espacement
-        st.markdown("<div style='margin-top: 1rem;'></div>", unsafe_allow_html=True)
+        st.markdown("<div style='margin-top: .5rem;'></div>", unsafe_allow_html=True)
         
         # Username
-        st.markdown("<div style='font-size: 0.7rem; font-weight: 700; color: #94A3B8; margin-bottom: 0.3rem;'>Username</div>", unsafe_allow_html=True)
+        st.markdown("<div style='font-size: 0.7rem; font-weight: 700; color: #94A3B8; margin-bottom: 0.7rem;'>Username</div>", unsafe_allow_html=True)
         user = st.text_input("", placeholder="im_manager", label_visibility="collapsed", key="login_user")
         
         # Password
-        st.markdown("<div style='font-size: 0.7rem; font-weight: 700; color: #94A3B8; margin-bottom: 0.3rem; margin-top: 1rem;'>Password</div>", unsafe_allow_html=True)
+        st.markdown("<div style='font-size: 0.7rem; font-weight: 700; color: #94A3B8; margin-bottom: 0.7rem; margin-top: 1rem;'>Password</div>", unsafe_allow_html=True)
         pw = st.text_input("", type="password", placeholder="••••••••", label_visibility="collapsed", key="login_pw")
         
         # Espacement
