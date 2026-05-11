@@ -1136,83 +1136,24 @@ def login_page():
 
     # ==================== TOP BAR ====================
     st.markdown(f"""
-    <div style='
-        background: rgba(0,0,0,0.6);
-        border-bottom: 3px solid {SI_RED};
-        padding: 0.6rem 2rem;
-        display: flex;
-        align-items: center;
-        gap: 14px;
-        backdrop-filter: blur(12px);
-        margin-bottom: 0;
-    '>
-        <div style='
-            width: 38px;
-            height: 38px;
-            background: {SI_RED};
-            border-radius: 8px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.2rem;
-            font-weight: 900;
-            color: white;
-            flex-shrink: 0;
-        '>SI</div>
-        
+    <div style="background: rgba(0,0,0,0.6); border-bottom: 3px solid {SI_RED}; padding: 0.6rem 2rem; display: flex; align-items: center; gap: 14px; backdrop-filter: blur(12px); margin-bottom: 0;">
+        <div style="width: 38px; height: 38px; background: {SI_RED}; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; font-weight: 900; color: white; flex-shrink: 0;">SI</div>
         <div>
-            <div style='
-                font-size: 0.9rem;
-                font-weight: 900;
-                color: white;
-                font-family: "Outfit", sans-serif;
-                letter-spacing: -0.3px;
-            '>SOLIDARITES INTERNATIONAL</div>
-            <div style='
-                font-size: 0.55rem;
-                color: rgba(255,255,255,0.4);
-                letter-spacing: 0.1em;
-                text-transform: uppercase;
-                margin-top: 2px;
-            '>Sudan Mission · Information Management Platform</div>
+            <div style="font-size: 0.9rem; font-weight: 900; color: white; font-family: 'Outfit', sans-serif; letter-spacing: -0.3px;">SOLIDARITES INTERNATIONAL</div>
+            <div style="font-size: 0.55rem; color: rgba(255,255,255,0.4); letter-spacing: 0.1em; text-transform: uppercase; margin-top: 2px;">Sudan Mission · Information Management Platform</div>
         </div>
-        
-        <div style='
-            margin-left: auto;
-            background: {SI_RED};
-            color: white;
-            font-size: 0.6rem;
-            font-weight: 800;
-            letter-spacing: 0.1em;
-            text-transform: uppercase;
-            padding: 4px 14px;
-            border-radius: 20px;
-        '>
-            Restricted Access
-        </div>
+        <div style="margin-left: auto; background: {SI_RED}; color: white; font-size: 0.6rem; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; padding: 4px 14px; border-radius: 20px;">Restricted Access</div>
     </div>
     """, unsafe_allow_html=True)
 
     # ==================== IMAGE SLIDER ====================
-    imgs_html = "".join(f"<img src='{u}' alt='SI Sudan'>" for u in SI_IMAGES * 3)
+    imgs_html = "".join(f"<img src='{u}' alt='SI Sudan' style='height: 110px; width: 170px; object-fit: cover; border-radius: 0;'>" for u in SI_IMAGES * 3)
     st.markdown(f"""
-    <div style='
-        overflow: hidden;
-        margin: 0;
-        height: 110px;
-        position: relative;
-    '>
-        <div style='
-            display: flex;
-            gap: 12px;
-            animation: slideLogin 40s linear infinite;
-            width: max-content;
-            height: 110px;
-        '>
+    <div style="overflow: hidden; margin: 0; height: 110px; position: relative;">
+        <div style="display: flex; gap: 12px; animation: slideLogin 40s linear infinite; width: max-content; height: 110px;">
             {imgs_html}
         </div>
     </div>
-    
     <style>
     @keyframes slideLogin {{
         0% {{ transform: translateX(0); }}
@@ -1222,7 +1163,7 @@ def login_page():
     """, unsafe_allow_html=True)
 
     # ==================== MAIN CONTENT ====================
-    st.markdown("<div style='padding: 1.5rem 2rem 2rem 2rem;'>", unsafe_allow_html=True)
+    st.markdown("<div style='padding: 1.5rem 2rem 2rem 2rem;'></div>", unsafe_allow_html=True)
 
     # Deux colonnes : gauche (texte) et droite (formulaire)
     col_left, col_right = st.columns([1.2, 0.9], gap="large")
@@ -1231,91 +1172,14 @@ def login_page():
     with col_left:
         st.markdown(f"""
         <div style='padding-right: 1rem;'>
-            <div style='
-                display: inline-block;
-                background: {SI_RED};
-                color: white;
-                font-size: 0.6rem;
-                font-weight: 800;
-                letter-spacing: 0.12em;
-                text-transform: uppercase;
-                padding: 4px 12px;
-                border-radius: 4px;
-                margin-bottom: 1.2rem;
-            '>Sudan Mission 2025–2026</div>
-            
-            <h1 style='
-                font-size: 2.2rem;
-                font-weight: 900;
-                color: white;
-                margin: 0 0 0.8rem 0;
-                line-height: 1.2;
-                letter-spacing: -0.02em;
-                font-family: "Outfit", sans-serif;
-            '>
-                Information<br>
-                <span style='color: {SI_RED};">Management</span><br>
-                Dashboard
-            </h1>
-            
-            <p style='
-                font-size: 0.85rem;
-                color: rgba(255,255,255,0.55);
-                line-height: 1.6;
-                margin: 0 0 1.8rem 0;
-            '>
-                Real-time monitoring of multi-sector humanitarian response across
-                WASH, Food Security, Shelter & NFI, and Cash & Voucher programs in Sudan.
-            </p>
-            
+            <div style='display: inline-block; background: {SI_RED}; color: white; font-size: 0.6rem; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; padding: 4px 12px; border-radius: 4px; margin-bottom: 1.2rem;'>Sudan Mission 2025–2026</div>
+            <h1 style='font-size: 2.2rem; font-weight: 900; color: white; margin: 0 0 0.8rem 0; line-height: 1.2; letter-spacing: -0.02em; font-family: "Outfit", sans-serif;'>Information<br><span style='color: {SI_RED};'>Management</span><br>Dashboard</h1>
+            <p style='font-size: 0.85rem; color: rgba(255,255,255,0.55); line-height: 1.6; margin: 0 0 1.8rem 0;'>Real-time monitoring of multi-sector humanitarian response across WASH, Food Security, Shelter & NFI, and Cash & Voucher programs in Sudan.</p>
             <div style='display: flex; flex-direction: column; gap: 0.8rem;'>
-                <div style='display: flex; align-items: center; gap: 12px;'>
-                    <span style='
-                        background: rgba(59,130,246,0.15);
-                        padding: 6px 10px;
-                        border-radius: 8px;
-                        font-size: 1rem;
-                    '>💧</span>
-                    <span style='font-size: 0.8rem; color: rgba(255,255,255,0.5);'>
-                        <strong style='color: #3B82F6;'>WASH</strong> — Water, Sanitation & Hygiene
-                    </span>
-                </div>
-                
-                <div style='display: flex; align-items: center; gap: 12px;'>
-                    <span style='
-                        background: rgba(16,185,129,0.15);
-                        padding: 6px 10px;
-                        border-radius: 8px;
-                        font-size: 1rem;
-                    '>🌾</span>
-                    <span style='font-size: 0.8rem; color: rgba(255,255,255,0.5);'>
-                        <strong style='color: #10B981;'>FSL</strong> — Food Security & Livelihoods
-                    </span>
-                </div>
-                
-                <div style='display: flex; align-items: center; gap: 12px;'>
-                    <span style='
-                        background: rgba(245,158,11,0.15);
-                        padding: 6px 10px;
-                        border-radius: 8px;
-                        font-size: 1rem;
-                    '>🏠</span>
-                    <span style='font-size: 0.8rem; color: rgba(255,255,255,0.5);'>
-                        <strong style='color: #F59E0B;'>Shelter & NFI</strong> — Non-Food Items
-                    </span>
-                </div>
-                
-                <div style='display: flex; align-items: center; gap: 12px;'>
-                    <span style='
-                        background: rgba(227,0,27,0.15);
-                        padding: 6px 10px;
-                        border-radius: 8px;
-                        font-size: 1rem;
-                    '>💵</span>
-                    <span style='font-size: 0.8rem; color: rgba(255,255,255,0.5);'>
-                        <strong style='color: {SI_RED}'>CVA</strong> — Cash & Voucher Assistance
-                    </span>
-                </div>
+                <div style='display: flex; align-items: center; gap: 12px;'><span style='background: rgba(59,130,246,0.15); padding: 6px 10px; border-radius: 8px; font-size: 1rem;'>💧</span><span style='font-size: 0.8rem; color: rgba(255,255,255,0.5);'><strong style='color: #3B82F6;'>WASH</strong> — Water, Sanitation & Hygiene</span></div>
+                <div style='display: flex; align-items: center; gap: 12px;'><span style='background: rgba(16,185,129,0.15); padding: 6px 10px; border-radius: 8px; font-size: 1rem;'>🌾</span><span style='font-size: 0.8rem; color: rgba(255,255,255,0.5);'><strong style='color: #10B981;'>FSL</strong> — Food Security & Livelihoods</span></div>
+                <div style='display: flex; align-items: center; gap: 12px;'><span style='background: rgba(245,158,11,0.15); padding: 6px 10px; border-radius: 8px; font-size: 1rem;'>🏠</span><span style='font-size: 0.8rem; color: rgba(255,255,255,0.5);'><strong style='color: #F59E0B;'>Shelter & NFI</strong> — Non-Food Items</span></div>
+                <div style='display: flex; align-items: center; gap: 12px;'><span style='background: rgba(227,0,27,0.15); padding: 6px 10px; border-radius: 8px; font-size: 1rem;'>💵</span><span style='font-size: 0.8rem; color: rgba(255,255,255,0.5);'><strong style='color: {SI_RED}'>CVA</strong> — Cash & Voucher Assistance</span></div>
             </div>
         </div>
         """, unsafe_allow_html=True)
@@ -1323,33 +1187,15 @@ def login_page():
     # ==================== COLONNE DROITE - FORMULAIRE DE LOGIN ====================
     with col_right:
         st.markdown(f"""
-        <div style='
-            background: rgba(28,33,48,0.95);
-            border: 1px solid rgba(227,0,27,0.3);
-            border-top: 4px solid {SI_RED};
-            border-radius: 16px;
-            padding: 2rem 1.8rem;
-            box-shadow: 0 25px 50px rgba(0,0,0,0.4);
-        '>
-            <div style='
-                font-size: 1.4rem;
-                font-weight: 900;
-                color: white;
-                font-family: "Outfit", sans-serif;
-                margin-bottom: 0.3rem;
-            '>Welcome back</div>
-            
-            <div style='
-                font-size: 0.8rem;
-                color: #94A3B8;
-                margin-bottom: 1.8rem;
-            '>Enter your credentials to access the dashboard</div>
+        <div style='background: rgba(28,33,48,0.95); border: 1px solid rgba(227,0,27,0.3); border-top: 4px solid {SI_RED}; border-radius: 16px; padding: 2rem 1.8rem; box-shadow: 0 25px 50px rgba(0,0,0,0.4);'>
+            <div style='font-size: 1.4rem; font-weight: 900; color: white; font-family: "Outfit", sans-serif; margin-bottom: 0.3rem;'>Welcome back</div>
+            <div style='font-size: 0.8rem; color: #94A3B8; margin-bottom: 1.8rem;'>Enter your credentials to access the dashboard</div>
+        </div>
         """, unsafe_allow_html=True)
 
         # ========== STYLES POUR LES INPUTS ==========
         st.markdown("""
         <style>
-        /* Style des champs de texte */
         div[data-testid="stTextInput"] {
             margin-bottom: 0.3rem;
         }
@@ -1371,8 +1217,6 @@ def login_page():
             color: #64748B !important;
             font-size: 0.8rem !important;
         }
-        
-        /* Style du bouton */
         div[data-testid="stButton"] > button {
             background: #E3001B !important;
             color: white !important;
@@ -1392,8 +1236,6 @@ def login_page():
             transform: translateY(-1px) !important;
             box-shadow: 0 4px 12px rgba(227,0,27,0.4) !important;
         }
-        
-        /* Style des messages d'erreur */
         .stAlert {
             background: rgba(227,0,27,0.1) !important;
             border-left: 3px solid #E3001B !important;
@@ -1404,85 +1246,40 @@ def login_page():
         </style>
         """, unsafe_allow_html=True)
 
-        # ========== CHAMPS DU FORMULAIRE ==========
-        # Label Username
+        # ========== FORMULAIRE ==========
+        # Username
         st.markdown(f"""
-        <div style='
-            font-size: 0.7rem;
-            font-weight: 700;
-            color: #94A3B8;
-            letter-spacing: 0.07em;
-            text-transform: uppercase;
-            margin-bottom: 0.3rem;
-            margin-top: 0.5rem;
-        '>Username</div>
+        <div style='font-size: 0.7rem; font-weight: 700; color: #94A3B8; letter-spacing: 0.07em; text-transform: uppercase; margin-bottom: 0.3rem; margin-top: 1.5rem;'>Username</div>
         """, unsafe_allow_html=True)
         
-        user = st.text_input(
-            "", 
-            placeholder="im_manager",
-            label_visibility="collapsed", 
-            key="login_user"
-        )
+        user = st.text_input("", placeholder="im_manager", label_visibility="collapsed", key="login_user")
 
-        # Label Password
+        # Password
         st.markdown(f"""
-        <div style='
-            font-size: 0.7rem;
-            font-weight: 700;
-            color: #94A3B8;
-            letter-spacing: 0.07em;
-            text-transform: uppercase;
-            margin-bottom: 0.3rem;
-            margin-top: 1rem;
-        '>Password</div>
+        <div style='font-size: 0.7rem; font-weight: 700; color: #94A3B8; letter-spacing: 0.07em; text-transform: uppercase; margin-bottom: 0.3rem; margin-top: 1rem;'>Password</div>
         """, unsafe_allow_html=True)
         
-        pw = st.text_input(
-            "", 
-            type="password", 
-            placeholder="••••••••",
-            label_visibility="collapsed", 
-            key="login_pw"
-        )
+        pw = st.text_input("", type="password", placeholder="••••••••", label_visibility="collapsed", key="login_pw")
 
-        # Espacement avant le bouton
+        # Espacement
         st.markdown("<div style='margin: 1.5rem 0 0.5rem 0;'></div>", unsafe_allow_html=True)
 
         # Bouton de connexion
         if st.button("Sign in →", use_container_width=True, key="login_btn"):
             if CREDENTIALS.get(user) == pw:
-                st.session_state.update(
-                    auth=True, 
-                    user=user, 
-                    dark=True, 
-                    page="Overview"
-                )
+                st.session_state.update(auth=True, user=user, dark=True, page="Overview")
                 st.rerun()
             else:
                 st.error("❌ Invalid username or password. Please try again.")
 
         # Footer
         st.markdown(f"""
-        <div style='
-            text-align: center;
-            margin-top: 1.8rem;
-            padding-top: 1.2rem;
-            border-top: 1px solid rgba(255,255,255,0.05);
-        '>
-            <div style='
-                font-size: 0.6rem;
-                color: rgba(255,255,255,0.2);
-                letter-spacing: 0.3px;
-            '>
-                Solidarites International © 2026 · Confidential
-            </div>
-        </div>
+        <div style='text-align: center; margin-top: 1.8rem; padding-top: 1.2rem; border-top: 1px solid rgba(255,255,255,0.05);'>
+            <div style='font-size: 0.6rem; color: rgba(255,255,255,0.2); letter-spacing: 0.3px;'>Solidarites International © 2026 · Confidential</div>
         </div>
         """, unsafe_allow_html=True)
 
     st.markdown("</div>", unsafe_allow_html=True)
-
 
 
 # ══════════════════════════════════════════════════════════════════════════════
