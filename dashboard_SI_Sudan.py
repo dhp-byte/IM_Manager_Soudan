@@ -5,8 +5,8 @@ import plotly.graph_objects as go
 import folium
 from folium.plugins import MarkerCluster, HeatMap, MiniMap
 from streamlit_folium import st_folium
-from datetime import datetime
-import io, warnings, time
+from datetime import datetime, timedelta
+import io, warnings, time, json
 warnings.filterwarnings("ignore")
 
 try:
@@ -93,565 +93,598 @@ def inject_css(T):
     login_sh   = "0 40px 80px rgba(0,0,0,0.6)" if is_dark else "0 40px 80px rgba(0,0,0,0.15)"
     ac  = T["accent"]
     ac2 = T["accent2"]
-    
-    css = f"""
-    @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap');
-    
-    :root {{
-        --bg: {T["bg"]};
-        --surface: {T["surface"]};
-        --panel: {T["panel"]};
-        --border: {T["border"]};
-        --border2: {T["border2"]};
-        --text: {T["text"]};
-        --muted: {T["muted"]};
-        --dim: {T["dim"]};
-        --navbg: {T["navbg"]};
-        --navbdr: {T["navborder"]};
-        --card: {T["card"]};
-        --input: {T["input"]};
-        --accent: {ac};
-        --accent2: {ac2};
-        --si-red: {SI_RED};
-        --si-red2: {SI_RED2};
-        --font: 'Outfit', sans-serif;
-        --mono: 'JetBrains Mono', monospace;
-        --r: 12px;
-        --shadow: {shadow};
-    }}
-    
-    *,*::before,*::after {{ box-sizing: border-box; }}
-    html,body {{ font-family: var(--font); background: var(--bg); color: var(--text); margin: 0; }}
-    
-    [data-testid='stAppViewContainer'], [data-testid='stMain'], .main .block-container {{ background: var(--bg) !important; }}
-    [data-testid='stHeader'] {{ background: var(--navbg) !important; border-bottom: 3px solid {SI_RED} !important; }}
-    [data-testid='stSidebar'] {{ display: none !important; }}
-    [data-testid='block-container'] {{ padding: 0 !important; max-width: 100% !important; }}
-    
-    ::-webkit-scrollbar {{ width: 5px; height: 5px; }}
-    ::-webkit-scrollbar-thumb {{ background: {SI_RED}; border-radius: 3px; }}
-    
-    /* ========== LOGIN PAGE SPECIFIC ========== */
-    .si-login-topbar {{
-        background: rgba(0,0,0,0.5);
-        border-bottom: 3px solid {SI_RED};
-        padding: 0.6rem 2rem;
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        backdrop-filter: blur(12px);
-    }}
-    
-    /* ========== HERO SECTION ========== */
-    .si-hero {{
-        position: relative;
-        overflow: hidden;
-        border-radius: 14px;
-        margin-bottom: 1rem;
-        min-height: 180px;
-        background: linear-gradient(135deg,#1A0004 0%,#2A0008 50%,#1A0004 100%);
-    }}
-    .si-hero img {{
-        position: absolute;
-        inset: 0;
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-        opacity: 0.3;
-        filter: {img_filter};
-    }}
-    .si-hero-content {{
-        position: relative;
-        z-index: 2;
-        padding: 1.5rem 2rem;
-        min-height: 180px;
-        display: flex;
-        flex-direction: column;
-        justify-content: flex-end;
-    }}
-    .si-tag {{
-        display: inline-block;
-        background: {SI_RED};
-        color: #fff;
-        font-size: 0.68rem;
-        font-weight: 800;
-        letter-spacing: 0.12em;
-        text-transform: uppercase;
-        padding: 3px 10px;
-        border-radius: 3px;
-        margin-bottom: 0.7rem;
-        width: fit-content;
-    }}
-    .si-hero-title {{
-        font-size: 1.7rem;
-        font-weight: 900;
-        color: #fff;
-        margin: 0 0 0.4rem;
-        letter-spacing: -0.02em;
-        text-shadow: 0 2px 20px rgba(0,0,0,0.5);
-    }}
-    .si-hero-sub {{
-        font-size: 0.8rem;
-        color: rgba(255,255,255,0.7);
-        margin: 0;
-    }}
-    .si-hero-bar {{
-        position: absolute;
-        bottom: 0;
-        left: 0;
-        right: 0;
-        height: 4px;
-        background: linear-gradient(90deg,{SI_RED},{SI_RED2},{SI_RED});
-        animation: redpulse 3s ease-in-out infinite;
-    }}
-    @keyframes redpulse {{ 0%,100% {{ opacity: 1; }} 50% {{ opacity: 0.6; }} }}
-    
-    /* ========== IMAGE SLIDER ========== */
-    .img-slider {{
-        overflow: hidden;
-        border-radius: 0;
-        margin: 0;
-        height: 100px;
-    }}
-    .img-track {{
-        display: flex;
-        gap: 10px;
-        animation: slide 32s linear infinite;
-        width: max-content;
-        height: 100px;
-    }}
-    .img-track img {{
-        height: 100px;
-        width: 160px;
-        object-fit: cover;
-        border-radius: 0;
-        flex-shrink: 0;
-        filter: {img_filter};
-        transition: filter 0.3s;
-        border: 1px solid rgba(227,0,27,0.2);
-    }}
-    .img-track img:hover {{
-        filter: brightness(1) saturate(1.3);
-    }}
-    @keyframes slide {{
-        0% {{ transform: translateX(0); }}
-        100% {{ transform: translateX(-50%); }}
-    }}
-    
-    /* ========== TOPBAR ========== */
-    .si-topbar {{
-        background: var(--navbg);
-        border-bottom: 3px solid {SI_RED};
-        padding: 0.4rem 1.5rem;
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        position: sticky;
-        top: 0;
-        z-index: 1000;
-        backdrop-filter: blur(16px);
-        box-shadow: {nav_shadow};
-    }}
-    .si-logo-box {{
-        width: 32px;
-        height: 32px;
-        background: {SI_RED};
-        border-radius: 6px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 1rem;
-        color: #fff;
-        font-weight: 900;
-        flex-shrink: 0;
-    }}
-    .si-brand {{
-        font-size: 0.85rem;
-        font-weight: 900;
-        color: #fff;
-        font-family: var(--font);
-    }}
-    .si-brand small {{
-        display: block;
-        font-size: 0.55rem;
-        color: rgba(255,255,255,0.4);
-        font-weight: 400;
-        letter-spacing: 0.09em;
-        text-transform: uppercase;
-    }}
-    .si-chip {{
-        background: rgba(255,255,255,0.08);
-        border: 1px solid rgba(255,255,255,0.12);
-        border-radius: 20px;
-        padding: 2px 10px;
-        font-size: 0.68rem;
-        color: rgba(255,255,255,0.55);
-    }}
-    
-    /* ========== NAV BUTTONS ========== */
-    div[data-testid='stHorizontalBlock'] {{
-        gap: 4px !important;
-        margin: 0 !important;
-        padding: 4px 12px !important;
-        flex-wrap: wrap !important;
-    }}
-    div[data-testid='stHorizontalBlock'] > div > [data-testid='stButton'] button {{
-        background: transparent !important;
-        border: none !important;
-        border-bottom: 3px solid transparent !important;
-        border-radius: 0 !important;
-        color: rgba(255,255,255,0.6) !important;
-        font-family: var(--font) !important;
-        font-size: 0.75rem !important;
-        font-weight: 500 !important;
-        padding: 0.4rem 0.6rem !important;
-        min-width: 55px !important;
-        white-space: nowrap !important;
-        transition: all 0.2s ease !important;
-    }}
-    div[data-testid='stHorizontalBlock'] > div > [data-testid='stButton'] button:hover {{
-        color: #ffffff !important;
-        background: rgba(227,0,27,0.08) !important;
-        border-bottom-color: rgba(227,0,27,0.5) !important;
-    }}
-    
-    /* ========== KPI CARDS ========== */
-    .kpi-card {{
-        background: var(--card);
-        border: 1px solid var(--border);
-        border-radius: var(--r);
-        padding: 0.8rem 0.8rem 0.6rem;
-        position: relative;
-        overflow: hidden;
-        transition: transform 0.2s, box-shadow 0.2s;
-        box-shadow: var(--shadow);
-        margin-bottom: 0.5rem;
-    }}
-    .kpi-card:hover {{
-        transform: translateY(-2px);
-        box-shadow: 0 10px 36px rgba(227,0,27,0.2);
-    }}
-    .kpi-card::before {{
-        content: '';
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        height: 3px;
-    }}
-    .kpi-card::after {{
-        content: '';
-        position: absolute;
-        bottom: 0;
-        left: 0;
-        width: 0;
-        height: 2px;
-        background: {SI_RED};
-        transition: width 0.4s;
-    }}
-    .kpi-card:hover::after {{ width: 100%; }}
-    .kpi-red::before {{ background: linear-gradient(90deg,{SI_RED},{SI_RED2}); }}
-    .kpi-blue::before {{ background: linear-gradient(90deg,#3B82F6,#60A5FA); }}
-    .kpi-green::before {{ background: linear-gradient(90deg,#10B981,#34D399); }}
-    .kpi-amber::before {{ background: linear-gradient(90deg,#F59E0B,#FCD34D); }}
-    .kpi-purple::before {{ background: linear-gradient(90deg,#8B5CF6,#A78BFA); }}
-    .kpi-teal::before {{ background: linear-gradient(90deg,#14B8A6,#5EEAD4); }}
-    .kpi-label {{
-        font-size: 0.58rem;
-        font-weight: 700;
-        letter-spacing: 0.12em;
-        text-transform: uppercase;
-        color: var(--muted);
-        margin-bottom: 0.3rem;
-    }}
-    .kpi-value {{
-        font-size: 1.5rem;
-        font-weight: 900;
-        color: var(--text);
-        line-height: 1.1;
-        font-family: var(--font);
-    }}
-    .kpi-sub {{
-        font-size: 0.65rem;
-        color: var(--muted);
-        margin-top: 0.2rem;
-    }}
-    .kpi-icon {{
-        position: absolute;
-        top: 0.6rem;
-        right: 0.7rem;
-        font-size: 1.1rem;
-        opacity: 0.12;
-    }}
-    .kpi-delta {{
-        font-size: 0.65rem;
-        font-weight: 700;
-        margin-top: 0.25rem;
-        display: inline-flex;
-        align-items: center;
-        gap: 3px;
-        padding: 1px 6px;
-        border-radius: 20px;
-    }}
-    .d-up {{ background: rgba(16,185,129,0.15); color: #34D399; }}
-    .d-down {{ background: rgba(227,0,27,0.15); color: #FF6680; }}
-    .d-mid {{ background: rgba(245,158,11,0.15); color: #FCD34D; }}
-    
-    /* ========== SECTION HEADER ========== */
-    .sh {{
-        font-size: 0.7rem;
-        font-weight: 800;
-        letter-spacing: 0.14em;
-        text-transform: uppercase;
-        color: {SI_RED};
-        margin: 1rem 0 0.8rem;
-        display: flex;
-        align-items: center;
-        gap: 10px;
-    }}
-    .sh::before {{
-        content: '';
-        width: 3px;
-        height: 14px;
-        background: {SI_RED};
-        border-radius: 2px;
-        flex-shrink: 0;
-    }}
-    .sh::after {{
-        content: '';
-        flex: 1;
-        height: 1px;
-        background: var(--border);
-    }}
-    
-    /* ========== PAGE HEADER ========== */
-    .ph {{
-        border-bottom: 1px solid var(--border);
-        margin-bottom: 1rem;
-        padding-bottom: 0.6rem;
-    }}
-    .ph h1 {{
-        font-size: 1.4rem;
-        font-weight: 900;
-        color: var(--text);
-        margin: 0 0 2px;
-        font-family: var(--font);
-        letter-spacing: -0.02em;
-    }}
-    .ph p {{
-        font-size: 0.75rem;
-        color: var(--muted) !important;
-        margin: 0;
-    }}
-    
-    /* ========== BADGES ========== */
-    .badge {{
-        display: inline-block;
-        padding: 2px 8px;
-        border-radius: 3px;
-        font-size: 0.62rem;
-        font-weight: 700;
-        letter-spacing: 0.04em;
-    }}
-    .bg {{ background: rgba(16,185,129,0.18); color: #34D399; }}
-    .ba {{ background: rgba(245,158,11,0.18); color: #FCD34D; }}
-    .br {{ background: rgba(227,0,27,0.18); color: #FF6680; }}
-    .bn {{ background: rgba(100,116,139,0.18); color: #94A3B8; }}
-    .pbar-wrap {{ background: rgba(128,128,128,0.12); border-radius: 3px; height: 4px; overflow: hidden; margin: 4px 0 2px; }}
-    .pbar {{ height: 100%; border-radius: 3px; }}
-    
-    /* ========== INDICATOR CARD ========== */
-    .ind-card {{
-        background: var(--card);
-        border: 1px solid var(--border);
-        border-left: 3px solid {SI_RED};
-        border-radius: var(--r);
-        padding: 0.7rem 1rem;
-        margin-bottom: 0.5rem;
-        transition: border-color 0.2s;
-    }}
-    .ind-card:hover {{ border-left-color: {SI_RED2}; }}
-    .ind-name {{ font-size: 0.82rem; font-weight: 600; color: var(--text); }}
-    .ind-vals {{ font-size: 0.68rem; color: var(--muted); font-family: var(--mono); }}
-    
-    /* ========== ALERT BANNER ========== */
-    .alert-banner {{
-        background: rgba(227,0,27,0.07);
-        border: 1px solid rgba(227,0,27,0.22);
-        border-left: 3px solid {SI_RED};
-        border-radius: var(--r);
-        padding: 0.6rem 0.8rem;
-        margin-bottom: 0.5rem;
-    }}
-    .alert-banner span {{ font-size: 0.78rem; color: #FF9AAA; }}
-    
-    /* ========== INPUTS ========== */
-    [data-testid='stSelectbox']>div>div {{
-        background: var(--input) !important;
-        border: 1px solid var(--border2) !important;
-        border-radius: var(--r) !important;
-        color: var(--text) !important;
-    }}
-    [data-testid='stTextInput']>div>div>input {{
-        background: var(--input) !important;
-        border: 1px solid var(--border2) !important;
-        color: var(--text) !important;
-        border-radius: var(--r) !important;
-    }}
-    [data-baseweb='select']* {{ color: var(--text) !important; }}
-    [data-baseweb='menu'] {{ background: var(--input) !important; }}
-    label {{ color: var(--muted) !important; font-size: 0.75rem !important; }}
-    p {{ color: var(--muted) !important; }}
-    
-    /* ========== BUTTONS ========== */
-    .stButton>button {{
-        background: {SI_RED} !important;
-        color: #fff !important;
-        border: none !important;
-        border-radius: 6px !important;
-        font-family: var(--font) !important;
-        font-weight: 700 !important;
-        font-size: 0.8rem !important;
-        padding: 0.45rem 1.2rem !important;
-        transition: all 0.2s !important;
-        letter-spacing: 0.01em !important;
-    }}
-    .stButton>button:hover {{
-        background: {SI_RED2} !important;
-        transform: translateY(-1px) !important;
-        box-shadow: 0 4px 16px rgba(227,0,27,0.4) !important;
-    }}
-    [data-testid='stDownloadButton']>button {{
-        background: var(--card) !important;
-        border: 1px solid {SI_RED} !important;
-        color: {SI_RED} !important;
-        border-radius: 6px !important;
-    }}
-    [data-testid='stDownloadButton']>button:hover {{
-        background: {SI_RED} !important;
-        color: #fff !important;
-    }}
-    [data-testid='stFileUploader'] {{
-        background: var(--card) !important;
-        border: 1px dashed var(--border2) !important;
-        border-radius: var(--r) !important;
-    }}
-    [data-testid='stDataFrame'] {{
-        border-radius: var(--r);
-        overflow: hidden;
-        box-shadow: var(--shadow);
-    }}
-    [data-testid='stVerticalBlock'] {{ gap: 0 !important; }}
-    
-    /* ========== DATA SOURCE CARDS ========== */
-    .ds-card {{
-        background: var(--card);
-        border: 1px solid var(--border);
-        border-radius: var(--r);
-        padding: 1.5rem 1.5rem;
-        text-align: center;
-        transition: all 0.22s;
-        position: relative;
-        overflow: hidden;
-    }}
-    .ds-card::before {{
-        content: '';
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        height: 3px;
-        background: {SI_RED};
-        transform: scaleX(0);
-        transition: transform 0.3s;
-        transform-origin: left;
-    }}
-    .ds-card:hover {{
-        border-color: {SI_RED};
-        transform: translateY(-3px);
-        box-shadow: 0 12px 40px rgba(227,0,27,0.18);
-    }}
-    .ds-card:hover::before {{ transform: scaleX(1); }}
-    .ds-icon {{ font-size: 2.2rem; margin-bottom: 0.6rem; }}
-    .ds-title {{ font-size: 1rem; font-weight: 800; color: var(--text); margin-bottom: 0.3rem; }}
-    .ds-desc {{ font-size: 0.75rem; color: var(--muted); line-height: 1.5; }}
-    .step-badge {{
-        display: inline-block;
-        background: rgba(227,0,27,0.15);
-        color: {SI_RED};
-        font-size: 0.65rem;
-        font-weight: 800;
-        letter-spacing: 0.09em;
-        text-transform: uppercase;
-        padding: 2px 10px;
-        border-radius: 4px;
-        margin-bottom: 1rem;
-    }}
-    .kf-card {{
-        background: var(--card);
-        border: 1px solid var(--border);
-        border-left: 3px solid {SI_RED};
-        border-radius: var(--r);
-        padding: 0.7rem 1rem;
-        margin-bottom: 0.4rem;
-        display: flex;
-        align-items: center;
-        gap: 10px;
-    }}
-    .kf-name {{ font-size: 0.82rem; font-weight: 600; color: var(--text); }}
-    .kf-meta {{ font-size: 0.68rem; color: var(--muted); margin-top: 2px; }}
-    .kf-badge {{
-        font-size: 0.65rem;
-        font-weight: 700;
-        padding: 2px 8px;
-        border-radius: 4px;
-        background: rgba(16,185,129,0.15);
-        color: #34D399;
-        margin-left: auto;
-        white-space: nowrap;
-    }}
-    .step-row {{
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        font-size: 0.75rem;
-        color: var(--muted);
-        margin-bottom: 1.2rem;
-    }}
-    .sdot {{
-        width: 22px;
-        height: 22px;
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 0.68rem;
-        font-weight: 800;
-        flex-shrink: 0;
-    }}
-    .sa {{ background: {SI_RED}; color: #fff; }}
-    .sd {{ background: #10B981; color: #fff; }}
-    .sn {{ background: var(--dim); color: var(--muted); }}
-    .sline {{ flex: 1; height: 1px; background: var(--border); }}
-    
-    /* ========== CHARTS ========== */
-    .stPlotlyChart {{
-        margin-top: 0.25rem !important;
-        margin-bottom: 0.5rem !important;
-    }}
-    
-    /* ========== LOGIN CARD ========== */
-    .login-card {{
-        background: var(--card);
-        border: 1px solid var(--border2);
-        border-top: 4px solid {SI_RED};
-        border-radius: 16px;
-        padding: 2rem 2rem;
-        box-shadow: {login_sh};
-    }}
-    """
-    
+    css = (
+        "@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900"
+        "&family=JetBrains+Mono:wght@400;500&display=swap');\n"
+        ":root{"
+        "--bg:" + T["bg"] + ";--surface:" + T["surface"] + ";--panel:" + T["panel"] + ";"
+        "--border:" + T["border"] + ";--border2:" + T["border2"] + ";"
+        "--text:" + T["text"] + ";--muted:" + T["muted"] + ";--dim:" + T["dim"] + ";"
+        "--navbg:" + T["navbg"] + ";--navbdr:" + T["navborder"] + ";"
+        "--card:" + T["card"] + ";--input:" + T["input"] + ";"
+        "--accent:" + ac + ";--accent2:" + ac2 + ";"
+        "--si-red:" + SI_RED + ";--si-red2:" + SI_RED2 + ";"
+        "--font:'Outfit',sans-serif;--mono:'JetBrains Mono',monospace;"
+        "--r:12px;--shadow:" + shadow + ";}"
+        "*,*::before,*::after{box-sizing:border-box;}"
+        "html,body{font-family:var(--font);background:var(--bg);color:var(--text);margin:0;}"
+        "[data-testid='stAppViewContainer'],[data-testid='stMain'],.main .block-container{background:var(--bg)!important;}"
+        "[data-testid='stHeader']{background:var(--navbg)!important;border-bottom:3px solid " + SI_RED + "!important;}"
+        "[data-testid='stSidebar']{display:none!important;}"
+        "[data-testid='block-container']{padding:0!important;max-width:100%!important;}"
+        "::-webkit-scrollbar{width:5px;height:5px;}"
+        "::-webkit-scrollbar-thumb{background:" + SI_RED + ";border-radius:3px;}"
+
+        # HERO
+        ".si-hero{position:relative;overflow:hidden;border-radius:14px;margin-bottom:1.5rem;min-height:200px;"
+        "background:linear-gradient(135deg,#1A0004 0%,#2A0008 50%,#1A0004 100%);}"
+        ".si-hero img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;"
+        "opacity:0.3;filter:" + img_filter + ";}"
+        ".si-hero-content{position:relative;z-index:2;padding:2rem 2.5rem;min-height:200px;"
+        "display:flex;flex-direction:column;justify-content:flex-end;}"
+        ".si-tag{display:inline-block;background:" + SI_RED + ";color:#fff;font-size:.68rem;"
+        "font-weight:800;letter-spacing:.12em;text-transform:uppercase;"
+        "padding:3px 10px;border-radius:3px;margin-bottom:.7rem;width:fit-content;}"
+        ".si-hero-title{font-size:1.9rem;font-weight:900;color:#fff;margin:0 0 .4rem;"
+        "letter-spacing:-.02em;text-shadow:0 2px 20px rgba(0,0,0,0.5);}"
+        ".si-hero-sub{font-size:.85rem;color:rgba(255,255,255,.7);margin:0;}"
+        ".si-hero-bar{position:absolute;bottom:0;left:0;right:0;height:4px;"
+        "background:linear-gradient(90deg," + SI_RED + "," + SI_RED2 + "," + SI_RED + ");"
+        "animation:redpulse 3s ease-in-out infinite;}"
+        "@keyframes redpulse{0%,100%{opacity:1}50%{opacity:.6}}"
+
+        # IMAGE SLIDER
+        ".img-slider{overflow:hidden;border-radius:10px;margin:1rem 0;}"
+        ".img-track{display:flex;gap:10px;animation:slide 32s linear infinite;width:max-content;}"
+        ".img-track img{height:145px;width:240px;object-fit:cover;border-radius:8px;"
+        "flex-shrink:0;filter:" + img_filter + ";transition:filter .3s;"
+        "border:1px solid rgba(227,0,27,0.2);}"
+        ".img-track img:hover{filter:brightness(1) saturate(1.3);}"
+        "@keyframes slide{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}"
+
+        # TOPBAR
+        ".si-topbar{background:var(--navbg);border-bottom:3px solid " + SI_RED + ";"
+        "padding:.55rem 1.8rem;display:flex;align-items:center;gap:14px;"
+        "position:sticky;top:0;z-index:1000;backdrop-filter:blur(16px);"
+        "box-shadow:" + nav_shadow + ";}"
+        ".si-logo-box{width:36px;height:36px;background:" + SI_RED + ";border-radius:6px;"
+        "display:flex;align-items:center;justify-content:center;font-size:1.15rem;"
+        "color:#fff;font-weight:900;flex-shrink:0;}"
+        ".si-brand{font-size:.95rem;font-weight:900;color:#fff;font-family:var(--font);}"
+        ".si-brand small{display:block;font-size:.59rem;color:rgba(255,255,255,.4);"
+        "font-weight:400;letter-spacing:.09em;text-transform:uppercase;}"
+        ".si-chip{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);"
+        "border-radius:20px;padding:3px 12px;font-size:.71rem;color:rgba(255,255,255,.55);}"
+
+        # NAV BUTTONS  (active index injected dynamically in top_nav)
+        "div[data-testid='stHorizontalBlock']>div>[data-testid='stButton'] button{"
+        "background:transparent!important;border:none!important;"
+        "border-bottom:3px solid transparent!important;border-radius:0!important;"
+        "color:rgba(255,255,255,0.5)!important;font-family:var(--font)!important;"
+        "font-size:.82rem!important;font-weight:500!important;"
+        "padding:.55rem .35rem!important;width:100%!important;"
+        "transition:all .18s!important;white-space:nowrap!important;}"
+        "div[data-testid='stHorizontalBlock']>div>[data-testid='stButton'] button:hover{"
+        "color:#fff!important;background:rgba(227,0,27,0.1)!important;"
+        "border-bottom-color:rgba(227,0,27,0.5)!important;}"
+        "div[data-testid='stHorizontalBlock']{gap:2px!important;margin:0!important;padding:0!important;}"
+
+        # KPI CARDS
+        ".kpi-card{background:var(--card);border:1px solid var(--border);border-radius:var(--r);"
+        "padding:1.1rem 1.2rem .9rem;position:relative;overflow:hidden;"
+        "transition:transform .2s,box-shadow .2s;box-shadow:var(--shadow);}"
+        ".kpi-card:hover{transform:translateY(-2px);box-shadow:0 10px 36px rgba(227,0,27,0.2);}"
+        ".kpi-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;}"
+        ".kpi-card::after{content:'';position:absolute;bottom:0;left:0;width:0;height:2px;"
+        "background:" + SI_RED + ";transition:width .4s;}"
+        ".kpi-card:hover::after{width:100%;}"
+        ".kpi-red::before{background:linear-gradient(90deg," + SI_RED + "," + SI_RED2 + ");}"
+        ".kpi-blue::before{background:linear-gradient(90deg,#3B82F6,#60A5FA);}"
+        ".kpi-green::before{background:linear-gradient(90deg,#10B981,#34D399);}"
+        ".kpi-amber::before{background:linear-gradient(90deg,#F59E0B,#FCD34D);}"
+        ".kpi-purple::before{background:linear-gradient(90deg,#8B5CF6,#A78BFA);}"
+        ".kpi-teal::before{background:linear-gradient(90deg,#14B8A6,#5EEAD4);}"
+        ".kpi-label{font-size:.63rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;"
+        "color:var(--muted);margin-bottom:.4rem;}"
+        ".kpi-value{font-size:1.8rem;font-weight:900;color:var(--text);line-height:1;font-family:var(--font);}"
+        ".kpi-sub{font-size:.7rem;color:var(--muted);margin-top:.3rem;}"
+        ".kpi-icon{position:absolute;top:.85rem;right:.95rem;font-size:1.3rem;opacity:.12;}"
+        ".kpi-delta{font-size:.69rem;font-weight:700;margin-top:.35rem;"
+        "display:inline-flex;align-items:center;gap:3px;padding:1px 7px;border-radius:20px;}"
+        ".d-up{background:rgba(16,185,129,.15);color:#34D399;}"
+        ".d-down{background:rgba(227,0,27,.15);color:#FF6680;}"
+        ".d-mid{background:rgba(245,158,11,.15);color:#FCD34D;}"
+
+        # SECTION HEADER
+        ".sh{font-size:.66rem;font-weight:800;letter-spacing:.14em;text-transform:uppercase;"
+        "color:" + SI_RED + ";margin:1.8rem 0 1rem;display:flex;align-items:center;gap:10px;}"
+        ".sh::before{content:'';width:3px;height:14px;background:" + SI_RED + ";border-radius:2px;flex-shrink:0;}"
+        ".sh::after{content:'';flex:1;height:1px;background:var(--border);}"
+
+        # PAGE HEADER
+        ".ph{border-bottom:1px solid var(--border);margin-bottom:1.5rem;padding-bottom:.9rem;}"
+        ".ph h1{font-size:1.55rem;font-weight:900;color:var(--text);margin:0 0 3px;"
+        "font-family:var(--font);letter-spacing:-.02em;}"
+        ".ph p{font-size:.81rem;color:var(--muted)!important;margin:0;}"
+
+        # BADGES
+        ".badge{display:inline-block;padding:2px 9px;border-radius:3px;"
+        "font-size:.66rem;font-weight:700;letter-spacing:.04em;}"
+        ".bg{background:rgba(16,185,129,.18);color:#34D399;}"
+        ".ba{background:rgba(245,158,11,.18);color:#FCD34D;}"
+        ".br{background:rgba(227,0,27,.18);color:#FF6680;}"
+        ".bn{background:rgba(100,116,139,.18);color:#94A3B8;}"
+        ".pbar-wrap{background:rgba(128,128,128,.12);border-radius:3px;height:5px;overflow:hidden;margin:5px 0 3px;}"
+        ".pbar{height:100%;border-radius:3px;}"
+
+        # IND CARD
+        ".ind-card{background:var(--card);border:1px solid var(--border);border-left:3px solid " + SI_RED + ";"
+        "border-radius:var(--r);padding:.9rem 1.1rem;margin-bottom:.5rem;transition:border-color .2s;}"
+        ".ind-card:hover{border-left-color:" + SI_RED2 + ";}"
+        ".ind-name{font-size:.87rem;font-weight:600;color:var(--text);}"
+        ".ind-vals{font-size:.71rem;color:var(--muted);font-family:var(--mono);}"
+
+        # ALERT
+        ".alert-banner{background:rgba(227,0,27,.07);border:1px solid rgba(227,0,27,.22);"
+        "border-left:3px solid " + SI_RED + ";border-radius:var(--r);padding:.72rem 1rem;margin-bottom:.55rem;}"
+        ".alert-banner span{font-size:.82rem;color:#FF9AAA;}"
+
+        # INPUTS
+        "[data-testid='stSelectbox']>div>div{background:var(--input)!important;"
+        "border:1px solid var(--border2)!important;border-radius:var(--r)!important;color:var(--text)!important;}"
+        "[data-testid='stTextInput']>div>div>input{background:var(--input)!important;"
+        "border:1px solid var(--border2)!important;color:var(--text)!important;border-radius:var(--r)!important;}"
+        "[data-baseweb='select']*{color:var(--text)!important;}"
+        "[data-baseweb='menu']{background:var(--input)!important;}"
+        "label{color:var(--muted)!important;font-size:.81rem!important;}"
+        "p{color:var(--muted)!important;}"
+
+        # BUTTONS
+        ".stButton>button{background:" + SI_RED + "!important;color:#fff!important;"
+        "border:none!important;border-radius:6px!important;"
+        "font-family:var(--font)!important;font-weight:700!important;"
+        "font-size:.88rem!important;padding:.55rem 1.4rem!important;"
+        "transition:all .2s!important;letter-spacing:.01em!important;}"
+        ".stButton>button:hover{background:" + SI_RED2 + "!important;"
+        "transform:translateY(-1px)!important;box-shadow:0 4px 16px rgba(227,0,27,.4)!important;}"
+        "[data-testid='stDownloadButton']>button{background:var(--card)!important;"
+        "border:1px solid " + SI_RED + "!important;color:" + SI_RED + "!important;border-radius:6px!important;}"
+        "[data-testid='stDownloadButton']>button:hover{background:" + SI_RED + "!important;color:#fff!important;}"
+        "[data-testid='stFileUploader']{background:var(--card)!important;"
+        "border:1px dashed var(--border2)!important;border-radius:var(--r)!important;}"
+        "[data-testid='stDataFrame']{border-radius:var(--r);overflow:hidden;box-shadow:var(--shadow);}"
+        "[data-testid='stVerticalBlock']{gap:0!important;}"
+        "div[data-testid='stHorizontalBlock']{gap:12px!important;}"
+
+        # DS CARDS
+        ".ds-card{background:var(--card);border:1px solid var(--border);border-radius:var(--r);"
+        "padding:2rem 1.8rem;text-align:center;transition:all .22s;position:relative;overflow:hidden;}"
+        ".ds-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;"
+        "background:" + SI_RED + ";transform:scaleX(0);transition:transform .3s;transform-origin:left;}"
+        ".ds-card:hover{border-color:" + SI_RED + ";transform:translateY(-3px);"
+        "box-shadow:0 12px 40px rgba(227,0,27,.18);}"
+        ".ds-card:hover::before{transform:scaleX(1);}"
+        ".ds-icon{font-size:2.5rem;margin-bottom:.8rem;}"
+        ".ds-title{font-size:1.05rem;font-weight:800;color:var(--text);margin-bottom:.4rem;}"
+        ".ds-desc{font-size:.82rem;color:var(--muted);line-height:1.6;}"
+        ".step-badge{display:inline-block;background:rgba(227,0,27,.15);color:" + SI_RED + ";"
+        "font-size:.69rem;font-weight:800;letter-spacing:.09em;text-transform:uppercase;"
+        "padding:3px 12px;border-radius:4px;margin-bottom:1.2rem;}"
+        ".kf-card{background:var(--card);border:1px solid var(--border);border-left:3px solid " + SI_RED + ";"
+        "border-radius:var(--r);padding:.8rem 1.1rem;margin-bottom:.45rem;"
+        "display:flex;align-items:center;gap:12px;}"
+        ".kf-name{font-size:.87rem;font-weight:600;color:var(--text);}"
+        ".kf-meta{font-size:.72rem;color:var(--muted);margin-top:2px;}"
+        ".kf-badge{font-size:.7rem;font-weight:700;padding:2px 9px;border-radius:4px;"
+        "background:rgba(16,185,129,.15);color:#34D399;margin-left:auto;white-space:nowrap;}"
+        ".step-row{display:flex;align-items:center;gap:8px;font-size:.8rem;color:var(--muted);margin-bottom:1.5rem;}"
+        ".sdot{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;"
+        "justify-content:center;font-size:.72rem;font-weight:800;flex-shrink:0;}"
+        ".sa{background:" + SI_RED + ";color:#fff;} .sd{background:#10B981;color:#fff;}"
+        ".sn{background:var(--dim);color:var(--muted);}"
+        ".sline{flex:1;height:1px;background:var(--border);}"
+
+        # LOGIN
+        ".login-card{background:var(--card);border:1px solid var(--border2);"
+        "border-top:4px solid " + SI_RED + ";border-radius:16px;padding:2.8rem 2.5rem;"
+        "box-shadow:" + login_sh + ";}"
+
+        # SIDEBAR PROFILE
+        "[data-testid='stSidebar']{background:var(--navbg)!important;"
+        "border-right:1px solid var(--border)!important;}"
+        "[data-testid='stSidebar'] *{font-family:var(--font)!important;}"
+        ".si-avatar{width:56px;height:56px;background:" + SI_RED + ";border-radius:50%;"
+        "display:flex;align-items:center;justify-content:center;"
+        "font-size:1.4rem;font-weight:900;color:#fff;margin:0 auto 1rem;}"
+        ".si-profile-name{font-size:1rem;font-weight:700;color:var(--text);"
+        "text-align:center;margin-bottom:.2rem;}"
+        ".si-profile-role{font-size:.72rem;color:" + SI_RED + ";text-align:center;"
+        "font-weight:700;letter-spacing:.08em;text-transform:uppercase;margin-bottom:1.2rem;}"
+        ".si-stat{background:var(--panel);border:1px solid var(--border);"
+        "border-radius:8px;padding:.6rem .9rem;margin-bottom:.4rem;"
+        "display:flex;justify-content:space-between;align-items:center;}"
+        ".si-stat-label{font-size:.72rem;color:var(--muted);}"
+        ".si-stat-val{font-size:.85rem;font-weight:700;color:var(--text);}"
+        ".si-sb-sep{border:none;border-top:1px solid var(--border);margin:.9rem 0;}"
+        ".si-threshold-card{background:var(--panel);border:1px solid var(--border);"
+        "border-left:3px solid " + SI_RED + ";border-radius:8px;"
+        "padding:.7rem .9rem;margin-bottom:.5rem;}"
+        ".si-thr-label{font-size:.72rem;font-weight:700;color:var(--text);margin-bottom:.2rem;}"
+        ".si-thr-val{font-size:.8rem;color:" + SI_RED + ";font-weight:700;}"
+
+        # ALERT TOAST SYSTEM
+        ".alert-toast{"
+        "border-radius:10px;padding:.75rem 1rem;margin-bottom:.55rem;"
+        "display:flex;align-items:flex-start;gap:10px;animation:slideIn .3s ease;}"
+        "@keyframes slideIn{from{opacity:0;transform:translateX(-10px)}to{opacity:1;transform:translateX(0)}}"
+        ".alert-critical{background:rgba(227,0,27,.10);border:1px solid rgba(227,0,27,.3);"
+        "border-left:4px solid " + SI_RED + ";}"
+        ".alert-warning{background:rgba(245,158,11,.10);border:1px solid rgba(245,158,11,.3);"
+        "border-left:4px solid #F59E0B;}"
+        ".alert-info{background:rgba(59,130,246,.10);border:1px solid rgba(59,130,246,.3);"
+        "border-left:4px solid #3B82F6;}"
+        ".alert-ok{background:rgba(16,185,129,.10);border:1px solid rgba(16,185,129,.3);"
+        "border-left:4px solid #10B981;}"
+        ".alert-icon{font-size:1.1rem;flex-shrink:0;margin-top:1px;}"
+        ".alert-body{flex:1;}"
+        ".alert-title{font-size:.84rem;font-weight:700;color:var(--text);margin-bottom:.2rem;}"
+        ".alert-desc{font-size:.76rem;color:var(--muted);line-height:1.5;}"
+        ".alert-time{font-size:.68rem;color:var(--muted);margin-top:.2rem;font-family:var(--mono);}"
+
+        # DELTA PILL (period comparison)
+        ".delta-pill{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;"
+        "border-radius:20px;font-size:.69rem;font-weight:700;margin-left:6px;}"
+        ".dp-up{background:rgba(16,185,129,.15);color:#34D399;}"
+        ".dp-down{background:rgba(227,0,27,.15);color:#FF6680;}"
+        ".dp-flat{background:rgba(100,116,139,.15);color:#94A3B8;}"
+
+        # CHART EXPORT BUTTON
+        ".chart-export-wrap{position:relative;}"
+        ".export-btn-area{display:flex;justify-content:flex-end;margin-bottom:4px;gap:6px;}"
+        ".stDownloadButton>button{font-size:.72rem!important;padding:.28rem .75rem!important;"
+        "border-radius:6px!important;}"
+    )
     st.markdown(f"<style>{css}</style>", unsafe_allow_html=True)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# FEATURE 1 — CHART EXPORT  (PNG download button next to every chart)
+# ══════════════════════════════════════════════════════════════════════════════
+def pc(fig, title="chart", h=340, leg=True):
+    """Render Plotly chart with PNG export button."""
+    fig = T(fig, h=h, leg=leg)
+    col_chart, col_btn = st.columns([1, 0.001])
+    with col_chart:
+        st.plotly_chart(fig, use_container_width=True,
+                        config={"displayModeBar": True,
+                                "modeBarButtonsToRemove": ["select2d","lasso2d"],
+                                "toImageButtonOptions": {
+                                    "format": "png", "filename": title,
+                                    "height": h*2, "width": 1200, "scale": 2
+                                }})
+    # Also provide a Streamlit download button as fallback
+    try:
+        img_bytes = fig.to_image(format="png", width=1200, height=h*2, scale=2)
+        st.download_button(
+            f"⬇ PNG",
+            data=img_bytes,
+            file_name=f"{title.replace(' ','_')}.png",
+            mime="image/png",
+            key=f"dl_{title}_{id(fig)}",
+            help=f"Download '{title}' as PNG"
+        )
+    except Exception:
+        pass   # kaleido not available — toolbar still works
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# FEATURE 2 — PERIOD COMPARISON HELPERS
+# ══════════════════════════════════════════════════════════════════════════════
+def _split_periods(df, date_col, ref_date=None):
+    """
+    Split df into current period (last 90 days) and previous period (90 days before that).
+    Returns (df_current, df_previous).
+    """
+    if not has(df, date_col) or df.empty:
+        return df, pd.DataFrame()
+    df2 = df.copy()
+    df2[date_col] = pd.to_datetime(df2[date_col], errors="coerce")
+    df2 = df2.dropna(subset=[date_col])
+    if df2.empty:
+        return df, pd.DataFrame()
+    ref = ref_date or df2[date_col].max()
+    cut = ref - timedelta(days=90)
+    cut2 = cut - timedelta(days=90)
+    cur = df2[df2[date_col] >= cut]
+    prv = df2[(df2[date_col] >= cut2) & (df2[date_col] < cut)]
+    return cur, prv
+
+def delta_pill(current, previous, fmt=None, inverse=False):
+    """
+    Return HTML delta pill showing % change from previous to current.
+    inverse=True means higher is worse (e.g. failures).
+    """
+    if previous == 0:
+        return ""
+    pct = (current - previous) / previous * 100
+    if abs(pct) < 1:
+        cls, arrow = "dp-flat", "→"
+    elif pct > 0:
+        cls = "dp-down" if inverse else "dp-up"
+        arrow = "↑"
+    else:
+        cls = "dp-up" if inverse else "dp-down"
+        arrow = "↓"
+    val = fmt(abs(pct)) if fmt else f"{abs(pct):.1f}%"
+    return f"<span class='delta-pill {cls}'>{arrow} {val}</span>"
+
+def kpi_with_delta(label, value_str, value_num, prev_num,
+                   sub="", color="blue", icon="",
+                   inverse=False, period_label="vs prev 90 days"):
+    """KPI card with period comparison delta pill."""
+    dp = delta_pill(value_num, prev_num, inverse=inverse) if prev_num is not None else ""
+    return f"""<div class='kpi-card kpi-{color}'>
+      <div class='kpi-icon'>{icon}</div>
+      <div class='kpi-label'>{label}</div>
+      <div class='kpi-value'>{value_str}{dp}</div>
+      <div class='kpi-sub'>{sub}</div>
+      <div style='font-size:.67rem;color:var(--muted);margin-top:.2rem;'>{period_label}</div>
+    </div>"""
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# FEATURE 3 — ALERT ENGINE  (configurable thresholds)
+# ══════════════════════════════════════════════════════════════════════════════
+DEFAULT_THRESHOLDS = {
+    "wash_coverage_min":    75,   # % min WASH coverage
+    "fsl_coverage_min":     70,   # % min FSL HH coverage
+    "cva_failure_max":       5,   # max % CVA transfers failed
+    "pipeline_break_max":    2,   # max pipeline breaks
+    "indicator_offtrack_max":20,  # max % off-track indicators
+    "beneficiary_suspended_max": 10,  # max % suspended beneficiaries
+}
+
+def get_thresholds():
+    return st.session_state.get("thresholds", DEFAULT_THRESHOLDS.copy())
+
+def set_thresholds(t):
+    st.session_state["thresholds"] = t
+
+def run_alert_engine(dfs):
+    """
+    Evaluate all data against configurable thresholds.
+    Returns list of alert dicts: {level, icon, title, desc}.
+    """
+    thr    = get_thresholds()
+    alerts = []
+    now    = datetime.now().strftime("%H:%M")
+
+    df_b = dfs.get("Beneficiary_Registration", pd.DataFrame())
+    df_w = dfs.get("WASH_Monitoring",           pd.DataFrame())
+    df_f = dfs.get("FSL_Distribution",          pd.DataFrame())
+    df_c = dfs.get("CVA_Cash_Transfers",        pd.DataFrame())
+    df_i = dfs.get("Indicator_Tracker",         pd.DataFrame())
+
+    # ── WASH coverage ─────────────────────────────────────────────────────────
+    if not df_w.empty:
+        reached = ssum(df_w,"Reached_Beneficiaries")
+        target  = ssum(df_w,"Target_Beneficiaries") or 1
+        pct     = reached / target * 100
+        if pct < thr["wash_coverage_min"]:
+            alerts.append({"level":"critical","icon":"🚨","title":f"WASH Coverage Low — {pct:.0f}%",
+                "desc":f"Below threshold of {thr['wash_coverage_min']}%. "
+                       f"{reached:,.0f} reached of {target:,.0f} targeted.",
+                "time":now})
+        elif pct < thr["wash_coverage_min"] + 10:
+            alerts.append({"level":"warning","icon":"⚠️","title":f"WASH Coverage At Risk — {pct:.0f}%",
+                "desc":f"Approaching minimum threshold of {thr['wash_coverage_min']}%.",
+                "time":now})
+
+    # ── FSL coverage ──────────────────────────────────────────────────────────
+    if not df_f.empty:
+        hhr = ssum(df_f,"HH_Reached"); hht = ssum(df_f,"HH_Targeted") or 1
+        fsl_pct = hhr / hht * 100
+        if fsl_pct < thr["fsl_coverage_min"]:
+            alerts.append({"level":"critical","icon":"🚨","title":f"FSL HH Coverage Low — {fsl_pct:.0f}%",
+                "desc":f"Only {hhr:,.0f} of {hht:,.0f} targeted households reached.",
+                "time":now})
+
+        # Pipeline breaks
+        pb = slen(df_f,"Pipeline_Status","Pipeline break")
+        if pb > thr["pipeline_break_max"]:
+            alerts.append({"level":"critical","icon":"⛓️","title":f"FSL Supply Chain — {pb} Pipeline Breaks",
+                "desc":f"Exceeds maximum threshold of {thr['pipeline_break_max']} breaks. "
+                       "Immediate logistics coordination required.",
+                "time":now})
+
+    # ── CVA failures ──────────────────────────────────────────────────────────
+    if not df_c.empty and len(df_c) > 0:
+        failed  = slen(df_c,"Transfer_Status","Failed")
+        fail_pct = failed / len(df_c) * 100
+        if fail_pct > thr["cva_failure_max"]:
+            alerts.append({"level":"critical","icon":"💳","title":f"CVA Transfer Failure Rate — {fail_pct:.1f}%",
+                "desc":f"{failed} failed transfers ({fail_pct:.1f}% of total). "
+                       f"Threshold: {thr['cva_failure_max']}%. Verify payment agent credentials.",
+                "time":now})
+        pending = slen(df_c,"Transfer_Status","Pending")
+        if pending > 0:
+            alerts.append({"level":"warning","icon":"⏳","title":f"CVA — {pending} Pending Transfers",
+                "desc":"Payment cycle not yet completed. Verify before next distribution round.",
+                "time":now})
+
+    # ── Off-track indicators ───────────────────────────────────────────────────
+    if not df_i.empty and len(df_i) > 0:
+        off   = slen(df_i,"Status","Off track")
+        at_r  = slen(df_i,"Status","At risk")
+        off_pct = off / len(df_i) * 100
+        if off_pct > thr["indicator_offtrack_max"]:
+            alerts.append({"level":"critical","icon":"📉","title":f"Indicators — {off} Off Track ({off_pct:.0f}%)",
+                "desc":f"Exceeds maximum threshold of {thr['indicator_offtrack_max']}% off-track. "
+                       "Corrective measures required in next MPR.",
+                "time":now})
+        if at_r > 0:
+            alerts.append({"level":"warning","icon":"📊","title":f"Indicators — {at_r} At Risk",
+                "desc":"Monitor closely and prepare contingency measures.",
+                "time":now})
+
+    # ── Suspended beneficiaries ────────────────────────────────────────────────
+    if not df_b.empty and len(df_b) > 0:
+        susp = slen(df_b,"Registration_Status","Suspended")
+        susp_pct = susp / len(df_b) * 100
+        if susp_pct > thr["beneficiary_suspended_max"]:
+            alerts.append({"level":"warning","icon":"🔴","title":f"{susp} Beneficiaries Suspended ({susp_pct:.1f}%)",
+                "desc":"Review suspended cases and resolve eligibility issues.",
+                "time":now})
+
+    # ── All clear ─────────────────────────────────────────────────────────────
+    if not alerts:
+        alerts.append({"level":"ok","icon":"✅","title":"All systems nominal",
+            "desc":"No threshold violations detected at this time.",
+            "time":now})
+
+    return alerts
+
+def render_alert(alert):
+    """Render a single alert toast."""
+    level_css = {"critical":"alert-critical","warning":"alert-warning",
+                 "info":"alert-info","ok":"alert-ok"}.get(alert["level"],"alert-info")
+    st.markdown(f"""
+    <div class='alert-toast {level_css}'>
+      <div class='alert-icon'>{alert['icon']}</div>
+      <div class='alert-body'>
+        <div class='alert-title'>{alert['title']}</div>
+        <div class='alert-desc'>{alert['desc']}</div>
+        <div class='alert-time'>{alert['time']}</div>
+      </div>
+    </div>""", unsafe_allow_html=True)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# FEATURE 4 — SIDEBAR with profile, alerts & threshold settings
+# ══════════════════════════════════════════════════════════════════════════════
+def render_sidebar(dfs):
+    """Render the profile sidebar (opened via the ☰ button)."""
+    th   = TH()
+    user = st.session_state.get("user", "im_manager")
+    src  = st.session_state.get("data_source","excel")
+    dark = st.session_state.get("dark", True)
+    login_time = st.session_state.get("login_time", datetime.now().strftime("%d %b %Y %H:%M"))
+
+    with st.sidebar:
+        # ── Profile card ──────────────────────────────────────────────────────
+        st.markdown(f"""
+        <div style='padding:1.2rem 0 .5rem;'>
+          <div class='si-avatar'>👤</div>
+          <div class='si-profile-name'>{user.replace('_',' ').title()}</div>
+          <div class='si-profile-role'>IM Manager</div>
+        </div>
+        <hr class='si-sb-sep'>
+        """, unsafe_allow_html=True)
+
+        # ── Session stats ─────────────────────────────────────────────────────
+        sheets = list(dfs.keys()) if dfs else []
+        total_rows = sum(len(v) for v in dfs.values()) if dfs else 0
+        src_label = "🔗 KoBoToolbox" if src=="kobo" else "📊 Excel"
+
+        st.markdown(f"""
+        <div class='si-stat'><span class='si-stat-label'>Data source</span>
+          <span class='si-stat-val'>{src_label}</span></div>
+        <div class='si-stat'><span class='si-stat-label'>Sheets loaded</span>
+          <span class='si-stat-val'>{len(sheets)}</span></div>
+        <div class='si-stat'><span class='si-stat-label'>Total records</span>
+          <span class='si-stat-val'>{total_rows:,}</span></div>
+        <div class='si-stat'><span class='si-stat-label'>Session started</span>
+          <span class='si-stat-val' style='font-size:.71rem;'>{login_time}</span></div>
+        <div class='si-stat'><span class='si-stat-label'>Last refresh</span>
+          <span class='si-stat-val' style='font-size:.71rem;'>
+            {datetime.now().strftime("%H:%M:%S")}</span></div>
+        """, unsafe_allow_html=True)
+
+        st.markdown("<hr class='si-sb-sep'>", unsafe_allow_html=True)
+
+        # ── Quick actions ─────────────────────────────────────────────────────
+        st.markdown(f"<div style='font-size:.68rem;font-weight:700;color:{SI_RED};"
+                    f"letter-spacing:.1em;text-transform:uppercase;margin-bottom:.5rem;'>"
+                    f"Quick Actions</div>", unsafe_allow_html=True)
+
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("🔄 Refresh", use_container_width=True, help="Reload data"):
+                st.cache_data.clear(); st.rerun()
+        with col2:
+            if st.button("🌗 Theme", use_container_width=True, help="Toggle theme"):
+                st.session_state["dark"] = not dark; st.rerun()
+
+        if st.button("🔌 Change Data Source", use_container_width=True):
+            st.session_state["kobo_step"] = 0
+            st.session_state.pop("dfs", None); st.rerun()
+
+        if st.button("🚪 Logout", use_container_width=True):
+            st.session_state.clear(); st.rerun()
+
+        st.markdown("<hr class='si-sb-sep'>", unsafe_allow_html=True)
+
+        # ── Alert threshold configurator ──────────────────────────────────────
+        st.markdown(f"<div style='font-size:.68rem;font-weight:700;color:{SI_RED};"
+                    f"letter-spacing:.1em;text-transform:uppercase;margin-bottom:.8rem;'>"
+                    f"⚙️ Alert Thresholds</div>", unsafe_allow_html=True)
+
+        thr = get_thresholds()
+        changed = False
+
+        new_wash = st.slider("Min WASH coverage (%)",
+                             min_value=50, max_value=100,
+                             value=thr["wash_coverage_min"], step=5,
+                             help="Alert when WASH coverage falls below this %")
+        if new_wash != thr["wash_coverage_min"]:
+            thr["wash_coverage_min"] = new_wash; changed = True
+
+        new_fsl = st.slider("Min FSL HH coverage (%)",
+                            min_value=50, max_value=100,
+                            value=thr["fsl_coverage_min"], step=5)
+        if new_fsl != thr["fsl_coverage_min"]:
+            thr["fsl_coverage_min"] = new_fsl; changed = True
+
+        new_cva = st.slider("Max CVA failure rate (%)",
+                            min_value=1, max_value=20,
+                            value=thr["cva_failure_max"], step=1)
+        if new_cva != thr["cva_failure_max"]:
+            thr["cva_failure_max"] = new_cva; changed = True
+
+        new_pb = st.slider("Max pipeline breaks (#)",
+                           min_value=0, max_value=20,
+                           value=thr["pipeline_break_max"], step=1)
+        if new_pb != thr["pipeline_break_max"]:
+            thr["pipeline_break_max"] = new_pb; changed = True
+
+        new_ot = st.slider("Max off-track indicators (%)",
+                           min_value=5, max_value=50,
+                           value=thr["indicator_offtrack_max"], step=5)
+        if new_ot != thr["indicator_offtrack_max"]:
+            thr["indicator_offtrack_max"] = new_ot; changed = True
+
+        if changed:
+            set_thresholds(thr)
+            st.rerun()
+
+        if st.button("↺ Reset to defaults", use_container_width=True):
+            set_thresholds(DEFAULT_THRESHOLDS.copy()); st.rerun()
+
+        st.markdown("<hr class='si-sb-sep'>", unsafe_allow_html=True)
+
+        # ── Active alerts summary ─────────────────────────────────────────────
+        if dfs:
+            alerts = run_alert_engine(dfs)
+            n_critical = sum(1 for a in alerts if a["level"]=="critical")
+            n_warning  = sum(1 for a in alerts if a["level"]=="warning")
+            st.markdown(
+                f"<div style='font-size:.68rem;font-weight:700;color:{SI_RED};"
+                f"letter-spacing:.1em;text-transform:uppercase;margin-bottom:.8rem;'>"
+                f"🔔 Active Alerts ({len(alerts)})</div>",
+                unsafe_allow_html=True)
+            for a in alerts:
+                render_alert(a)
+
 
 # HELPERS
 # ══════════════════════════════════════════════════════════════════════════════
@@ -697,9 +730,6 @@ def kpi(label, value, sub="", color="blue", icon="", delta=None, ddir="up"):
 
 def sh(t): st.markdown(f"<div class='sh'>{t}</div>", unsafe_allow_html=True)
 def ph(title, sub=""): st.markdown(f"<div class='ph'><h1>{title}</h1><p>{sub}</p></div>", unsafe_allow_html=True)
-
-def pc(fig):
-    st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
 
 def T(fig, h=340, leg=True):
     th = TH()
@@ -1113,143 +1143,9 @@ def datasource_page():
                 st.error("No data loaded. Check permissions on the selected forms.")
                 if st.button("← Start over",key="k3rst"): st.session_state["kobo_step"]=0; st.rerun()
 
-def login_reset_css():
-    """CSS spécifique pour la page login qui override les styles du dashboard"""
-    st.markdown("""
-    <style>
-    /* Reset complet pour la page login */
-    [data-testid="stAppViewContainer"] {
-        background: linear-gradient(160deg, #0E0004 0%, #180008 40%, #0E0004 100%) !important;
-    }
-    
-    [data-testid="stHeader"] {
-        background: transparent !important;
-        border-bottom: none !important;
-    }
-    
-    .stApp {
-        background: transparent !important;
-    }
-    
-    /* Supprimer les paddings Streamlit par défaut */
-    .main .block-container {
-        padding: 0 !important;
-        max-width: 100% !important;
-    }
-    
-    /* Reset des marges Streamlit */
-    div[data-testid="stVerticalBlock"] {
-        gap: 0 !important;
-    }
-    
-    /* ====== DÉSACTIVER LES STYLES DU DASHBOARD ====== */
-    /* Ces classes viennent de inject_css() et causent la superposition */
-    .si-topbar, 
-    .si-hero, 
-    .si-hero-content,
-    .si-hero-title,
-    .si-hero-sub,
-    .si-hero-bar,
-    .si-tag,
-    .si-logo-box,
-    .si-brand,
-    .si-chip,
-    .sh, 
-    .ph, 
-    .kpi-card,
-    .kpi-label,
-    .kpi-value,
-    .kpi-sub,
-    .kpi-icon,
-    .ind-card,
-    .alert-banner,
-    .ds-card,
-    .step-badge,
-    .kf-card,
-    .step-row,
-    .sdot,
-    .sline,
-    .login-card {
-        all: unset !important;
-    }
-    
-    /* Désactiver aussi les pseudo-éléments */
-    .sh::before,
-    .sh::after,
-    .kpi-card::before,
-    .kpi-card::after {
-        all: unset !important;
-    }
-    
-    /* Reset des animations qui pourraient interférer */
-    .si-hero-bar {
-        animation: none !important;
-    }
-    
-    /* Styles des inputs (garder ceux-ci actifs) */
-    div[data-testid="stTextInput"] {
-        margin-bottom: 0.3rem !important;
-    }
-    
-    div[data-testid="stTextInput"] > div > div > input {
-        background: rgba(22,27,46,0.9) !important;
-        border: 1px solid rgba(227,0,27,0.3) !important;
-        border-radius: 10px !important;
-        color: #F1F5F9 !important;
-        padding: 0.7rem 1rem !important;
-        font-size: 0.85rem !important;
-        font-family: "Outfit", sans-serif !important;
-    }
-    
-    div[data-testid="stTextInput"] > div > div > input:focus {
-        border-color: #E3001B !important;
-        box-shadow: 0 0 0 2px rgba(227,0,27,0.2) !important;
-        outline: none !important;
-    }
-    
-    div[data-testid="stTextInput"] > div > div > input::placeholder {
-        color: #64748B !important;
-        font-size: 0.8rem !important;
-    }
-    
-    /* Style du bouton */
-    div[data-testid="stButton"] > button {
-        background: #E3001B !important;
-        color: white !important;
-        border: none !important;
-        border-radius: 10px !important;
-        padding: 0.7rem 1.5rem !important;
-        font-size: 0.9rem !important;
-        font-weight: 700 !important;
-        font-family: "Outfit", sans-serif !important;
-        width: 100% !important;
-        transition: all 0.2s ease !important;
-        cursor: pointer !important;
-    }
-    
-    div[data-testid="stButton"] > button:hover {
-        background: #B50016 !important;
-        transform: translateY(-1px) !important;
-        box-shadow: 0 4px 12px rgba(227,0,27,0.4) !important;
-    }
-    
-    /* Style des messages d'erreur */
-    .stAlert {
-        background: rgba(227,0,27,0.1) !important;
-        border-left: 3px solid #E3001B !important;
-        border-radius: 8px !important;
-        padding: 0.5rem 1rem !important;
-        margin-top: 1rem !important;
-    }
-    
-    /* Reset des colonnes */
-    div[data-testid="column"] {
-        padding: 0 !important;
-    }
-    </style>
-    """, unsafe_allow_html=True)
-    
-
+# ══════════════════════════════════════════════════════════════════════════════
+# LOGIN — SI brand, pure Streamlit layout
+# ══════════════════════════════════════════════════════════════════════════════
 def login_page():
     # SUPPRIMER TOUS LES STYLES EXISTANTS
     st.markdown("""
@@ -1442,6 +1338,7 @@ def login_page():
     st.markdown("</div>", unsafe_allow_html=True)
 
 
+
 # ══════════════════════════════════════════════════════════════════════════════
 # MAP PAGE  (enriched)
 # ══════════════════════════════════════════════════════════════════════════════
@@ -1468,7 +1365,7 @@ import random as _rnd, json as _json, os as _os
 _rnd.seed(42)
 
 # Load Sudan shapefile GeoJSON
-_GEOJSON_PATH = "https://github.com/dhp-byte/IM_Manager_Soudan/sudan_states.geojson"
+_GEOJSON_PATH = "/home/claude/sudan_states.geojson"
 try:
     with open(_GEOJSON_PATH) as _f:
         SUDAN_GEOJSON = _json.load(_f)
@@ -1972,25 +1869,45 @@ def page_overview(dfs):
     """, unsafe_allow_html=True)
 
 
-    sh("Programme Scale")
-    c1,c2,c3,c4,c5,c6 = st.columns(6)
-    c1.markdown(kpi("Beneficiaries", N(tot), f"{act:,} active",    "blue",  "👤", f"↑ {act/tot:.0%}" if tot else None,"up"), unsafe_allow_html=True)
-    c2.markdown(kpi("WASH Reached",  N(wr),  "cumulative",         "teal",  "💧"), unsafe_allow_html=True)
-    c3.markdown(kpi("FSL HH",        N(fhh), "households reached", "green", "🌾"), unsafe_allow_html=True)
-    c4.markdown(kpi("Cash Paid",     f"${N(usd)}","USD disbursed", "amber", "💵"), unsafe_allow_html=True)
-    c5.markdown(kpi("States",        str(suniq(df_b,"State")),"covered","purple","🗺️"), unsafe_allow_html=True)
-    c6.markdown(kpi("On Track",      f"{on_t}/{ti}","indicators",  "green", "📊", f"↑ {on_t/ti:.0%}" if ti else None,"up"), unsafe_allow_html=True)
+    sh("Programme Scale — Last 90 days vs Previous 90 days")
 
-    alerts = []
-    pb = slen(df_f,"Pipeline_Status","Pipeline break")
-    fa = slen(df_c,"Transfer_Status","Failed")
-    ot = slen(df_i,"Status","Off track")
-    if pb: alerts.append(f"⚠️  <b>{pb}</b> pipeline breaks detected in FSL supply chain")
-    if fa: alerts.append(f"❌  <b>{fa}</b> failed cash transfers require investigation")
-    if ot: alerts.append(f"🔴  <b>{ot}</b> program indicators are off track")
-    if alerts:
-        sh("Active Alerts")
-        for a in alerts: st.markdown(f"<div class='alert-banner'><span>{a}</span></div>",unsafe_allow_html=True)
+    # Period comparison
+    ben_cur, ben_prv  = _split_periods(df_b, "Registration_Date")
+    wash_cur, wash_prv = _split_periods(df_w, "Report_Date")
+    fsl_cur, fsl_prv  = _split_periods(df_f, "Distribution_Date")
+    cva_cur, cva_prv  = _split_periods(df_c, "Transfer_Date")
+
+    tot_cur  = len(ben_cur);  tot_prv  = len(ben_prv)
+    wr_cur   = int(ssum(wash_cur,"Reached_Beneficiaries"))
+    wr_prv   = int(ssum(wash_prv,"Reached_Beneficiaries"))
+    fhh_cur  = int(ssum(fsl_cur,"HH_Reached"))
+    fhh_prv  = int(ssum(fsl_prv,"HH_Reached"))
+    paid_cur = sfilt(cva_cur,"Transfer_Status","Paid") if not cva_cur.empty else pd.DataFrame()
+    paid_prv = sfilt(cva_prv,"Transfer_Status","Paid") if not cva_prv.empty else pd.DataFrame()
+    usd_cur  = paid_cur["Transfer_Value_USD"].sum() if has(paid_cur,"Transfer_Value_USD") and len(paid_cur)>0 else 0
+    usd_prv  = paid_prv["Transfer_Value_USD"].sum() if has(paid_prv,"Transfer_Value_USD") and len(paid_prv)>0 else 0
+
+    c1,c2,c3,c4,c5,c6 = st.columns(6)
+    c1.markdown(kpi_with_delta("Beneficiaries", N(tot), tot, tot_prv if tot_prv>0 else None,
+        f"{act:,} active", "blue","👤"), unsafe_allow_html=True)
+    c2.markdown(kpi_with_delta("WASH Reached", N(wr), wr, wr_prv if wr_prv>0 else None,
+        "individuals","teal","💧"), unsafe_allow_html=True)
+    c3.markdown(kpi_with_delta("FSL HH", N(fhh), fhh, fhh_prv if fhh_prv>0 else None,
+        "households","green","🌾"), unsafe_allow_html=True)
+    c4.markdown(kpi_with_delta("Cash Paid", f"${N(usd)}", usd, usd_prv if usd_prv>0 else None,
+        "USD disbursed","amber","💵"), unsafe_allow_html=True)
+    c5.markdown(kpi("States", str(suniq(df_b,"State")), "covered","purple","🗺️"), unsafe_allow_html=True)
+    c6.markdown(kpi("On Track", f"{on_t}/{ti}", "indicators","green","📊",
+        f"↑ {on_t/ti:.0%}" if ti else None,"up"), unsafe_allow_html=True)
+
+    # Alert engine (from sidebar engine, shown inline on overview)
+    active_alerts = run_alert_engine(dfs)
+    critical_alerts = [a for a in active_alerts if a["level"] in ("critical","warning")]
+    if critical_alerts:
+        sh("⚡ Program Alerts")
+        for a in critical_alerts:
+            render_alert(a)
+
 
     sh("Beneficiary Profile")
     c1,c2,c3 = st.columns([1.1,1,1])
@@ -2920,7 +2837,7 @@ def build_word_report(dfs):
         doc.add_paragraph()
 
     # ── Helper: render Plotly fig → bytes → inline image ─────────────────────
-    def add_chart(fig, width_inches=8.0, height_px=380, caption_text=""):
+    def add_chart(fig, width_inches=6.0, height_px=320, caption_text=""):
         fig.update_layout(
             paper_bgcolor="white", plot_bgcolor="white",
             font=dict(family="Arial", color="#334155", size=11),
@@ -3210,9 +3127,9 @@ def build_word_report(dfs):
             showcoastlines=True, coastlinecolor="#CBD5E1",
             showland=True, landcolor="#F8FAFC",
             showocean=True, oceancolor="#EFF6FF",
-            showframe=True, showsubunits=True,
-            subunitcolor="#E3001B", subunitwidth=1.5,
-            countrycolor="#94A3B8",
+            showframe=True, framecolor="#94A3B8", framewidth=1,
+            showcountries=True, countrycolor="#94A3B8",
+            showsubunits=True, subunitcolor="#E3001B", subunitwidth=1.5,
         )
         fig.update_traces(textposition="top center", textfont=dict(size=8))
         fig.update_layout(coloraxis_showscale=False, showlegend=False)
@@ -3658,38 +3575,57 @@ def main():
         login_page()
         return
 
-    # 2. Logged in but data source not yet selected → datasource page
+    # 2. Record login time (once)
+    if "login_time" not in st.session_state:
+        st.session_state["login_time"] = datetime.now().strftime("%d %b %Y %H:%M")
+
+    # 3. Logged in but data source not yet selected → datasource page
     kobo_step = st.session_state.get("kobo_step", 0)
     if kobo_step != 99:
         inject_css(DARK)
         datasource_page()
         return
 
-    # 3. Full dashboard
+    # 4. Full dashboard
     inject_css(TH())
     top_nav()
 
     page = st.session_state.get("page", "Overview")
     dfs  = st.session_state.get("dfs", {})
+    th   = TH()
 
-    th = TH()
+    # 5. Render sidebar (profile + alerts + thresholds)
+    render_sidebar(dfs)
+
     if not dfs and page != "Report":
         st.markdown(f"""<div style='text-align:center;padding:5rem 2rem;
           background:{th["panel"]};border:1px dashed {th["border2"]};
           border-radius:14px;margin-top:2rem;'>
           <div style='font-size:2.5rem;margin-bottom:1rem;'>📂</div>
           <div style='font-size:1.1rem;font-weight:700;color:{th["text"]};margin-bottom:.5rem;'>No data loaded</div>
-          <div style='font-size:.85rem;color:{th["muted"]};'>
+          <div style='font-size:.85rem;color:{th["muted"]}; '>
             Go back to the data source page to load your data.
           </div>
         </div>""", unsafe_allow_html=True)
         if st.button("← Change data source"):
             st.session_state["kobo_step"] = 0
-            st.session_state.pop("dfs", None)
-            st.rerun()
+            st.session_state.pop("dfs", None); st.rerun()
         st.markdown("</div>", unsafe_allow_html=True)
         return
 
+    # 6. Global alert banner (critical only, compact)
+    if dfs:
+        alerts = run_alert_engine(dfs)
+        criticals = [a for a in alerts if a["level"] == "critical"]
+        if criticals:
+            with st.expander(
+                f"🚨 {len(criticals)} Critical Alert{'s' if len(criticals)>1 else ''} — click to review",
+                expanded=False
+            ):
+                for a in criticals:
+                    render_alert(a)
+
+    # 7. Dispatch to page
     dispatch = {
         "Overview":   page_overview,
         "Map":        page_map,
