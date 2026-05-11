@@ -1113,43 +1113,124 @@ def datasource_page():
                 st.error("No data loaded. Check permissions on the selected forms.")
                 if st.button("← Start over",key="k3rst"): st.session_state["kobo_step"]=0; st.rerun()
 
-
-def login_page():
-    # Appliquer le CSS de base
-    inject_css(DARK)
-    
-    # Forcer le fond de la page login
+def login_reset_css():
+    """CSS spécifique pour la page login qui override les styles du dashboard"""
     st.markdown("""
     <style>
+    /* Reset complet pour la page login */
     [data-testid="stAppViewContainer"] {
         background: linear-gradient(160deg, #0E0004 0%, #180008 40%, #0E0004 100%) !important;
     }
+    
     [data-testid="stHeader"] {
         background: transparent !important;
         border-bottom: none !important;
     }
+    
     .stApp {
         background: transparent !important;
     }
+    
+    /* Supprimer les paddings Streamlit par défaut */
+    .main .block-container {
+        padding: 0 !important;
+        max-width: 100% !important;
+    }
+    
+    /* Reset des marges Streamlit */
+    div[data-testid="stVerticalBlock"] {
+        gap: 0 !important;
+    }
+    
+    /* Styles des inputs */
+    div[data-testid="stTextInput"] {
+        margin-bottom: 0.3rem !important;
+    }
+    
+    div[data-testid="stTextInput"] > div > div > input {
+        background: rgba(22,27,46,0.9) !important;
+        border: 1px solid rgba(227,0,27,0.3) !important;
+        border-radius: 10px !important;
+        color: #F1F5F9 !important;
+        padding: 0.7rem 1rem !important;
+        font-size: 0.85rem !important;
+        font-family: "Outfit", sans-serif !important;
+    }
+    
+    div[data-testid="stTextInput"] > div > div > input:focus {
+        border-color: #E3001B !important;
+        box-shadow: 0 0 0 2px rgba(227,0,27,0.2) !important;
+        outline: none !important;
+    }
+    
+    div[data-testid="stTextInput"] > div > div > input::placeholder {
+        color: #64748B !important;
+        font-size: 0.8rem !important;
+    }
+    
+    /* Style du bouton */
+    div[data-testid="stButton"] > button {
+        background: #E3001B !important;
+        color: white !important;
+        border: none !important;
+        border-radius: 10px !important;
+        padding: 0.7rem 1.5rem !important;
+        font-size: 0.9rem !important;
+        font-weight: 700 !important;
+        font-family: "Outfit", sans-serif !important;
+        width: 100% !important;
+        transition: all 0.2s ease !important;
+        cursor: pointer !important;
+    }
+    
+    div[data-testid="stButton"] > button:hover {
+        background: #B50016 !important;
+        transform: translateY(-1px) !important;
+        box-shadow: 0 4px 12px rgba(227,0,27,0.4) !important;
+    }
+    
+    /* Style des messages d'erreur */
+    .stAlert {
+        background: rgba(227,0,27,0.1) !important;
+        border-left: 3px solid #E3001B !important;
+        border-radius: 8px !important;
+        padding: 0.5rem 1rem !important;
+        margin-top: 1rem !important;
+    }
+    
+    /* Désactiver les styles du dashboard qui pourraient interférer */
+    .si-topbar, .si-hero, .sh, .ph, .kpi-card {
+        all: unset !important;
+    }
+    
+    /* Reset des colonnes */
+    div[data-testid="column"] {
+        padding: 0 !important;
+    }
     </style>
     """, unsafe_allow_html=True)
+    
+
+def login_page():
+    # Appliquer UNIQUEMENT le CSS reset pour la page login
+    login_reset_css()
 
     # ==================== TOP BAR ====================
     st.markdown(f"""
     <div style="background: rgba(0,0,0,0.6); border-bottom: 3px solid {SI_RED}; padding: 0.6rem 2rem; display: flex; align-items: center; gap: 14px; backdrop-filter: blur(12px); margin-bottom: 0;">
         <div style="width: 38px; height: 38px; background: {SI_RED}; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; font-weight: 900; color: white; flex-shrink: 0;">SI</div>
         <div>
-            <div style="font-size: 0.9rem; font-weight: 900; color: white; font-family: 'Outfit', sans-serif; letter-spacing: -0.3px;">SOLIDARITES INTERNATIONAL</div>
-            <div style="font-size: 0.55rem; color: rgba(255,255,255,0.4); letter-spacing: 0.1em; text-transform: uppercase; margin-top: 2px;">Sudan Mission · Information Management Platform</div>
+            <div style="font-size: 0.9rem; font-weight: 900; color: white; font-family: 'Outfit', sans-serif;">SOLIDARITES INTERNATIONAL</div>
+            <div style="font-size: 0.55rem; color: rgba(255,255,255,0.4); letter-spacing: 0.1em; text-transform: uppercase;">Sudan Mission · Information Management Platform</div>
         </div>
         <div style="margin-left: auto; background: {SI_RED}; color: white; font-size: 0.6rem; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; padding: 4px 14px; border-radius: 20px;">Restricted Access</div>
     </div>
     """, unsafe_allow_html=True)
 
     # ==================== IMAGE SLIDER ====================
-    imgs_html = "".join(f"<img src='{u}' alt='SI Sudan' style='height: 110px; width: 170px; object-fit: cover; border-radius: 0;'>" for u in SI_IMAGES * 3)
+    imgs_html = "".join(f"<img src='{u}' alt='SI Sudan' style='height: 110px; width: 170px; object-fit: cover;'>" for u in SI_IMAGES * 3)
     st.markdown(f"""
-    <div style="overflow: hidden; margin: 0; height: 110px; position: relative;">
+    <div style="overflow: hidden; margin: 0; height: 110px;">
         <div style="display: flex; gap: 12px; animation: slideLogin 40s linear infinite; width: max-content; height: 110px;">
             {imgs_html}
         </div>
@@ -1163,126 +1244,67 @@ def login_page():
     """, unsafe_allow_html=True)
 
     # ==================== MAIN CONTENT ====================
-    st.markdown("<div style='padding: 1.5rem 2rem 2rem 2rem;'></div>", unsafe_allow_html=True)
+    st.markdown("<div style='padding: 2rem 2rem 2rem 2rem;'></div>", unsafe_allow_html=True)
 
-    # Deux colonnes : gauche (texte) et droite (formulaire)
+    # Deux colonnes
     col_left, col_right = st.columns([1.2, 0.9], gap="large")
 
-    # ==================== COLONNE GAUCHE - TEXTE ET INFO ====================
+    # ==================== COLONNE GAUCHE ====================
     with col_left:
         st.markdown(f"""
         <div style='padding-right: 1rem;'>
             <div style='display: inline-block; background: {SI_RED}; color: white; font-size: 0.6rem; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; padding: 4px 12px; border-radius: 4px; margin-bottom: 1.2rem;'>Sudan Mission 2025–2026</div>
-            <h1 style='font-size: 2.2rem; font-weight: 900; color: white; margin: 0 0 0.8rem 0; line-height: 1.2; letter-spacing: -0.02em; font-family: "Outfit", sans-serif;'>Information<br><span style='color: {SI_RED};'>Management</span><br>Dashboard</h1>
+            <h1 style='font-size: 2.2rem; font-weight: 900; color: white; margin: 0 0 0.8rem 0; line-height: 1.2; font-family: "Outfit", sans-serif;'>Information<br><span style='color: {SI_RED};'>Management</span><br>Dashboard</h1>
             <p style='font-size: 0.85rem; color: rgba(255,255,255,0.55); line-height: 1.6; margin: 0 0 1.8rem 0;'>Real-time monitoring of multi-sector humanitarian response across WASH, Food Security, Shelter & NFI, and Cash & Voucher programs in Sudan.</p>
             <div style='display: flex; flex-direction: column; gap: 0.8rem;'>
-                <div style='display: flex; align-items: center; gap: 12px;'><span style='background: rgba(59,130,246,0.15); padding: 6px 10px; border-radius: 8px; font-size: 1rem;'>💧</span><span style='font-size: 0.8rem; color: rgba(255,255,255,0.5);'><strong style='color: #3B82F6;'>WASH</strong> — Water, Sanitation & Hygiene</span></div>
-                <div style='display: flex; align-items: center; gap: 12px;'><span style='background: rgba(16,185,129,0.15); padding: 6px 10px; border-radius: 8px; font-size: 1rem;'>🌾</span><span style='font-size: 0.8rem; color: rgba(255,255,255,0.5);'><strong style='color: #10B981;'>FSL</strong> — Food Security & Livelihoods</span></div>
-                <div style='display: flex; align-items: center; gap: 12px;'><span style='background: rgba(245,158,11,0.15); padding: 6px 10px; border-radius: 8px; font-size: 1rem;'>🏠</span><span style='font-size: 0.8rem; color: rgba(255,255,255,0.5);'><strong style='color: #F59E0B;'>Shelter & NFI</strong> — Non-Food Items</span></div>
-                <div style='display: flex; align-items: center; gap: 12px;'><span style='background: rgba(227,0,27,0.15); padding: 6px 10px; border-radius: 8px; font-size: 1rem;'>💵</span><span style='font-size: 0.8rem; color: rgba(255,255,255,0.5);'><strong style='color: {SI_RED}'>CVA</strong> — Cash & Voucher Assistance</span></div>
+                <div style='display: flex; align-items: center; gap: 12px;'><span style='background: rgba(59,130,246,0.15); padding: 6px 10px; border-radius: 8px;'>💧</span><span><strong style='color: #3B82F6;'>WASH</strong> — Water, Sanitation & Hygiene</span></div>
+                <div style='display: flex; align-items: center; gap: 12px;'><span style='background: rgba(16,185,129,0.15); padding: 6px 10px; border-radius: 8px;'>🌾</span><span><strong style='color: #10B981;'>FSL</strong> — Food Security & Livelihoods</span></div>
+                <div style='display: flex; align-items: center; gap: 12px;'><span style='background: rgba(245,158,11,0.15); padding: 6px 10px; border-radius: 8px;'>🏠</span><span><strong style='color: #F59E0B;'>Shelter & NFI</strong> — Non-Food Items</span></div>
+                <div style='display: flex; align-items: center; gap: 12px;'><span style='background: rgba(227,0,27,0.15); padding: 6px 10px; border-radius: 8px;'>💵</span><span><strong style='color: {SI_RED}'>CVA</strong> — Cash & Voucher Assistance</span></div>
             </div>
         </div>
         """, unsafe_allow_html=True)
 
-        # ==================== COLONNE DROITE - FORMULAIRE DE LOGIN ====================
-        # ==================== COLONNE DROITE - FORMULAIRE DE LOGIN ====================
+    # ==================== COLONNE DROITE ====================
     with col_right:
+        # Carte de login
         st.markdown(f"""
         <div style='background: rgba(28,33,48,0.95); border: 1px solid rgba(227,0,27,0.3); border-top: 4px solid {SI_RED}; border-radius: 16px; padding: 2rem 1.8rem; box-shadow: 0 25px 50px rgba(0,0,0,0.4);'>
             <div style='font-size: 1.4rem; font-weight: 900; color: white; font-family: "Outfit", sans-serif; margin-bottom: 0.3rem;'>Welcome back</div>
             <div style='font-size: 0.8rem; color: #94A3B8; margin-bottom: 1.8rem;'>Enter your credentials to access the dashboard</div>
-        """, unsafe_allow_html=True)
-
-        # ========== STYLES POUR LES INPUTS ==========
-        st.markdown("""
-        <style>
-        div[data-testid="stTextInput"] {
-            margin-bottom: 0.3rem;
-        }
-        div[data-testid="stTextInput"] > div > div > input {
-            background: rgba(22,27,46,0.9) !important;
-            border: 1px solid rgba(227,0,27,0.3) !important;
-            border-radius: 10px !important;
-            color: #F1F5F9 !important;
-            padding: 0.7rem 1rem !important;
-            font-size: 0.85rem !important;
-            font-family: "Outfit", sans-serif !important;
-        }
-        div[data-testid="stTextInput"] > div > div > input:focus {
-            border-color: #E3001B !important;
-            box-shadow: 0 0 0 2px rgba(227,0,27,0.2) !important;
-            outline: none !important;
-        }
-        div[data-testid="stTextInput"] > div > div > input::placeholder {
-            color: #64748B !important;
-            font-size: 0.8rem !important;
-        }
-        div[data-testid="stButton"] > button {
-            background: #E3001B !important;
-            color: white !important;
-            border: none !important;
-            border-radius: 10px !important;
-            padding: 0.7rem 1.5rem !important;
-            font-size: 0.9rem !important;
-            font-weight: 700 !important;
-            font-family: "Outfit", sans-serif !important;
-            width: 100% !important;
-            transition: all 0.2s ease !important;
-            cursor: pointer !important;
-            margin-top: 0.5rem !important;
-        }
-        div[data-testid="stButton"] > button:hover {
-            background: #B50016 !important;
-            transform: translateY(-1px) !important;
-            box-shadow: 0 4px 12px rgba(227,0,27,0.4) !important;
-        }
-        .stAlert {
-            background: rgba(227,0,27,0.1) !important;
-            border-left: 3px solid #E3001B !important;
-            border-radius: 8px !important;
-            padding: 0.5rem 1rem !important;
-            margin-top: 1rem !important;
-        }
-        </style>
-        """, unsafe_allow_html=True)
-
-        # ========== FORMULAIRE ==========
-        # Username
-        st.markdown("""
-        <div style='font-size: 0.7rem; font-weight: 700; color: #94A3B8; letter-spacing: 0.07em; text-transform: uppercase; margin-bottom: 0.3rem; margin-top: 0.5rem;'>Username</div>
-        """, unsafe_allow_html=True)
-        
-        user = st.text_input("", placeholder="im_manager", label_visibility="collapsed", key="login_user", help="Enter your username")
-
-        # Password
-        st.markdown("""
-        <div style='font-size: 0.7rem; font-weight: 700; color: #94A3B8; letter-spacing: 0.07em; text-transform: uppercase; margin-bottom: 0.3rem; margin-top: 1rem;'>Password</div>
-        """, unsafe_allow_html=True)
-        
-        pw = st.text_input("", type="password", placeholder="••••••••", label_visibility="collapsed", key="login_pw", help="Enter your password")
-
-        # Espacement avant le bouton
-        st.markdown("<div style='margin: 1.5rem 0 0.5rem 0;'></div>", unsafe_allow_html=True)
-
-        # Bouton de connexion
-        col_btn1, col_btn2, col_btn3 = st.columns([1, 2, 1])
-        with col_btn2:
-            if st.button("Sign in →", use_container_width=True, key="login_btn"):
-                if CREDENTIALS.get(user) == pw:
-                    st.session_state.update(auth=True, user=user, dark=True, page="Overview")
-                    st.rerun()
-                else:
-                    st.error("❌ Invalid username or password. Please try again.")
-
-        # Footer
-        st.markdown("""
-        <div style='text-align: center; margin-top: 1.8rem; padding-top: 1.2rem; border-top: 1px solid rgba(255,255,255,0.05);'>
-            <div style='font-size: 0.6rem; color: rgba(255,255,255,0.2); letter-spacing: 0.3px;'>Solidarites International © 2026 · Confidential</div>
         </div>
         """, unsafe_allow_html=True)
         
-        # Fermeture du div principal
-        st.markdown("</div>", unsafe_allow_html=True)
+        # Espacement
+        st.markdown("<div style='margin-top: 1rem;'></div>", unsafe_allow_html=True)
+        
+        # Username
+        st.markdown("<p style='font-size: 0.7rem; font-weight: 700; color: #94A3B8; margin-bottom: 0.3rem;'>Username</p>", unsafe_allow_html=True)
+        user = st.text_input("username", placeholder="im_manager", label_visibility="collapsed", key="login_user")
+        
+        # Password
+        st.markdown("<p style='font-size: 0.7rem; font-weight: 700; color: #94A3B8; margin-bottom: 0.3rem; margin-top: 1rem;'>Password</p>", unsafe_allow_html=True)
+        pw = st.text_input("password", type="password", placeholder="••••••••", label_visibility="collapsed", key="login_pw")
+        
+        # Espacement
+        st.markdown("<div style='margin: 1.5rem 0 0.5rem 0;'></div>", unsafe_allow_html=True)
+        
+        # Bouton
+        if st.button("Sign in →", use_container_width=True, key="login_btn"):
+            if CREDENTIALS.get(user) == pw:
+                st.session_state.update(auth=True, user=user, dark=True, page="Overview")
+                st.rerun()
+            else:
+                st.error("❌ Invalid username or password. Please try again.")
+        
+        # Footer
+        st.markdown("""
+        <div style='text-align: center; margin-top: 1.8rem; padding-top: 1.2rem; border-top: 1px solid rgba(255,255,255,0.05);'>
+            <div style='font-size: 0.6rem; color: rgba(255,255,255,0.2);'>Solidarites International © 2026 · Confidential</div>
+        </div>
+        """, unsafe_allow_html=True)
+
+    st.markdown("</div>", unsafe_allow_html=True)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
