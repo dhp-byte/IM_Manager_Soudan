@@ -1422,7 +1422,7 @@ def login_page():
         pw = st.text_input("", type="password", placeholder="••••••••", label_visibility="collapsed", key="login_pw")
         
         # Espacement
-        st.markdown("<div style='margin: 1.5rem 0 0.5rem 0;'></div>", unsafe_allow_html=True)
+        st.markdown("<div style='margin: 1rem 0 0.5rem 0;'></div>", unsafe_allow_html=True)
         
         # Bouton
         if st.button("Sign in →", use_container_width=True, key="login_btn"):
