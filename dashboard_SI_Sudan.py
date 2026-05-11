@@ -1184,102 +1184,44 @@ def login_page():
         </div>
         """, unsafe_allow_html=True)
 
-    # ==================== COLONNE DROITE - FORMULAIRE DE LOGIN ====================
+        # ==================== COLONNE DROITE - FORMULAIRE DE LOGIN ====================
     with col_right:
-        st.markdown(f"""
-        <div style='background: rgba(28,33,48,0.95); border: 1px solid rgba(227,0,27,0.3); border-top: 4px solid {SI_RED}; border-radius: 16px; padding: 2rem 1.8rem; box-shadow: 0 25px 50px rgba(0,0,0,0.4);'>
-            <div style='font-size: 1.4rem; font-weight: 900; color: white; font-family: "Outfit", sans-serif; margin-bottom: 0.3rem;'>Welcome back</div>
-            <div style='font-size: 0.8rem; color: #94A3B8; margin-bottom: 1.8rem;'>Enter your credentials to access the dashboard</div>
-        </div>
-        """, unsafe_allow_html=True)
-
-        # ========== STYLES POUR LES INPUTS ==========
-        st.markdown("""
-        <style>
-        div[data-testid="stTextInput"] {
-            margin-bottom: 0.3rem;
-        }
-        div[data-testid="stTextInput"] > div > div > input {
-            background: rgba(22,27,46,0.9) !important;
-            border: 1px solid rgba(227,0,27,0.3) !important;
-            border-radius: 10px !important;
-            color: #F1F5F9 !important;
-            padding: 0.7rem 1rem !important;
-            font-size: 0.85rem !important;
-            font-family: "Outfit", sans-serif !important;
-        }
-        div[data-testid="stTextInput"] > div > div > input:focus {
-            border-color: #E3001B !important;
-            box-shadow: 0 0 0 2px rgba(227,0,27,0.2) !important;
-            outline: none !important;
-        }
-        div[data-testid="stTextInput"] > div > div > input::placeholder {
-            color: #64748B !important;
-            font-size: 0.8rem !important;
-        }
-        div[data-testid="stButton"] > button {
-            background: #E3001B !important;
-            color: white !important;
-            border: none !important;
-            border-radius: 10px !important;
-            padding: 0.7rem 1.5rem !important;
-            font-size: 0.9rem !important;
-            font-weight: 700 !important;
-            font-family: "Outfit", sans-serif !important;
-            width: 100% !important;
-            transition: all 0.2s ease !important;
-            cursor: pointer !important;
-            margin-top: 0.5rem !important;
-        }
-        div[data-testid="stButton"] > button:hover {
-            background: #B50016 !important;
-            transform: translateY(-1px) !important;
-            box-shadow: 0 4px 12px rgba(227,0,27,0.4) !important;
-        }
-        .stAlert {
-            background: rgba(227,0,27,0.1) !important;
-            border-left: 3px solid #E3001B !important;
-            border-radius: 8px !important;
-            padding: 0.5rem 1rem !important;
-            margin-top: 1rem !important;
-        }
-        </style>
-        """, unsafe_allow_html=True)
-
-        # ========== FORMULAIRE ==========
-        # Username
-        st.markdown(f"""
-        <div style='font-size: 0.7rem; font-weight: 700; color: #94A3B8; letter-spacing: 0.07em; text-transform: uppercase; margin-bottom: 0.3rem; margin-top: 1.5rem;'>Username</div>
-        """, unsafe_allow_html=True)
-        
-        user = st.text_input("", placeholder="im_manager", label_visibility="collapsed", key="login_user")
-
-        # Password
-        st.markdown(f"""
-        <div style='font-size: 0.7rem; font-weight: 700; color: #94A3B8; letter-spacing: 0.07em; text-transform: uppercase; margin-bottom: 0.3rem; margin-top: 1rem;'>Password</div>
-        """, unsafe_allow_html=True)
-        
-        pw = st.text_input("", type="password", placeholder="••••••••", label_visibility="collapsed", key="login_pw")
-
-        # Espacement
-        st.markdown("<div style='margin: 1.5rem 0 0.5rem 0;'></div>", unsafe_allow_html=True)
-
-        # Bouton de connexion
-        if st.button("Sign in →", use_container_width=True, key="login_btn"):
-            if CREDENTIALS.get(user) == pw:
-                st.session_state.update(auth=True, user=user, dark=True, page="Overview")
-                st.rerun()
-            else:
-                st.error("❌ Invalid username or password. Please try again.")
-
-        # Footer
-        st.markdown(f"""
-        <div style='text-align: center; margin-top: 1.8rem; padding-top: 1.2rem; border-top: 1px solid rgba(255,255,255,0.05);'>
-            <div style='font-size: 0.6rem; color: rgba(255,255,255,0.2); letter-spacing: 0.3px;'>Solidarites International © 2026 · Confidential</div>
-        </div>
-        """, unsafe_allow_html=True)
-
-    st.markdown("</div>", unsafe_allow_html=True)
+        # Carte de login
+        with st.container():
+            st.markdown(f"""
+            <div style='background: rgba(28,33,48,0.95); border: 1px solid rgba(227,0,27,0.3); border-top: 4px solid {SI_RED}; border-radius: 16px; padding: 2rem 1.8rem; box-shadow: 0 25px 50px rgba(0,0,0,0.4);'>
+                <div style='font-size: 1.4rem; font-weight: 900; color: white; font-family: "Outfit", sans-serif; margin-bottom: 0.3rem;'>Welcome back</div>
+                <div style='font-size: 0.8rem; color: #94A3B8; margin-bottom: 1.8rem;'>Enter your credentials to access the dashboard</div>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            # Espacement
+            st.markdown("<div style='margin-top: 1.5rem;'></div>", unsafe_allow_html=True)
+            
+            # Username
+            st.markdown("<p style='font-size: 0.7rem; font-weight: 700; color: #94A3B8; margin-bottom: 0.3rem;'>Username</p>", unsafe_allow_html=True)
+            user = st.text_input("username", placeholder="im_manager", label_visibility="collapsed", key="login_user")
+            
+            # Password
+            st.markdown("<p style='font-size: 0.7rem; font-weight: 700; color: #94A3B8; margin-bottom: 0.3rem; margin-top: 1rem;'>Password</p>", unsafe_allow_html=True)
+            pw = st.text_input("password", type="password", placeholder="••••••••", label_visibility="collapsed", key="login_pw")
+            
+            # Bouton de connexion
+            st.markdown("<div style='margin: 1.5rem 0 0.5rem 0;'></div>", unsafe_allow_html=True)
+            
+            if st.button("Sign in →", use_container_width=True, key="login_btn"):
+                if CREDENTIALS.get(user) == pw:
+                    st.session_state.update(auth=True, user=user, dark=True, page="Overview")
+                    st.rerun()
+                else:
+                    st.error("❌ Invalid username or password. Please try again.")
+            
+            # Footer
+            st.markdown("""
+            <div style='text-align: center; margin-top: 1.8rem; padding-top: 1.2rem; border-top: 1px solid rgba(255,255,255,0.05);'>
+                <div style='font-size: 0.6rem; color: rgba(255,255,255,0.2);'>Solidarites International © 2026 · Confidential</div>
+            </div>
+            """, unsafe_allow_html=True)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
