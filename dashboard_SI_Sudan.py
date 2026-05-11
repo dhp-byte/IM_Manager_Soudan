@@ -1411,7 +1411,7 @@ def login_page():
         """, unsafe_allow_html=True)
         
         # Espacement
-        st.markdown("<div style='margin-top: 1rem;'></div>", unsafe_allow_html=True)
+        st.markdown("<div style='margin-top: 2rem;'></div>", unsafe_allow_html=True)
         
         # Username
         st.markdown("<div style='font-size: 0.7rem; font-weight: 700; color: #94A3B8; margin-bottom: 1rem;'>Username</div>", unsafe_allow_html=True)
