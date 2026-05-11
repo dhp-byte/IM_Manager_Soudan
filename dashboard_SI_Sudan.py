@@ -756,12 +756,14 @@ def datasource_page():
 def login_page():
     inject_css(DARK)
 
+    # Full-page dark background override
     st.markdown("""<style>
     [data-testid="stAppViewContainer"] {
         background: linear-gradient(160deg,#0E0004 0%,#180008 40%,#0E0004 100%) !important;
     }
     </style>""", unsafe_allow_html=True)
 
+    # ── Top bar ───────────────────────────────────────────────────────────────
     st.markdown(f"""
     <div style='background:rgba(0,0,0,0.5);border-bottom:3px solid {SI_RED};
          padding:.6rem 2rem;display:flex;align-items:center;gap:12px;
@@ -785,6 +787,7 @@ def login_page():
     </div>
     """, unsafe_allow_html=True)
 
+    # ── Image slider ──────────────────────────────────────────────────────────
     imgs_html = "".join(f"<img src='{u}' alt='SI humanitarian' style='height:100px;'>" for u in SI_IMAGES * 2)
     st.markdown(f"""<div class='img-slider' style='border-radius:0;margin:0;height:100px;'>
       <div class='img-track' style='height:100px;'>{imgs_html}</div>
@@ -792,6 +795,7 @@ def login_page():
 
     st.markdown("<br>", unsafe_allow_html=True)
 
+    # ── Two-column layout: mission info + login form ──────────────────────────
     col_info, col_form = st.columns([1.15, 1])
 
     with col_info:
@@ -838,6 +842,7 @@ def login_page():
           </div>
         """, unsafe_allow_html=True)
 
+        # Correctif CSS immédiat
         st.markdown("<style>div[data-testid='stTextInput'] {margin-top: 0.4rem;}</style>", unsafe_allow_html=True)
 
         st.markdown(f"<div style='font-size:.68rem;font-weight:700;color:#64748B;letter-spacing:.07em;text-transform:uppercase;margin-bottom:.1rem;'>Username</div>", unsafe_allow_html=True)
