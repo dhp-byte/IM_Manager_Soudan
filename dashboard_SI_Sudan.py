@@ -1142,7 +1142,51 @@ def login_reset_css():
         gap: 0 !important;
     }
     
-    /* Styles des inputs */
+    /* ====== DÉSACTIVER LES STYLES DU DASHBOARD ====== */
+    /* Ces classes viennent de inject_css() et causent la superposition */
+    .si-topbar, 
+    .si-hero, 
+    .si-hero-content,
+    .si-hero-title,
+    .si-hero-sub,
+    .si-hero-bar,
+    .si-tag,
+    .si-logo-box,
+    .si-brand,
+    .si-chip,
+    .sh, 
+    .ph, 
+    .kpi-card,
+    .kpi-label,
+    .kpi-value,
+    .kpi-sub,
+    .kpi-icon,
+    .ind-card,
+    .alert-banner,
+    .ds-card,
+    .step-badge,
+    .kf-card,
+    .step-row,
+    .sdot,
+    .sline,
+    .login-card {
+        all: unset !important;
+    }
+    
+    /* Désactiver aussi les pseudo-éléments */
+    .sh::before,
+    .sh::after,
+    .kpi-card::before,
+    .kpi-card::after {
+        all: unset !important;
+    }
+    
+    /* Reset des animations qui pourraient interférer */
+    .si-hero-bar {
+        animation: none !important;
+    }
+    
+    /* Styles des inputs (garder ceux-ci actifs) */
     div[data-testid="stTextInput"] {
         margin-bottom: 0.3rem !important;
     }
@@ -1196,11 +1240,6 @@ def login_reset_css():
         border-radius: 8px !important;
         padding: 0.5rem 1rem !important;
         margin-top: 1rem !important;
-    }
-    
-    /* Désactiver les styles du dashboard qui pourraient interférer */
-    .si-topbar, .si-hero, .sh, .ph, .kpi-card {
-        all: unset !important;
     }
     
     /* Reset des colonnes */
