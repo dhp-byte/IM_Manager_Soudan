@@ -881,7 +881,7 @@ def top_nav():
         f">[data-testid='stButton'] button,"
         f"div[data-testid='stHorizontalBlock']>div:nth-child({n_nav})"
         f">[data-testid='stButton'] button{{"
-        f"font-size:.78rem!important;border-radius:20px!important;padding:2rem 2rem!important;"
+        f"font-size:.78rem!important;border-radius:20px!important;padding:4rem 4rem!important;"
         f"background:rgba(255,255,255,0.08)!important;"
         f"border:1px solid rgba(255,255,255,0.15)!important;"
         f"color:rgba(255,255,255,.6)!important;padding:.35rem .8rem!important;}}"
