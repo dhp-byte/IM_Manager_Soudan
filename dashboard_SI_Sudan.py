@@ -864,8 +864,7 @@ def top_nav():
           <small>Sudan Mission · Information Management</small>
         </div>
       </div>
-      <div style='margin-left:auto;display:flex;align-items:center;gap:10px;'>
-        <div class='si-chip'>{src_icon} {user}</div>
+      <div style='margin-left:auto;display:flex;align-items:center;gap:10px;padding:10px 10px'>
       </div>
     </div>""", unsafe_allow_html=True)
 
@@ -878,9 +877,9 @@ def top_nav():
         f"border-bottom:3px solid {SI_RED}!important;"
         f"font-weight:700!important;"
         f"background:rgba(227,0,27,0.13)!important;}}"
-        f"div[data-testid='stHorizontalBlock']>div:nth-child({n_nav+1})"
+        f"div[data-testid='stHorizontalBlock']>div:nth-child({n_nav})"
         f">[data-testid='stButton'] button,"
-        f"div[data-testid='stHorizontalBlock']>div:nth-child({n_nav+2})"
+        f"div[data-testid='stHorizontalBlock']>div:nth-child({n_nav})"
         f">[data-testid='stButton'] button{{"
         f"font-size:.78rem!important;border-radius:20px!important;"
         f"background:rgba(255,255,255,0.08)!important;"
