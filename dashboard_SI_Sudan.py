@@ -899,14 +899,7 @@ def top_nav():
                 if st.session_state.get("page") != lbl:
                     st.session_state["page"] = lbl
                     st.rerun()
-    with cols[-2]:
-        if st.button("☀️" if dark else "🌙", key="theme_btn",
-                     use_container_width=True, help="Toggle theme"):
-            st.session_state["dark"] = not dark; st.rerun()
-    with cols[-1]:
-        if st.button("🚪", key="logout_btn",
-                     use_container_width=True, help="Logout"):
-            st.session_state.clear(); st.rerun()
+    
 
     st.markdown("<div style='padding:1.4rem 2rem 0;'>", unsafe_allow_html=True)
 
