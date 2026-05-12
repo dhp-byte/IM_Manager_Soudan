@@ -32,7 +32,7 @@ st.set_page_config(
     page_title="SI Sudan · IM Dashboard",
     page_icon="🌍",
     layout="wide",
-    initial_sidebar_state="collapsed",
+    initial_sidebar_state="expanded",
 )
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -110,7 +110,6 @@ def inject_css(T):
         "html,body{font-family:var(--font);background:var(--bg);color:var(--text);margin:0;}"
         "[data-testid='stAppViewContainer'],[data-testid='stMain'],.main .block-container{background:var(--bg)!important;}"
         "[data-testid='stHeader']{background:var(--navbg)!important;border-bottom:3px solid " + SI_RED + "!important;}"
-        "[data-testid='stSidebar']{display:none!important;}"
         "[data-testid='block-container']{padding:0!important;max-width:100%!important;}"
         "::-webkit-scrollbar{width:5px;height:5px;}"
         "::-webkit-scrollbar-thumb{background:" + SI_RED + ";border-radius:3px;}"
@@ -563,127 +562,209 @@ def render_alert(alert):
 # FEATURE 4 — SIDEBAR with profile, alerts & threshold settings
 # ══════════════════════════════════════════════════════════════════════════════
 def render_sidebar(dfs):
-    """Render the profile sidebar (opened via the ☰ button)."""
-    th   = TH()
-    user = st.session_state.get("user", "im_manager")
-    src  = st.session_state.get("data_source","excel")
-    dark = st.session_state.get("dark", True)
-    login_time = st.session_state.get("login_time", datetime.now().strftime("%d %b %Y %H:%M"))
+    """Render profile + alerts + threshold settings in Streamlit sidebar."""
+    th         = TH()
+    user       = st.session_state.get("user", "im_manager")
+    src        = st.session_state.get("data_source", "excel")
+    dark       = st.session_state.get("dark", True)
+    login_time = st.session_state.get("login_time",
+                                      datetime.now().strftime("%d %b %Y %H:%M"))
 
-    with st.sidebar:
-        # ── Profile card ──────────────────────────────────────────────────────
-        st.markdown(f"""
-        <div style='padding:1.2rem 0 .5rem;'>
-          <div class='si-avatar'>👤</div>
-          <div class='si-profile-name'>{user.replace('_',' ').title()}</div>
-          <div class='si-profile-role'>IM Manager</div>
-        </div>
-        <hr class='si-sb-sep'>
-        """, unsafe_allow_html=True)
+    # Sidebar-specific styling
+    st.sidebar.markdown(f"""
+    <style>
+    [data-testid="stSidebar"] {{
+        background: {"#0E1120" if dark else "#FFFFFF"} !important;
+        border-right: 1px solid {SI_RED}33 !important;
+    }}
+    [data-testid="stSidebar"] p,
+    [data-testid="stSidebar"] label {{
+        color: {"#94A3B8" if dark else "#64748B"} !important;
+        font-family: Outfit, sans-serif !important;
+    }}
+    [data-testid="stSidebar"] .stButton > button {{
+        background: {"rgba(227,0,27,0.1)" if dark else "#FEF2F2"} !important;
+        border: 1px solid {SI_RED}44 !important;
+        color: {SI_RED} !important;
+        border-radius: 8px !important;
+        font-size: .82rem !important;
+        font-weight: 600 !important;
+    }}
+    [data-testid="stSidebar"] .stButton > button:hover {{
+        background: {SI_RED} !important;
+        color: #fff !important;
+    }}
+    </style>
+    """, unsafe_allow_html=True)
 
-        # ── Session stats ─────────────────────────────────────────────────────
-        sheets = list(dfs.keys()) if dfs else []
-        total_rows = sum(len(v) for v in dfs.values()) if dfs else 0
-        src_label = "🔗 KoBoToolbox" if src=="kobo" else "📊 Excel"
+    # ── Avatar & identity ─────────────────────────────────────────────────────
+    bg_card  = "#1C2130" if dark else "#F8F9FB"
+    tc       = "#F1F5F9" if dark else "#0F172A"
+    mc       = "#94A3B8" if dark else "#64748B"
+    brd      = "rgba(227,0,27,0.2)"
 
-        st.markdown(f"""
-        <div class='si-stat'><span class='si-stat-label'>Data source</span>
-          <span class='si-stat-val'>{src_label}</span></div>
-        <div class='si-stat'><span class='si-stat-label'>Sheets loaded</span>
-          <span class='si-stat-val'>{len(sheets)}</span></div>
-        <div class='si-stat'><span class='si-stat-label'>Total records</span>
-          <span class='si-stat-val'>{total_rows:,}</span></div>
-        <div class='si-stat'><span class='si-stat-label'>Session started</span>
-          <span class='si-stat-val' style='font-size:.71rem;'>{login_time}</span></div>
-        <div class='si-stat'><span class='si-stat-label'>Last refresh</span>
-          <span class='si-stat-val' style='font-size:.71rem;'>
-            {datetime.now().strftime("%H:%M:%S")}</span></div>
-        """, unsafe_allow_html=True)
+    st.sidebar.markdown(f"""
+    <div style='text-align:center;padding:1.5rem 0 1rem;'>
+      <div style='width:58px;height:58px;background:{SI_RED};border-radius:50%;
+           display:flex;align-items:center;justify-content:center;
+           font-size:1.5rem;font-weight:900;color:#fff;margin:0 auto .9rem;
+           box-shadow:0 4px 16px rgba(227,0,27,0.4);'>👤</div>
+      <div style='font-size:1rem;font-weight:700;color:{tc};
+           font-family:Outfit,sans-serif;'>{user.replace("_"," ").title()}</div>
+      <div style='font-size:.68rem;font-weight:800;color:{SI_RED};
+           letter-spacing:.1em;text-transform:uppercase;margin-top:3px;'>
+           IM Manager</div>
+    </div>
+    <hr style='border:none;border-top:1px solid {brd};margin:.5rem 0 1rem;'>
+    """, unsafe_allow_html=True)
 
-        st.markdown("<hr class='si-sb-sep'>", unsafe_allow_html=True)
+    # ── Session statistics ────────────────────────────────────────────────────
+    sheets     = list(dfs.keys()) if dfs else []
+    total_rows = sum(len(v) for v in dfs.values()) if dfs else 0
+    src_label  = "🔗 KoBoToolbox" if src == "kobo" else "📊 Excel"
 
-        # ── Quick actions ─────────────────────────────────────────────────────
-        st.markdown(f"<div style='font-size:.68rem;font-weight:700;color:{SI_RED};"
-                    f"letter-spacing:.1em;text-transform:uppercase;margin-bottom:.5rem;'>"
-                    f"Quick Actions</div>", unsafe_allow_html=True)
+    def stat_row(label, val):
+        return (f"<div style='display:flex;justify-content:space-between;"
+                f"align-items:center;padding:.45rem .8rem;"
+                f"background:{bg_card};border-radius:8px;margin-bottom:.35rem;"
+                f"border:1px solid {brd};'>"
+                f"<span style='font-size:.72rem;color:{mc};'>{label}</span>"
+                f"<span style='font-size:.82rem;font-weight:700;color:{tc};'>{val}</span>"
+                f"</div>")
 
-        col1, col2 = st.columns(2)
-        with col1:
-            if st.button("🔄 Refresh", use_container_width=True, help="Reload data"):
-                st.cache_data.clear(); st.rerun()
-        with col2:
-            if st.button("🌗 Theme", use_container_width=True, help="Toggle theme"):
-                st.session_state["dark"] = not dark; st.rerun()
+    st.sidebar.markdown(
+        stat_row("Data source", src_label) +
+        stat_row("Sheets loaded", str(len(sheets))) +
+        stat_row("Total records", f"{total_rows:,}") +
+        stat_row("Connected", login_time) +
+        stat_row("Last refresh", datetime.now().strftime("%H:%M:%S")),
+        unsafe_allow_html=True
+    )
 
-        if st.button("🔌 Change Data Source", use_container_width=True):
-            st.session_state["kobo_step"] = 0
-            st.session_state.pop("dfs", None); st.rerun()
+    st.sidebar.markdown(f"<hr style='border:none;border-top:1px solid {brd};margin:.9rem 0;'>",
+                        unsafe_allow_html=True)
 
-        if st.button("🚪 Logout", use_container_width=True):
-            st.session_state.clear(); st.rerun()
+    # ── Quick actions ─────────────────────────────────────────────────────────
+    st.sidebar.markdown(f"<div style='font-size:.67rem;font-weight:800;color:{SI_RED};"
+                        f"letter-spacing:.12em;text-transform:uppercase;margin-bottom:.6rem;'>"
+                        f"Quick Actions</div>", unsafe_allow_html=True)
 
-        st.markdown("<hr class='si-sb-sep'>", unsafe_allow_html=True)
+    c1, c2 = st.sidebar.columns(2)
+    with c1:
+        if st.button("🔄 Refresh", use_container_width=True,
+                     key="sb_refresh", help="Clear cache and reload"):
+            st.cache_data.clear(); st.rerun()
+    with c2:
+        th_lbl = "☀️ Light" if dark else "🌙 Dark"
+        if st.button(th_lbl, use_container_width=True,
+                     key="sb_theme", help="Toggle theme"):
+            st.session_state["dark"] = not dark; st.rerun()
 
-        # ── Alert threshold configurator ──────────────────────────────────────
-        st.markdown(f"<div style='font-size:.68rem;font-weight:700;color:{SI_RED};"
-                    f"letter-spacing:.1em;text-transform:uppercase;margin-bottom:.8rem;'>"
-                    f"⚙️ Alert Thresholds</div>", unsafe_allow_html=True)
+    if st.sidebar.button("🔌 Change Data Source", use_container_width=True, key="sb_src"):
+        st.session_state["kobo_step"] = 0
+        st.session_state.pop("dfs", None); st.rerun()
 
-        thr = get_thresholds()
-        changed = False
+    if st.sidebar.button("🚪 Logout", use_container_width=True, key="sb_logout"):
+        st.session_state.clear(); st.rerun()
 
-        new_wash = st.slider("Min WASH coverage (%)",
-                             min_value=50, max_value=100,
-                             value=thr["wash_coverage_min"], step=5,
-                             help="Alert when WASH coverage falls below this %")
-        if new_wash != thr["wash_coverage_min"]:
-            thr["wash_coverage_min"] = new_wash; changed = True
+    st.sidebar.markdown(f"<hr style='border:none;border-top:1px solid {brd};margin:.9rem 0;'>",
+                        unsafe_allow_html=True)
 
-        new_fsl = st.slider("Min FSL HH coverage (%)",
-                            min_value=50, max_value=100,
-                            value=thr["fsl_coverage_min"], step=5)
-        if new_fsl != thr["fsl_coverage_min"]:
-            thr["fsl_coverage_min"] = new_fsl; changed = True
+    # ── Alert threshold configurator ──────────────────────────────────────────
+    st.sidebar.markdown(f"<div style='font-size:.67rem;font-weight:800;color:{SI_RED};"
+                        f"letter-spacing:.12em;text-transform:uppercase;margin-bottom:.8rem;'>"
+                        f"⚙️ Alert Thresholds</div>", unsafe_allow_html=True)
 
-        new_cva = st.slider("Max CVA failure rate (%)",
-                            min_value=1, max_value=20,
-                            value=thr["cva_failure_max"], step=1)
-        if new_cva != thr["cva_failure_max"]:
-            thr["cva_failure_max"] = new_cva; changed = True
+    thr     = get_thresholds()
+    changed = False
 
-        new_pb = st.slider("Max pipeline breaks (#)",
-                           min_value=0, max_value=20,
-                           value=thr["pipeline_break_max"], step=1)
-        if new_pb != thr["pipeline_break_max"]:
-            thr["pipeline_break_max"] = new_pb; changed = True
+    v1 = st.sidebar.slider("Min WASH coverage (%)", 50, 100,
+                            thr["wash_coverage_min"], 5, key="thr_wash")
+    v2 = st.sidebar.slider("Min FSL HH coverage (%)", 50, 100,
+                            thr["fsl_coverage_min"], 5, key="thr_fsl")
+    v3 = st.sidebar.slider("Max CVA failure rate (%)", 1, 20,
+                            thr["cva_failure_max"], 1, key="thr_cva")
+    v4 = st.sidebar.slider("Max pipeline breaks (#)", 0, 20,
+                            thr["pipeline_break_max"], 1, key="thr_pipe")
+    v5 = st.sidebar.slider("Max off-track indicators (%)", 5, 50,
+                            thr["indicator_offtrack_max"], 5, key="thr_ind")
 
-        new_ot = st.slider("Max off-track indicators (%)",
-                           min_value=5, max_value=50,
-                           value=thr["indicator_offtrack_max"], step=5)
-        if new_ot != thr["indicator_offtrack_max"]:
-            thr["indicator_offtrack_max"] = new_ot; changed = True
+    new_thr = {
+        "wash_coverage_min":    v1,
+        "fsl_coverage_min":     v2,
+        "cva_failure_max":      v3,
+        "pipeline_break_max":   v4,
+        "indicator_offtrack_max": v5,
+        "beneficiary_suspended_max": thr["beneficiary_suspended_max"],
+    }
+    if new_thr != thr:
+        set_thresholds(new_thr)
 
-        if changed:
-            set_thresholds(thr)
-            st.rerun()
+    if st.sidebar.button("↺ Reset thresholds", use_container_width=True, key="sb_reset"):
+        set_thresholds(DEFAULT_THRESHOLDS.copy()); st.rerun()
 
-        if st.button("↺ Reset to defaults", use_container_width=True):
-            set_thresholds(DEFAULT_THRESHOLDS.copy()); st.rerun()
+    st.sidebar.markdown(f"<hr style='border:none;border-top:1px solid {brd};margin:.9rem 0;'>",
+                        unsafe_allow_html=True)
 
-        st.markdown("<hr class='si-sb-sep'>", unsafe_allow_html=True)
+    # ── Active alerts summary ─────────────────────────────────────────────────
+    if dfs:
+        alerts    = run_alert_engine(dfs)
+        n_crit    = sum(1 for a in alerts if a["level"] == "critical")
+        n_warn    = sum(1 for a in alerts if a["level"] == "warning")
+        badge_col = SI_RED if n_crit > 0 else ("#F59E0B" if n_warn > 0 else "#10B981")
+        badge_txt = (f"{n_crit} critical" if n_crit > 0
+                     else f"{n_warn} warnings" if n_warn > 0
+                     else "All clear ✅")
 
-        # ── Active alerts summary ─────────────────────────────────────────────
-        if dfs:
-            alerts = run_alert_engine(dfs)
-            n_critical = sum(1 for a in alerts if a["level"]=="critical")
-            n_warning  = sum(1 for a in alerts if a["level"]=="warning")
-            st.markdown(
-                f"<div style='font-size:.68rem;font-weight:700;color:{SI_RED};"
-                f"letter-spacing:.1em;text-transform:uppercase;margin-bottom:.8rem;'>"
-                f"🔔 Active Alerts ({len(alerts)})</div>",
-                unsafe_allow_html=True)
-            for a in alerts:
-                render_alert(a)
+        st.sidebar.markdown(
+            f"<div style='display:flex;align-items:center;justify-content:space-between;"
+            f"margin-bottom:.8rem;'>"
+            f"<span style='font-size:.67rem;font-weight:800;color:{SI_RED};"
+            f"letter-spacing:.12em;text-transform:uppercase;'>🔔 Alerts</span>"
+            f"<span style='background:{badge_col}22;color:{badge_col};"
+            f"font-size:.68rem;font-weight:700;padding:2px 9px;"
+            f"border-radius:20px;'>{badge_txt}</span></div>",
+            unsafe_allow_html=True
+        )
+        for a in alerts:
+            render_alert_sidebar(a, dark)
+
+    # ── Branding footer ───────────────────────────────────────────────────────
+    st.sidebar.markdown(f"""
+    <div style='text-align:center;margin-top:1.5rem;padding:.8rem;
+         border-top:1px solid {brd};'>
+      <div style='font-size:.68rem;font-weight:800;letter-spacing:.06em;
+           color:{SI_RED};'>SOLIDARITES INTERNATIONAL</div>
+      <div style='font-size:.63rem;color:{mc};margin-top:2px;'>
+        Sudan Mission · IM Platform © 2026
+      </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+
+def render_alert_sidebar(alert, dark=True):
+    """Compact alert for sidebar display."""
+    bg_map  = {"critical": "rgba(227,0,27,0.10)",
+               "warning":  "rgba(245,158,11,0.10)",
+               "info":     "rgba(59,130,246,0.10)",
+               "ok":       "rgba(16,185,129,0.10)"}
+    bd_map  = {"critical": SI_RED, "warning": "#F59E0B",
+               "info": "#3B82F6", "ok": "#10B981"}
+    tc      = "#F1F5F9" if dark else "#0F172A"
+    mc      = "#94A3B8" if dark else "#64748B"
+    bg      = bg_map.get(alert["level"], "rgba(100,116,139,0.10)")
+    bd      = bd_map.get(alert["level"], "#64748B")
+
+    st.sidebar.markdown(f"""
+    <div style='background:{bg};border-left:3px solid {bd};border-radius:8px;
+         padding:.6rem .8rem;margin-bottom:.4rem;'>
+      <div style='font-size:.78rem;font-weight:700;color:{tc};'>
+        {alert['icon']} {alert['title']}</div>
+      <div style='font-size:.7rem;color:{mc};margin-top:2px;line-height:1.4;'>
+        {alert['desc']}</div>
+    </div>
+    """, unsafe_allow_html=True)
+
 
 
 # HELPERS
@@ -888,6 +969,9 @@ def kobo_download_data(token, uid, base_url):
 
 def datasource_page():
     inject_css(DARK)
+    # Hide sidebar on datasource selection screen
+    st.markdown("<style>[data-testid='stSidebar']{display:none!important;}</style>",
+                unsafe_allow_html=True)
     th = DARK
     st.markdown("""
 <style>
@@ -1147,195 +1231,120 @@ def datasource_page():
 # LOGIN — SI brand, pure Streamlit layout
 # ══════════════════════════════════════════════════════════════════════════════
 def login_page():
-    # SUPPRIMER TOUS LES STYLES EXISTANTS
-    st.markdown("""
-    <style>
-    /* RESET COMPLET - Supprime tous les styles Streamlit par défaut */
+    inject_css(DARK)
+    # Hide sidebar on login screen
+    st.markdown("<style>[data-testid='stSidebar']{display:none!important;}</style>",
+                unsafe_allow_html=True)
+
+    # Full-page dark background override
+    st.markdown("""<style>
     [data-testid="stAppViewContainer"] {
-        background: linear-gradient(160deg, #0E0004 0%, #180008 40%, #0E0004 100%) !important;
+        background: linear-gradient(160deg,#0E0004 0%,#180008 40%,#0E0004 100%) !important;
     }
-    
-    [data-testid="stHeader"] {
-        display: none !important;
-    }
-    
-    [data-testid="stToolbar"] {
-        display: none !important;
-    }
-    
-    .main .block-container {
-        padding: 0 !important;
-        max-width: 100% !important;
-        margin: 0 !important;
-    }
-    
-    div[data-testid="stVerticalBlock"] {
-        gap: 0 !important;
-        padding: 0 !important;
-        margin: 0 !important;
-    }
-    
-    div[data-testid="stHorizontalBlock"] {
-        gap: 0 !important;
-        margin: 0 !important;
-        padding: 0 !important;
-    }
-    
-    /* Supprimer tous les espaces par défaut */
-    .element-container {
-        margin: 0 !important;
-        padding: 0 !important;
-    }
-    
-    /* Reset des polices */
-    * {
-        font-family: 'Outfit', sans-serif !important;
-    }
-    
-    /* Styles des inputs */
-    div[data-testid="stTextInput"] {
-        margin-bottom: 0.3rem !important;
-    }
-    
-    div[data-testid="stTextInput"] > div > div > input {
-        background: rgba(22,27,46,0.9) !important;
-        border: 1px solid rgba(227,0,27,0.3) !important;
-        border-radius: 10px !important;
-        color: #F1F5F9 !important;
-        padding: 0.7rem 1rem !important;
-        font-size: 0.85rem !important;
-    }
-    
-    div[data-testid="stTextInput"] > div > div > input:focus {
-        border-color: #E3001B !important;
-        box-shadow: 0 0 0 2px rgba(227,0,27,0.2) !important;
-        outline: none !important;
-    }
-    
-    div[data-testid="stTextInput"] > div > div > input::placeholder {
-        color: #64748B !important;
-        font-size: 0.8rem !important;
-    }
-    
-    div[data-testid="stButton"] > button {
-        background: #E3001B !important;
-        color: white !important;
-        border: none !important;
-        border-radius: 10px !important;
-        padding: 0.7rem 1.5rem !important;
-        font-size: 0.9rem !important;
-        font-weight: 700 !important;
-        width: 100% !important;
-        transition: all 0.2s ease !important;
-    }
-    
-    div[data-testid="stButton"] > button:hover {
-        background: #B50016 !important;
-        transform: translateY(-1px) !important;
-        box-shadow: 0 4px 12px rgba(227,0,27,0.4) !important;
-    }
-    
-    .stAlert {
-        background: rgba(227,0,27,0.1) !important;
-        border-left: 3px solid #E3001B !important;
-        border-radius: 8px !important;
-        padding: 0.5rem 1rem !important;
-        margin-top: 1rem !important;
-    }
-    </style>
-    """, unsafe_allow_html=True)
+    </style>""", unsafe_allow_html=True)
 
-    # ==================== TOP BAR ====================
+    # ── Top bar ───────────────────────────────────────────────────────────────
     st.markdown(f"""
-    <div style="background: rgba(0,0,0,0.6); border-bottom: 3px solid {SI_RED}; padding: 0.6rem 2rem; display: flex; align-items: center; gap: 14px; backdrop-filter: blur(12px); margin-bottom: 0;">
-        <div style="width: 38px; height: 38px; background: {SI_RED}; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; font-weight: 900; color: white; flex-shrink: 0;">SI</div>
-        <div>
-            <div style="font-size: 0.9rem; font-weight: 900; color: white;">SOLIDARITES INTERNATIONAL</div>
-            <div style="font-size: 0.55rem; color: rgba(255,255,255,0.4); letter-spacing: 0.1em; text-transform: uppercase;">Sudan Mission · Information Management Platform</div>
+    <div style='background:rgba(0,0,0,0.5);border-bottom:3px solid {SI_RED};
+         padding:.7rem 2.5rem;display:flex;align-items:center;gap:14px;
+         backdrop-filter:blur(12px);'>
+      <div style='width:38px;height:38px;background:{SI_RED};border-radius:7px;
+           display:flex;align-items:center;justify-content:center;
+           font-size:1.1rem;font-weight:900;color:#fff;flex-shrink:0;'>SI</div>
+      <div>
+        <div style='font-size:.95rem;font-weight:900;color:#fff;
+             font-family:Outfit,sans-serif;'>SOLIDARITES INTERNATIONAL</div>
+        <div style='font-size:.6rem;color:rgba(255,255,255,.4);
+             letter-spacing:.1em;text-transform:uppercase;'>
+          Sudan Mission · Information Management Platform
         </div>
-        <div style="margin-left: auto; background: {SI_RED}; color: white; font-size: 0.6rem; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; padding: 4px 14px; border-radius: 20px;">Restricted Access</div>
+      </div>
+      <div style='margin-left:auto;background:{SI_RED};color:#fff;
+           font-size:.68rem;font-weight:800;letter-spacing:.1em;
+           text-transform:uppercase;padding:4px 14px;border-radius:4px;'>
+        Restricted Access
+      </div>
     </div>
     """, unsafe_allow_html=True)
 
-    # ==================== IMAGE SLIDER ====================
-    imgs_html = "".join(f"<img src='{u}' alt='SI Sudan' style='height: 110px; width: 170px; object-fit: cover;'>" for u in SI_IMAGES * 3)
-    st.markdown(f"""
-    <div style="overflow: hidden; margin: 0; height: 110px;">
-        <div style="display: flex; gap: 12px; animation: slideLogin 40s linear infinite; width: max-content; height: 110px;">
-            {imgs_html}
-        </div>
-    </div>
-    <style>
-    @keyframes slideLogin {{
-        0% {{ transform: translateX(0); }}
-        100% {{ transform: translateX(-33.33%); }}
-    }}
-    </style>
-    """, unsafe_allow_html=True)
+    # ── Image slider ──────────────────────────────────────────────────────────
+    imgs_html = "".join(f"<img src='{u}' alt='SI humanitarian'>" for u in SI_IMAGES * 2)
+    st.markdown(f"""<div class='img-slider' style='border-radius:0;margin:0;height:160px;'>
+      <div class='img-track' style='height:160px;'>{imgs_html}</div>
+    </div>""", unsafe_allow_html=True)
 
-    # ==================== MAIN CONTENT ====================
-    # Utiliser un conteneur avec du padding
-    st.markdown("<div style='padding: 2rem 2rem 2rem 2rem;'></div>", unsafe_allow_html=True)
+    st.markdown("<br>", unsafe_allow_html=True)
 
-    # Créer les colonnes avec un conteneur personnalisé
-    col1, col2 = st.columns([1.2, 0.9], gap="large")
+    # ── Two-column layout: mission info + login form ──────────────────────────
+    col_info, col_form = st.columns([1.15, 1])
 
-    # ==================== COLONNE GAUCHE ====================
-    with col1:
+    with col_info:
         st.markdown(f"""
-        <div>
-            <div style='display: inline-block; background: {SI_RED}; color: white; font-size: 0.6rem; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; padding: 4px 12px; border-radius: 4px; margin-bottom: 1.2rem;'>Sudan Mission 2025–2026</div>
-            <h1 style='font-size: 2.2rem; font-weight: 900; color: white; margin: 0 0 0.8rem 0; line-height: 1.2;'>Information<br><span style='color: {SI_RED};'>Management</span><br>Dashboard</h1>
-            <p style='font-size: 0.85rem; color: rgba(255,255,255,0.55); line-height: 1.6; margin: 0 0 1.8rem 0;'>Real-time monitoring of multi-sector humanitarian response across WASH, Food Security, Shelter & NFI, and Cash & Voucher programs in Sudan.</p>
-            <div style='display: flex; flex-direction: column; gap: 0.8rem;'>
-                <div style='display: flex; align-items: center; gap: 12px;'><span style='background: rgba(59,130,246,0.15); padding: 6px 10px; border-radius: 8px;'>💧</span><span><strong style='color: #3B82F6;'>WASH</strong> — Water, Sanitation & Hygiene</span></div>
-                <div style='display: flex; align-items: center; gap: 12px;'><span style='background: rgba(16,185,129,0.15); padding: 6px 10px; border-radius: 8px;'>🌾</span><span><strong style='color: #10B981;'>FSL</strong> — Food Security & Livelihoods</span></div>
-                <div style='display: flex; align-items: center; gap: 12px;'><span style='background: rgba(245,158,11,0.15); padding: 6px 10px; border-radius: 8px;'>🏠</span><span><strong style='color: #F59E0B;'>Shelter & NFI</strong> — Non-Food Items</span></div>
-                <div style='display: flex; align-items: center; gap: 12px;'><span style='background: rgba(227,0,27,0.15); padding: 6px 10px; border-radius: 8px;'>💵</span><span><strong style='color: {SI_RED}'>CVA</strong> — Cash & Voucher Assistance</span></div>
+        <div style='padding:1.5rem 1rem;'>
+          <div style='display:inline-block;background:{SI_RED};color:#fff;
+               font-size:.68rem;font-weight:800;letter-spacing:.12em;
+               text-transform:uppercase;padding:3px 10px;border-radius:3px;
+               margin-bottom:1.2rem;'>Sudan Mission 2025–2026</div>
+          <h2 style='font-size:2rem;font-weight:900;color:#fff;margin:0 0 .6rem;
+              line-height:1.1;letter-spacing:-.03em;font-family:Outfit,sans-serif;'>
+            Information<br><span style='color:{SI_RED};'>Management</span><br>Dashboard
+          </h2>
+          <p style='font-size:.88rem;color:rgba(255,255,255,.55);line-height:1.7;margin:0 0 1.5rem;'>
+            Real-time monitoring of multi-sector humanitarian response across
+            WASH, Food Security, Shelter & NFI, and Cash & Voucher programs in Sudan.
+          </p>
+          <div style='display:flex;flex-direction:column;gap:.5rem;'>
+            <div style='font-size:.81rem;color:rgba(255,255,255,.45);display:flex;align-items:center;gap:8px;'>
+              <span style='color:#3B82F6;'>💧</span> WASH — Water, Sanitation & Hygiene
             </div>
+            <div style='font-size:.81rem;color:rgba(255,255,255,.45);display:flex;align-items:center;gap:8px;'>
+              <span style='color:#10B981;'>🌾</span> FSL — Food Security & Livelihoods
+            </div>
+            <div style='font-size:.81rem;color:rgba(255,255,255,.45);display:flex;align-items:center;gap:8px;'>
+              <span style='color:#F59E0B;'>🏠</span> Shelter & Non-Food Items
+            </div>
+            <div style='font-size:.81rem;color:rgba(255,255,255,.45);display:flex;align-items:center;gap:8px;'>
+              <span style='color:{SI_RED};'>💵</span> Cash & Voucher Assistance (CVA)
+            </div>
+          </div>
         </div>
         """, unsafe_allow_html=True)
 
-    # ==================== COLONNE DROITE ====================
-    with col2:
-        # Carte de login
+    with col_form:
         st.markdown(f"""
-        <div style='background: rgba(28,33,48,0.95); border: 1px solid rgba(227,0,27,0.3); border-top: 4px solid {SI_RED}; border-radius: 16px; padding: 2rem 1.8rem; box-shadow: 0 25px 50px rgba(0,0,0,0.4);'>
-            <div style='font-size: 1.4rem; font-weight: 900; color: white; margin-bottom: 0.3rem;'>Welcome back</div>
-            <div style='font-size: 0.8rem; color: #94A3B8; margin-bottom: 1.8rem;'>Enter your credentials to access the dashboard</div>
+        <div style='background:rgba(28,33,48,0.95);border:1px solid rgba(227,0,27,0.35);
+             border-top:4px solid {SI_RED};border-radius:16px;padding:2.2rem 2rem;
+             box-shadow:0 30px 80px rgba(0,0,0,0.5);'>
+          <div style='font-size:1.3rem;font-weight:900;color:#fff;
+               font-family:Outfit,sans-serif;margin-bottom:.3rem;'>Sign In</div>
+          <div style='font-size:.81rem;color:#64748B;margin-bottom:1.5rem;'>
+            Enter your credentials to access the dashboard.
+          </div>
         </div>
         """, unsafe_allow_html=True)
-        
-        # Espacement
-        st.markdown("<div style='margin-top: 2rem;'></div>", unsafe_allow_html=True)
-        
-        # Username
-        st.markdown("<div style='font-size: 0.7rem; font-weight: 700; color: #94A3B8; margin-bottom: 1rem;'>Username</div>", unsafe_allow_html=True)
-        user = st.text_input("", placeholder="im_manager", label_visibility="collapsed", key="login_user")
-        
-        # Password
-        st.markdown("<div style='font-size: 0.7rem; font-weight: 700; color: #94A3B8; margin-bottom: 1rem; margin-top: 1rem;'>Password</div>", unsafe_allow_html=True)
-        pw = st.text_input("", type="password", placeholder="••••••••", label_visibility="collapsed", key="login_pw")
-        
-        # Espacement
-        st.markdown("<div style='margin: 1rem 0 0.5rem 0;'></div>", unsafe_allow_html=True)
-        
-        # Bouton
+
+        # Actual Streamlit inputs — rendered below the card visually
+        st.markdown(f"<div style='background:rgba(28,33,48,0.95);border:1px solid rgba(227,0,27,0.35);border-top:none;border-radius:0 0 16px 16px;padding:0 2rem 2rem;box-shadow:0 30px 80px rgba(0,0,0,0.5);'>", unsafe_allow_html=True)
+
+        st.markdown(f"<div style='font-size:.72rem;font-weight:700;color:#64748B;letter-spacing:.07em;text-transform:uppercase;margin-bottom:.3rem;'>Username</div>", unsafe_allow_html=True)
+        user = st.text_input("Username", placeholder="im_manager",
+                             label_visibility="collapsed", key="login_user")
+        st.markdown(f"<div style='font-size:.72rem;font-weight:700;color:#64748B;letter-spacing:.07em;text-transform:uppercase;margin:.8rem 0 .3rem;'>Password</div>", unsafe_allow_html=True)
+        pw = st.text_input("Password", type="password", placeholder="••••••••",
+                           label_visibility="collapsed", key="login_pw")
+
+        st.markdown("<br>", unsafe_allow_html=True)
         if st.button("Sign in →", use_container_width=True, key="login_btn"):
             if CREDENTIALS.get(user) == pw:
                 st.session_state.update(auth=True, user=user, dark=True, page="Overview")
                 st.rerun()
             else:
-                st.error("❌ Invalid username or password. Please try again.")
-        
-        # Footer
-        st.markdown("""
-        <div style='text-align: center; margin-top: 1.8rem; padding-top: 1.2rem; border-top: 1px solid rgba(255,255,255,0.05);'>
-            <div style='font-size: 0.6rem; color: rgba(255,255,255,0.2);'>Solidarites International © 2026 · Confidential</div>
-        </div>
-        """, unsafe_allow_html=True)
+                st.error("❌ Invalid username or password.")
 
-    st.markdown("</div>", unsafe_allow_html=True)
+        st.markdown(f"""<div style='text-align:center;font-size:.7rem;
+             color:rgba(255,255,255,.2);margin-top:1.2rem;'>
+          Solidarites International © 2026 · Confidential
+        </div></div>""", unsafe_allow_html=True)
 
 
 
