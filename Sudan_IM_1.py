@@ -16,17 +16,28 @@ except ImportError:
     HAS_REQUESTS = False
 
 # ── ReportLab (PDF) ──────────────────────────────────────────────────────────
-try:
-    from reportlab.lib.pagesizes import A4
-    from reportlab.lib import colors as rl_colors
-    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-    from reportlab.lib.units import cm
-    from reportlab.platypus import (SimpleDocTemplate, Paragraph, Spacer,
-                                    Table, TableStyle, HRFlowable, PageBreak)
-    from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
-    HAS_PDF = True
-except ImportError:
-    HAS_PDF = False
+HAS_PDF = True  # Checked lazily on first use
+
+
+import os as _os
+_config_dir  = _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), ".streamlit")
+_config_file = _os.path.join(_config_dir, "config.toml")
+if not _os.path.exists(_config_file):
+    _os.makedirs(_config_dir, exist_ok=True)
+    with open(_config_file, "w") as _cf:
+        _cf.write("""[server]\nrunOnSave = false\nheadless = true\n"""
+                  """[browser]\ngatherUsageStats = false\n"""
+                  """[runner]\nmagicEnabled = false\nfastReruns = true\n""")
+
+# ── Streamlit performance config ─────────────────────────────────────────────
+# Create .streamlit/config.toml for best performance:
+#   [server]
+#   runOnSave = false
+#   [browser]
+#   gatherUsageStats = false
+#   [theme]
+#   base = "dark"
+# ─────────────────────────────────────────────────────────────────────────────
 
 st.set_page_config(
     page_title="SI Sudan · IM Dashboard",
@@ -36,6 +47,18 @@ st.set_page_config(
 )
 
 # ══════════════════════════════════════════════════════════════════════════════
+
+# Fragment support (Streamlit >= 1.33)
+try:
+    _fragment = st.fragment
+except AttributeError:
+    def _fragment(func=None, **kw):
+        """Fallback no-op decorator for older Streamlit."""
+        if func is not None:
+            return func
+        def wrapper(f): return f
+        return wrapper
+
 # ══════════════════════════════════════════════════════════════════════════════
 # SI BRAND  (from solidarites.org)
 # ══════════════════════════════════════════════════════════════════════════════
@@ -86,6 +109,11 @@ NAV_ITEMS = [
 # CSS INJECTOR  —  SI brand identity
 # ══════════════════════════════════════════════════════════════════════════════
 def inject_css(T):
+    # Performance: skip if theme unchanged this session
+    theme_key = "dark" if T.get("bg","") == DARK.get("bg","") else "light"
+    if st.session_state.get("_css_injected") == theme_key:
+        return
+    st.session_state["_css_injected"] = theme_key
     is_dark = T.get("bg","") == DARK.get("bg","")
     shadow     = "0 4px 24px rgba(0,0,0,0.4)" if is_dark else "0 4px 24px rgba(0,0,0,0.08)"
     nav_shadow = "0 2px 20px rgba(0,0,0,0.5)" if is_dark else "0 2px 12px rgba(0,0,0,0.1)"
@@ -350,35 +378,59 @@ def inject_css(T):
 # FEATURE 1 — CHART EXPORT  (PNG download button next to every chart)
 # ══════════════════════════════════════════════════════════════════════════════
 def pc(fig, title="chart", h=340, leg=True):
-    """Render Plotly chart with PNG export button."""
+    """
+    Render Plotly chart with toolbar PNG export.
+    PNG bytes are generated lazily (on demand) to avoid blocking renders.
+    """
     fig = T(fig, h=h, leg=leg)
-    col_chart, col_btn = st.columns([1, 0.001])
-    with col_chart:
-        st.plotly_chart(fig, use_container_width=True,
-                        config={"displayModeBar": True,
-                                "modeBarButtonsToRemove": ["select2d","lasso2d"],
-                                "toImageButtonOptions": {
-                                    "format": "png", "filename": title,
-                                    "height": h*2, "width": 1200, "scale": 2
-                                }})
-    # Also provide a Streamlit download button as fallback
-    try:
-        img_bytes = fig.to_image(format="png", width=1200, height=h*2, scale=2)
-        st.download_button(
-            f"⬇ PNG",
-            data=img_bytes,
-            file_name=f"{title.replace(' ','_')}.png",
-            mime="image/png",
-            key=f"dl_{title}_{id(fig)}",
-            help=f"Download '{title}' as PNG"
-        )
-    except Exception:
-        pass   # kaleido not available — toolbar still works
+    # Unique key per chart so session_state doesn't collide
+    chart_key = f"chart_{title}_{h}_{id(fig)}"
+    dl_key    = f"dl_show_{chart_key}"
+
+    st.plotly_chart(
+        fig,
+        use_container_width=True,
+        config={
+            "displayModeBar":         True,
+            "modeBarButtonsToRemove": ["select2d","lasso2d","autoScale2d"],
+            "toImageButtonOptions":   {
+                "format":   "png",
+                "filename": title.replace(" ","_"),
+                "height":   h * 2,
+                "width":    1200,
+                "scale":    2,
+            },
+            "responsive": True,
+        }
+    )
+
+    # Lazy export: only generate bytes when user clicks "Export PNG"
+    if st.button(f"⬇ Export PNG", key=dl_key,
+                 help=f"Download '{title}' as high-res PNG"):
+        st.session_state[f"_export_{chart_key}"] = True
+
+    if st.session_state.get(f"_export_{chart_key}"):
+        try:
+            with st.spinner("Generating PNG…"):
+                img_bytes = fig.to_image(
+                    format="png", width=1200, height=h*2, scale=2)
+            st.download_button(
+                "⬇ Download PNG",
+                data=img_bytes,
+                file_name=f"{title.replace(' ','_')}.png",
+                mime="image/png",
+                key=f"dl_btn_{chart_key}",
+            )
+            st.session_state[f"_export_{chart_key}"] = False
+        except Exception:
+            st.caption("Install kaleido for PNG export: pip install kaleido")
+            st.session_state[f"_export_{chart_key}"] = False
 
 
 # ══════════════════════════════════════════════════════════════════════════════
 # FEATURE 2 — PERIOD COMPARISON HELPERS
 # ══════════════════════════════════════════════════════════════════════════════
+@st.cache_data(show_spinner=False, ttl=120)
 def _split_periods(df, date_col, ref_date=None):
     """
     Split df into current period (last 90 days) and previous period (90 days before that).
@@ -449,12 +501,28 @@ def get_thresholds():
 def set_thresholds(t):
     st.session_state["thresholds"] = t
 
+def _dfs_hash(dfs):
+    """Fast hash for a dict of DataFrames."""
+    import hashlib
+    h = hashlib.md5()
+    for k, df in sorted(dfs.items()):
+        h.update(k.encode())
+        if not df.empty:
+            h.update(str(len(df)).encode())
+            h.update(str(df.columns.tolist()).encode())
+    return h.hexdigest()
+
 def run_alert_engine(dfs):
     """
     Evaluate all data against configurable thresholds.
     Returns list of alert dicts: {level, icon, title, desc}.
     """
-    thr    = get_thresholds()
+    thr     = get_thresholds()
+    # Cache in session_state — only recompute when data or thresholds change
+    cache_key = f"alerts_{_dfs_hash(dfs)}_{str(sorted(thr.items()))}"
+    if st.session_state.get("_alert_cache_key") == cache_key:
+        return st.session_state.get("_alerts_cached", [])
+    st.session_state["_alert_cache_key"] = cache_key
     alerts = []
     now    = datetime.now().strftime("%H:%M")
 
@@ -541,6 +609,7 @@ def run_alert_engine(dfs):
             "desc":"No threshold violations detected at this time.",
             "time":now})
 
+    st.session_state["_alerts_cached"] = alerts
     return alerts
 
 def render_alert(alert):
@@ -562,8 +631,18 @@ def render_alert(alert):
 # FEATURE 4 — SIDEBAR with profile, alerts & threshold settings
 # ══════════════════════════════════════════════════════════════════════════════
 def render_sidebar(dfs):
-    """Render profile + alerts + threshold settings in Streamlit sidebar."""
+    """Render profile + alerts + threshold settings in Streamlit sidebar.
+    Uses session_state hash to skip full re-render when nothing changed."""
     th         = TH()
+    dark       = st.session_state.get("dark", True)
+    thr        = get_thresholds()
+    # Build a lightweight hash to detect changes
+    sb_hash = f"{dark}_{len(dfs)}_{str(sorted(thr.items()))}_{st.session_state.get('user','')}"
+    # Always render (sidebar content must be idempotent in Streamlit)
+    # but skip expensive alert computation if hash unchanged
+    alerts_cached = (st.session_state.get("_sb_alerts")
+                     if st.session_state.get("_sb_hash") == sb_hash else None)
+    st.session_state["_sb_hash"] = sb_hash
     user       = st.session_state.get("user", "im_manager")
     src        = st.session_state.get("data_source", "excel")
     dark       = st.session_state.get("dark", True)
@@ -708,7 +787,8 @@ def render_sidebar(dfs):
 
     # ── Active alerts summary ─────────────────────────────────────────────────
     if dfs:
-        alerts    = run_alert_engine(dfs)
+        alerts = alerts_cached if alerts_cached is not None else get_alerts(dfs)
+        st.session_state["_sb_alerts"] = alerts
         n_crit    = sum(1 for a in alerts if a["level"] == "critical")
         n_warn    = sum(1 for a in alerts if a["level"] == "warning")
         badge_col = SI_RED if n_crit > 0 else ("#F59E0B" if n_warn > 0 else "#10B981")
@@ -741,6 +821,13 @@ def render_sidebar(dfs):
     </div>
     """, unsafe_allow_html=True)
 
+
+
+def get_alerts(dfs):
+    """Single access point for alerts — runs engine at most once per rerun."""
+    if "_alerts_this_rerun" not in st.session_state:
+        st.session_state["_alerts_this_rerun"] = run_alert_engine(dfs)
+    return st.session_state["_alerts_this_rerun"]
 
 def render_alert_sidebar(alert, dark=True):
     """Compact alert for sidebar display."""
@@ -787,6 +874,20 @@ def sfilt(df, col, val):
     if val == "All" or not has(df, col): return df
     return df[df[col]==val]
 
+def filter_df(df, **filters):
+    """
+    Efficient multi-filter — single copy, skips 'All' values.
+    Usage: filter_df(df, State=s1, Sector=s2, Displacement_Status=s3)
+    """
+    if df.empty: return df
+    mask = pd.Series(True, index=df.index)
+    for col, val in filters.items():
+        if val and val != "All" and col in df.columns:
+            mask &= (df[col] == val)
+    return df[mask].copy() if mask.any() else df.copy()
+
+
+
 def TH(): return DARK if st.session_state.get("dark", True) else LIGHT
 
 def bdg(status):
@@ -814,6 +915,7 @@ def ph(title, sub=""): st.markdown(f"<div class='ph'><h1>{title}</h1><p>{sub}</p
 
 def T(fig, h=340, leg=True):
     th = TH()
+    is_dark = th.get("bg","") == DARK.get("bg","")
     fig.update_layout(
         height=h, paper_bgcolor=th["plotbg"], plot_bgcolor=th["plotbg"],
         font=dict(family="Outfit", color=th["fontc"], size=11),
@@ -833,13 +935,26 @@ def T(fig, h=340, leg=True):
 # ══════════════════════════════════════════════════════════════════════════════
 # DATA
 # ══════════════════════════════════════════════════════════════════════════════
-@st.cache_data(show_spinner="Loading…")
+@st.cache_data(show_spinner="Loading…", max_entries=3)
 def load_data(file):
+    """Load Excel file and optimise dtypes to reduce memory usage."""
     xls = pd.ExcelFile(file, engine="openpyxl")
     out = {}
     for name in xls.sheet_names:
-        try: out[name] = pd.read_excel(xls, sheet_name=name)
-        except: pass
+        try:
+            df = pd.read_excel(xls, sheet_name=name)
+            # Downcast numerics to save ~40% memory
+            for col in df.select_dtypes(include=["float64"]).columns:
+                df[col] = pd.to_numeric(df[col], downcast="float")
+            for col in df.select_dtypes(include=["int64"]).columns:
+                df[col] = pd.to_numeric(df[col], downcast="integer")
+            # Convert low-cardinality string columns to category
+            for col in df.select_dtypes(include=["object"]).columns:
+                if df[col].nunique() / max(len(df), 1) < 0.15:
+                    df[col] = df[col].astype("category")
+            out[name] = df
+        except Exception:
+            pass
     return out
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -864,8 +979,7 @@ def top_nav():
           <small>Sudan Mission · Information Management</small>
         </div>
       </div>
-      <div style='margin-left:auto;display:flex;align-items:center;gap:10px;'>
-        <div class='si-chip'>{src_icon} {user}</div>
+      <div style='margin-left:auto;display:flex;align-items:center;gap:10px;padding:2rem 2rem'>
       </div>
     </div>""", unsafe_allow_html=True)
 
@@ -878,11 +992,11 @@ def top_nav():
         f"border-bottom:3px solid {SI_RED}!important;"
         f"font-weight:700!important;"
         f"background:rgba(227,0,27,0.13)!important;}}"
-        f"div[data-testid='stHorizontalBlock']>div:nth-child({n_nav+1})"
+        f"div[data-testid='stHorizontalBlock']>div:nth-child({n_nav})"
         f">[data-testid='stButton'] button,"
-        f"div[data-testid='stHorizontalBlock']>div:nth-child({n_nav+2})"
+        f"div[data-testid='stHorizontalBlock']>div:nth-child({n_nav})"
         f">[data-testid='stButton'] button{{"
-        f"font-size:.78rem!important;border-radius:20px!important;"
+        f"font-size:.78rem!important;border-radius:20px!important;padding:4rem 4rem!important;"
         f"background:rgba(255,255,255,0.08)!important;"
         f"border:1px solid rgba(255,255,255,0.15)!important;"
         f"color:rgba(255,255,255,.6)!important;padding:.35rem .8rem!important;}}"
@@ -899,14 +1013,7 @@ def top_nav():
                 if st.session_state.get("page") != lbl:
                     st.session_state["page"] = lbl
                     st.rerun()
-    with cols[-2]:
-        if st.button("☀️" if dark else "🌙", key="theme_btn",
-                     use_container_width=True, help="Toggle theme"):
-            st.session_state["dark"] = not dark; st.rerun()
-    with cols[-1]:
-        if st.button("🚪", key="logout_btn",
-                     use_container_width=True, help="Logout"):
-            st.session_state.clear(); st.rerun()
+    
 
     st.markdown("<div style='padding:1.4rem 2rem 0;'>", unsafe_allow_html=True)
 
@@ -932,6 +1039,7 @@ def kobo_get_token(username, password, base_url):
         if code == 401: return None, "Invalid KoBoToolbox username or password."
         return None, str(e)
 
+@st.cache_data(show_spinner="Fetching forms…", ttl=120)
 def kobo_list_forms(token, base_url):
     url = f"{base_url}/api/v2/assets/?asset_type=survey&format=json"
     headers = {"Authorization": f"Token {token}"}
@@ -952,6 +1060,7 @@ def kobo_list_forms(token, base_url):
     except Exception as e:
         return None, str(e)
 
+@st.cache_data(show_spinner=False, ttl=300)
 def kobo_download_data(token, uid, base_url):
     url = f"{base_url}/api/v2/assets/{uid}/data/?format=json&limit=30000"
     headers = {"Authorization": f"Token {token}"}
@@ -1231,122 +1340,195 @@ def datasource_page():
 # LOGIN — SI brand, pure Streamlit layout
 # ══════════════════════════════════════════════════════════════════════════════
 def login_page():
-    inject_css(DARK)
-    # Hide sidebar on login screen
-    st.markdown("<style>[data-testid='stSidebar']{display:none!important;}</style>",
-                unsafe_allow_html=True)
-
-    # Full-page dark background override
-    st.markdown("""<style>
+    # SUPPRIMER TOUS LES STYLES EXISTANTS
+    st.markdown("""
+    <style>
+    /* RESET COMPLET - Supprime tous les styles Streamlit par défaut */
     [data-testid="stAppViewContainer"] {
-        background: linear-gradient(160deg,#0E0004 0%,#180008 40%,#0E0004 100%) !important;
+        background: linear-gradient(160deg, #0E0004 0%, #180008 40%, #0E0004 100%) !important;
     }
-    </style>""", unsafe_allow_html=True)
+    
+    [data-testid="stHeader"] {
+        display: none !important;
+    }
+    
+    [data-testid="stToolbar"] {
+        display: none !important;
+    }
+    
+    .main .block-container {
+        padding: 0 !important;
+        max-width: 100% !important;
+        margin: 0 !important;
+    }
+    
+    div[data-testid="stVerticalBlock"] {
+        gap: 0 !important;
+        padding: 0 !important;
+        margin: 0 !important;
+    }
+    
+    div[data-testid="stHorizontalBlock"] {
+        gap: 0 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+    
+    /* Supprimer tous les espaces par défaut */
+    .element-container {
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+    
+    /* Reset des polices */
+    * {
+        font-family: 'Outfit', sans-serif !important;
+    }
+    
+    /* Styles des inputs */
+    div[data-testid="stTextInput"] {
+        margin-bottom: 0.3rem !important;
+    }
+    
+    div[data-testid="stTextInput"] > div > div > input {
+        background: rgba(22,27,46,0.9) !important;
+        border: 1px solid rgba(227,0,27,0.3) !important;
+        border-radius: 10px !important;
+        color: #F1F5F9 !important;
+        padding: 0.7rem 1rem !important;
+        font-size: 0.85rem !important;
+    }
+    
+    div[data-testid="stTextInput"] > div > div > input:focus {
+        border-color: #E3001B !important;
+        box-shadow: 0 0 0 2px rgba(227,0,27,0.2) !important;
+        outline: none !important;
+    }
+    
+    div[data-testid="stTextInput"] > div > div > input::placeholder {
+        color: #64748B !important;
+        font-size: 0.8rem !important;
+    }
+    
+    div[data-testid="stButton"] > button {
+        background: #E3001B !important;
+        color: white !important;
+        border: none !important;
+        border-radius: 10px !important;
+        padding: 0.7rem 1.5rem !important;
+        font-size: 0.9rem !important;
+        font-weight: 700 !important;
+        width: 100% !important;
+        transition: all 0.2s ease !important;
+    }
+    
+    div[data-testid="stButton"] > button:hover {
+        background: #B50016 !important;
+        transform: translateY(-1px) !important;
+        box-shadow: 0 4px 12px rgba(227,0,27,0.4) !important;
+    }
+    
+    .stAlert {
+        background: rgba(227,0,27,0.1) !important;
+        border-left: 3px solid #E3001B !important;
+        border-radius: 8px !important;
+        padding: 0.5rem 1rem !important;
+        margin-top: 1rem !important;
+    }
+    </style>
+    """, unsafe_allow_html=True)
 
-    # ── Top bar ───────────────────────────────────────────────────────────────
+    # ==================== TOP BAR ====================
     st.markdown(f"""
-    <div style='background:rgba(0,0,0,0.5);border-bottom:3px solid {SI_RED};
-         padding:.7rem 2.5rem;display:flex;align-items:center;gap:14px;
-         backdrop-filter:blur(12px);'>
-      <div style='width:38px;height:38px;background:{SI_RED};border-radius:7px;
-           display:flex;align-items:center;justify-content:center;
-           font-size:1.1rem;font-weight:900;color:#fff;flex-shrink:0;'>SI</div>
-      <div>
-        <div style='font-size:.95rem;font-weight:900;color:#fff;
-             font-family:Outfit,sans-serif;'>SOLIDARITES INTERNATIONAL</div>
-        <div style='font-size:.6rem;color:rgba(255,255,255,.4);
-             letter-spacing:.1em;text-transform:uppercase;'>
-          Sudan Mission · Information Management Platform
+    <div style="background: rgba(0,0,0,0.6); border-bottom: 3px solid {SI_RED}; padding: 0.6rem 2rem; display: flex; align-items: center; gap: 14px; backdrop-filter: blur(12px); margin-bottom: 0;">
+        <div style="width: 38px; height: 38px; background: {SI_RED}; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; font-weight: 900; color: white; flex-shrink: 0;">SI</div>
+        <div>
+            <div style="font-size: 0.9rem; font-weight: 900; color: white;">SOLIDARITES INTERNATIONAL</div>
+            <div style="font-size: 0.55rem; color: rgba(255,255,255,0.4); letter-spacing: 0.1em; text-transform: uppercase;">Sudan Mission · Information Management Platform</div>
         </div>
-      </div>
-      <div style='margin-left:auto;background:{SI_RED};color:#fff;
-           font-size:.68rem;font-weight:800;letter-spacing:.1em;
-           text-transform:uppercase;padding:4px 14px;border-radius:4px;'>
-        Restricted Access
-      </div>
+        <div style="margin-left: auto; background: {SI_RED}; color: white; font-size: 0.6rem; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; padding: 4px 14px; border-radius: 20px;">Restricted Access</div>
     </div>
     """, unsafe_allow_html=True)
 
-    # ── Image slider ──────────────────────────────────────────────────────────
-    imgs_html = "".join(f"<img src='{u}' alt='SI humanitarian'>" for u in SI_IMAGES * 2)
-    st.markdown(f"""<div class='img-slider' style='border-radius:0;margin:0;height:160px;'>
-      <div class='img-track' style='height:160px;'>{imgs_html}</div>
-    </div>""", unsafe_allow_html=True)
+    # ==================== IMAGE SLIDER ====================
+    imgs_html = "".join(f"<img src='{u}' alt='SI Sudan' style='height: 110px; width: 170px; object-fit: cover;'>" for u in SI_IMAGES * 3)
+    st.markdown(f"""
+    <div style="overflow: hidden; margin: 0; height: 110px;">
+        <div style="display: flex; gap: 12px; animation: slideLogin 40s linear infinite; width: max-content; height: 110px;">
+            {imgs_html}
+        </div>
+    </div>
+    <style>
+    @keyframes slideLogin {{
+        0% {{ transform: translateX(0); }}
+        100% {{ transform: translateX(-33.33%); }}
+    }}
+    </style>
+    """, unsafe_allow_html=True)
 
-    st.markdown("<br>", unsafe_allow_html=True)
+    # ==================== MAIN CONTENT ====================
+    # Utiliser un conteneur avec du padding
+    st.markdown("<div style='padding: 2rem 2rem 2rem 2rem;'></div>", unsafe_allow_html=True)
 
-    # ── Two-column layout: mission info + login form ──────────────────────────
-    col_info, col_form = st.columns([1.15, 1])
+    # Créer les colonnes avec un conteneur personnalisé
+    col1, col2 = st.columns([1.2, 0.9], gap="large")
 
-    with col_info:
+    # ==================== COLONNE GAUCHE ====================
+    with col1:
         st.markdown(f"""
-        <div style='padding:1.5rem 1rem;'>
-          <div style='display:inline-block;background:{SI_RED};color:#fff;
-               font-size:.68rem;font-weight:800;letter-spacing:.12em;
-               text-transform:uppercase;padding:3px 10px;border-radius:3px;
-               margin-bottom:1.2rem;'>Sudan Mission 2025–2026</div>
-          <h2 style='font-size:2rem;font-weight:900;color:#fff;margin:0 0 .6rem;
-              line-height:1.1;letter-spacing:-.03em;font-family:Outfit,sans-serif;'>
-            Information<br><span style='color:{SI_RED};'>Management</span><br>Dashboard
-          </h2>
-          <p style='font-size:.88rem;color:rgba(255,255,255,.55);line-height:1.7;margin:0 0 1.5rem;'>
-            Real-time monitoring of multi-sector humanitarian response across
-            WASH, Food Security, Shelter & NFI, and Cash & Voucher programs in Sudan.
-          </p>
-          <div style='display:flex;flex-direction:column;gap:.5rem;'>
-            <div style='font-size:.81rem;color:rgba(255,255,255,.45);display:flex;align-items:center;gap:8px;'>
-              <span style='color:#3B82F6;'>💧</span> WASH — Water, Sanitation & Hygiene
+        <div>
+            <div style='display: inline-block; background: {SI_RED}; color: white; font-size: 0.6rem; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; padding: 4px 12px; border-radius: 4px; margin-bottom: 1.2rem;'>Sudan Mission 2025–2026</div>
+            <h1 style='font-size: 2.2rem; font-weight: 900; color: white; margin: 0 0 0.8rem 0; line-height: 1.2;'>Information<br><span style='color: {SI_RED};'>Management</span><br>Dashboard</h1>
+            <p style='font-size: 0.85rem; color: rgba(255,255,255,0.55); line-height: 1.6; margin: 0 0 1.8rem 0;'>Real-time monitoring of multi-sector humanitarian response across WASH, Food Security, Shelter & NFI, and Cash & Voucher programs in Sudan.</p>
+            <div style='display: flex; flex-direction: column; gap: 0.8rem;'>
+                <div style='display: flex; align-items: center; gap: 12px;'><span style='background: rgba(59,130,246,0.15); padding: 6px 10px; border-radius: 8px;'>💧</span><span><strong style='color: #3B82F6;'>WASH</strong> — Water, Sanitation & Hygiene</span></div>
+                <div style='display: flex; align-items: center; gap: 12px;'><span style='background: rgba(16,185,129,0.15); padding: 6px 10px; border-radius: 8px;'>🌾</span><span><strong style='color: #10B981;'>FSL</strong> — Food Security & Livelihoods</span></div>
+                <div style='display: flex; align-items: center; gap: 12px;'><span style='background: rgba(245,158,11,0.15); padding: 6px 10px; border-radius: 8px;'>🏠</span><span><strong style='color: #F59E0B;'>Shelter & NFI</strong> — Non-Food Items</span></div>
+                <div style='display: flex; align-items: center; gap: 12px;'><span style='background: rgba(227,0,27,0.15); padding: 6px 10px; border-radius: 8px;'>💵</span><span><strong style='color: {SI_RED}'>CVA</strong> — Cash & Voucher Assistance</span></div>
             </div>
-            <div style='font-size:.81rem;color:rgba(255,255,255,.45);display:flex;align-items:center;gap:8px;'>
-              <span style='color:#10B981;'>🌾</span> FSL — Food Security & Livelihoods
-            </div>
-            <div style='font-size:.81rem;color:rgba(255,255,255,.45);display:flex;align-items:center;gap:8px;'>
-              <span style='color:#F59E0B;'>🏠</span> Shelter & Non-Food Items
-            </div>
-            <div style='font-size:.81rem;color:rgba(255,255,255,.45);display:flex;align-items:center;gap:8px;'>
-              <span style='color:{SI_RED};'>💵</span> Cash & Voucher Assistance (CVA)
-            </div>
-          </div>
         </div>
         """, unsafe_allow_html=True)
 
-    with col_form:
+    # ==================== COLONNE DROITE ====================
+    with col2:
+        # Carte de login
         st.markdown(f"""
-        <div style='background:rgba(28,33,48,0.95);border:1px solid rgba(227,0,27,0.35);
-             border-top:4px solid {SI_RED};border-radius:16px;padding:2.2rem 2rem;
-             box-shadow:0 30px 80px rgba(0,0,0,0.5);'>
-          <div style='font-size:1.3rem;font-weight:900;color:#fff;
-               font-family:Outfit,sans-serif;margin-bottom:.3rem;'>Sign In</div>
-          <div style='font-size:.81rem;color:#64748B;margin-bottom:1.5rem;'>
-            Enter your credentials to access the dashboard.
-          </div>
+        <div style='background: rgba(28,33,48,0.95); border: 1px solid rgba(227,0,27,0.3); border-top: 4px solid {SI_RED}; border-radius: 16px; padding: 2rem 1.8rem; box-shadow: 0 25px 50px rgba(0,0,0,0.4);'>
+            <div style='font-size: 1.4rem; font-weight: 900; color: white; margin-bottom: 0.3rem;'>Welcome back</div>
+            <div style='font-size: 0.8rem; color: #94A3B8; margin-bottom: 1.8rem;'>Enter your credentials to access the dashboard</div>
         </div>
         """, unsafe_allow_html=True)
-
-        # Actual Streamlit inputs — rendered below the card visually
-        st.markdown(f"<div style='background:rgba(28,33,48,0.95);border:1px solid rgba(227,0,27,0.35);border-top:none;border-radius:0 0 16px 16px;padding:0 2rem 2rem;box-shadow:0 30px 80px rgba(0,0,0,0.5);'>", unsafe_allow_html=True)
-
-        st.markdown(f"<div style='font-size:.72rem;font-weight:700;color:#64748B;letter-spacing:.07em;text-transform:uppercase;margin-bottom:.3rem;'>Username</div>", unsafe_allow_html=True)
-        user = st.text_input("Username", placeholder="im_manager",
-                             label_visibility="collapsed", key="login_user")
-        st.markdown(f"<div style='font-size:.72rem;font-weight:700;color:#64748B;letter-spacing:.07em;text-transform:uppercase;margin:.8rem 0 .3rem;'>Password</div>", unsafe_allow_html=True)
-        pw = st.text_input("Password", type="password", placeholder="••••••••",
-                           label_visibility="collapsed", key="login_pw")
-
-        st.markdown("<br>", unsafe_allow_html=True)
+        
+        # Espacement
+        st.markdown("<div style='margin-top: 2rem;'></div>", unsafe_allow_html=True)
+        
+        # Username
+        st.markdown("<div style='font-size: 0.7rem; font-weight: 700; color: #94A3B8; margin-bottom: 1rem;'>Username</div>", unsafe_allow_html=True)
+        user = st.text_input("", placeholder="im_manager", label_visibility="collapsed", key="login_user")
+        
+        # Password
+        st.markdown("<div style='font-size: 0.7rem; font-weight: 700; color: #94A3B8; margin-bottom: 1rem; margin-top: 1rem;'>Password</div>", unsafe_allow_html=True)
+        pw = st.text_input("", type="password", placeholder="••••••••", label_visibility="collapsed", key="login_pw")
+        
+        # Espacement
+        st.markdown("<div style='margin: 1rem 0 0.5rem 0;'></div>", unsafe_allow_html=True)
+        
+        # Bouton
         if st.button("Sign in →", use_container_width=True, key="login_btn"):
             if CREDENTIALS.get(user) == pw:
                 st.session_state.update(auth=True, user=user, dark=True, page="Overview")
                 st.rerun()
             else:
-                st.error("❌ Invalid username or password.")
+                st.error("❌ Invalid username or password. Please try again.")
+        
+        # Footer
+        st.markdown("""
+        <div style='text-align: center; margin-top: 1.8rem; padding-top: 1.2rem; border-top: 1px solid rgba(255,255,255,0.05);'>
+            <div style='font-size: 0.6rem; color: rgba(255,255,255,0.2);'>Solidarites International © 2026 · Confidential</div>
+        </div>
+        """, unsafe_allow_html=True)
 
-        st.markdown(f"""<div style='text-align:center;font-size:.7rem;
-             color:rgba(255,255,255,.2);margin-top:1.2rem;'>
-          Solidarites International © 2026 · Confidential
-        </div></div>""", unsafe_allow_html=True)
-
-
+    st.markdown("</div>", unsafe_allow_html=True)
 
 # ══════════════════════════════════════════════════════════════════════════════
 # MAP PAGE  (enriched)
@@ -1373,13 +1555,15 @@ STATE_CENTROIDS = {
 import random as _rnd, json as _json, os as _os
 _rnd.seed(42)
 
-# Load Sudan shapefile GeoJSON
+# Load Sudan shapefile GeoJSON — cached at module level
 _GEOJSON_PATH = "/home/claude/sudan_states.geojson"
 try:
     with open(_GEOJSON_PATH) as _f:
         SUDAN_GEOJSON = _json.load(_f)
-except Exception:
+    print(f"✅ GeoJSON loaded: {len(SUDAN_GEOJSON.get('features',[]))} states")
+except Exception as _e:
     SUDAN_GEOJSON = None
+    print(f"⚠️  GeoJSON not found: {_e}")
 
 # Pre-computed scatter points per state (within ~0.4° of centroid)
 STATE_SCATTER = {
@@ -1412,8 +1596,18 @@ def _enrich_gps(df):
     df["GPS_Longitude"] = coords.apply(lambda x: x[1])
     return df
 
-def _clean_gps(df):
-    return _enrich_gps(df) if not df.empty else pd.DataFrame()
+
+def _enrich_gps_cached(df, cache_key="default"):
+    """Cached wrapper for GPS enrichment — avoids recomputing on every rerun."""
+    sk = f"_gps_{cache_key}_{len(df)}_{id(df)}"
+    if sk in st.session_state:
+        return st.session_state[sk]
+    result = _enrich_gps(df)
+    st.session_state[sk] = result
+    return result
+
+def _clean_gps(df, cache_key="default"):
+    return _enrich_gps_cached(df, cache_key) if not df.empty else pd.DataFrame()
 
 def _base_map(dark=True, zoom=5):
     tiles = "CartoDB dark_matter" if dark else "CartoDB positron"
@@ -1499,20 +1693,32 @@ def _map_legend(m, items, title="Legend", dark=True):
     m.get_root().html.add_child(folium.Element(html))
 
 # ── MAP 1: GeoJSON boundaries + beneficiary clusters + heatmap ───────────────
+MAX_MARKERS = 800  # cap for browser performance
+
 def map_beneficiaries(df, dark=True):
-    dfm = _clean_gps(df)
+    dfm = _clean_gps(df, f"ben_{len(df)}")
     m   = _base_map(dark)
-    _add_geojson_layer(m, dark=dark)          # Sudan state boundaries
+    _add_geojson_layer(m, dark=dark)
     _add_state_labels(m, dark)
 
     if not dfm.empty:
         HeatMap(dfm[["GPS_Latitude","GPS_Longitude"]].values.tolist(),
                 radius=18, blur=22, min_opacity=0.18, max_zoom=10).add_to(m)
 
+        # Cap markers for performance
+        dfm_plot = (dfm.sample(MAX_MARKERS, random_state=42)
+                    if len(dfm) > MAX_MARKERS else dfm)
+        if len(dfm) > MAX_MARKERS:
+            m.get_root().html.add_child(folium.Element(
+                f"<div style='position:fixed;top:60px;left:50%;transform:translateX(-50%);"
+                f"background:rgba(227,0,27,0.85);color:#fff;padding:4px 14px;"
+                f"border-radius:20px;font-size:11px;font-family:Outfit,sans-serif;"
+                f"z-index:9999;'>Showing {MAX_MARKERS:,} of {len(dfm):,} points</div>"))
+
         cl = MarkerCluster(options={"maxClusterRadius":55,
                                     "showCoverageOnHover":False,
                                     "spiderfyOnMaxZoom":True}).add_to(m)
-        for _, row in dfm.iterrows():
+        for _, row in dfm_plot.iterrows():
             sec   = str(row.get("Sector","")) if has(df,"Sector") else ""
             color = SC.get(sec, "#64748B")
             pop   = (f"<div style='font-family:Outfit,sans-serif;font-size:12px;min-width:175px;'>"
@@ -1533,15 +1739,22 @@ def map_beneficiaries(df, dark=True):
     return m
 
 # ── MAP 2: Choropleth — beneficiary density by state ─────────────────────────
+
+@st.cache_data(show_spinner=False, ttl=120)
+def _compute_state_counts(df):
+    """Cache beneficiary counts per state for choropleth."""
+    if not has(df, "State") or df.empty:
+        return pd.DataFrame(columns=["state","value"])
+    counts = df.groupby("State", observed=True).size().reset_index(name="value")
+    counts.columns = ["state","value"]
+    return counts
+
 def map_choropleth_density(df, dark=True):
     m = _base_map(dark)
-    if has(df,"State") and not df.empty:
-        counts = df.groupby("State").size().reset_index(name="value")
-        counts.columns = ["state","value"]
+    counts = _compute_state_counts(df)
+    if not counts.empty:
         _add_geojson_layer(m, data_col="Beneficiaries", state_values=counts,
                            dark=dark, line_weight=2.0)
-    else:
-        _add_geojson_layer(m, dark=dark)
     _add_state_labels(m, dark)
     return m
 
@@ -1580,7 +1793,7 @@ def map_sector_coverage(df, dark=True):
 
 # ── MAP 4: Displacement status over shapefile ─────────────────────────────────
 def map_displacement(df, dark=True):
-    dfm = _clean_gps(df)
+    dfm = _clean_gps(df, f"disp_{len(df)}")
     m   = _base_map(dark)
     _add_geojson_layer(m, dark=dark)
     _add_state_labels(m, dark)
@@ -1588,8 +1801,9 @@ def map_displacement(df, dark=True):
     DISP_COLORS = {"IDP":"#EF4444","Refugee":"#3B82F6",
                    "Host Community":"#10B981","Returnee":"#F59E0B"}
     if not dfm.empty and has(dfm,"Displacement_Status"):
+        dfm_d = dfm.sample(min(MAX_MARKERS,len(dfm)),random_state=42)
         for disp,color in DISP_COLORS.items():
-            sub = dfm[dfm["Displacement_Status"]==disp]
+            sub = dfm_d[dfm_d["Displacement_Status"]==disp]
             if sub.empty: continue
             cl = MarkerCluster(name=disp,
                                options={"maxClusterRadius":40,"showCoverageOnHover":False}).add_to(m)
@@ -1610,7 +1824,7 @@ def map_displacement(df, dark=True):
 
 # ── MAP 5: Vulnerability choropleth ──────────────────────────────────────────
 def map_vulnerability(df, dark=True):
-    dfm = _clean_gps(df)
+    dfm = _clean_gps(df, f"vuln_{len(df)}")
     m   = _base_map(dark)
 
     VULN_COLORS = {"Extremely Vulnerable":"#EF4444",
@@ -1647,6 +1861,37 @@ def map_vulnerability(df, dark=True):
     _map_legend(m,list(VULN_COLORS.items()),"Vulnerability",dark)
     return m
 
+
+@st.cache_data(show_spinner=False, ttl=120)
+def _compute_age_groups(df):
+    """Compute age group distribution — cached."""
+    if not has(df,"Age") or df.empty:
+        return pd.DataFrame(columns=["Age_Group","Count"])
+    da = df.copy()
+    da["Age"] = pd.to_numeric(da["Age"], errors="coerce")
+    da = da.dropna(subset=["Age"])
+    bins=[0,5,18,35,50,120]; labs=["0–4","5–17","18–34","35–49","50+"]
+    da["Age_Group"] = pd.cut(da["Age"], bins=bins, labels=labs, right=False)
+    return da.groupby("Age_Group", observed=True).size().reset_index(name="Count")
+
+@st.cache_data(show_spinner=False, ttl=120)
+def _compute_reg_trend(df):
+    """Compute monthly registration trend — cached."""
+    if not has(df,"Registration_Date") or df.empty:
+        return pd.DataFrame(columns=["Month","Count"])
+    dt = df.copy()
+    dt["Registration_Date"] = pd.to_datetime(dt["Registration_Date"], errors="coerce")
+    dt = dt.dropna(subset=["Registration_Date"])
+    dt["Month"] = dt["Registration_Date"].dt.to_period("M").astype(str)
+    return dt.groupby("Month").size().reset_index(name="Count")
+
+@st.cache_data(show_spinner=False, ttl=120)
+def _compute_sector_state(df):
+    """Compute sector × state cross-tab — cached."""
+    if not has(df,"State") or not has(df,"Sector") or df.empty:
+        return pd.DataFrame()
+    return df.groupby(["State","Sector"], observed=True).size().reset_index(name="Count")
+
 def page_map(dfs):
     ph("Geographic Coverage", "Sudan shapefile maps · choropleth · clusters · heatmap · spatial analysis")
     df = dfs.get("Beneficiary_Registration", pd.DataFrame())
@@ -1661,8 +1906,8 @@ def page_map(dfs):
     with c3: s3 = st.selectbox("Displacement", sopts(df,"Displacement_Status"), key="m_d")
     with c4: s4 = st.selectbox("Vulnerability",sopts(df,"Vulnerability_Level"), key="m_v")
 
-    df_f = sfilt(sfilt(sfilt(sfilt(df.copy(),"State",s1),"Sector",s2),
-                       "Displacement_Status",s3),"Vulnerability_Level",s4)
+    df_f = filter_df(df, State=s1, Sector=s2,
+                       Displacement_Status=s3, Vulnerability_Level=s4)
     nb  = len(df_f)
     fem = slen(df_f,"Sex","Female")
 
@@ -1806,23 +2051,14 @@ def page_map(dfs):
             pc(T(fig, h=290))
     with c2:
         if has(df_f,"Age") and nb > 0:
-            da = df_f.copy()
-            da["Age"] = pd.to_numeric(da["Age"], errors="coerce")
-            da = da.dropna(subset=["Age"])
-            bins=[0,5,18,35,50,120]; labs=["0–4","5–17","18–34","35–49","50+"]
-            da["Age_Group"] = pd.cut(da["Age"], bins=bins, labels=labs, right=False)
-            ag = da.groupby("Age_Group", observed=True).size().reset_index(name="Count")
+            ag = _compute_age_groups(df_f)
             fig = px.bar(ag, x="Age_Group", y="Count", color="Age_Group",
                          color_discrete_sequence=COLORS, title="Age Group Distribution")
             fig.update_layout(showlegend=False)
             pc(T(fig, h=290))
     with c3:
         if has(df_f,"Registration_Date") and nb > 0:
-            dt = df_f.copy()
-            dt["Registration_Date"] = pd.to_datetime(dt["Registration_Date"], errors="coerce")
-            dt = dt.dropna(subset=["Registration_Date"])
-            dt["Month"] = dt["Registration_Date"].dt.to_period("M").astype(str)
-            trend = dt.groupby("Month").size().reset_index(name="Count")
+            trend = _compute_reg_trend(df_f)
             fig = px.line(trend, x="Month", y="Count", markers=True,
                           title="Registration Timeline")
             fig.update_traces(line_color=SI_RED, marker_color=SI_RED2, line_width=2)
@@ -1841,6 +2077,31 @@ def page_map(dfs):
 # ══════════════════════════════════════════════════════════════════════════════
 # OVERVIEW
 # ══════════════════════════════════════════════════════════════════════════════
+
+@st.cache_data(show_spinner=False, ttl=120)
+def compute_program_summary(df_b, df_w, df_f, df_c, df_i):
+    """
+    Pre-compute all overview KPIs once and cache the result.
+    Called by page_overview — avoids repeated aggregations.
+    """
+    tot  = len(df_b)
+    act  = slen(df_b, "Registration_Status", "Active")
+    wr   = int(ssum(df_w, "Reached_Beneficiaries"))
+    fhh  = int(ssum(df_f, "HH_Reached"))
+    paid = sfilt(df_c, "Transfer_Status", "Paid")
+    usd  = (paid["Transfer_Value_USD"].sum()
+            if has(paid, "Transfer_Value_USD") and len(paid) > 0 else 0)
+    on_t = slen(df_i, "Status", "On track")
+    at_r = slen(df_i, "Status", "At risk")
+    off  = slen(df_i, "Status", "Off track")
+    ti   = len(df_i)
+    states_n = suniq(df_b, "State")
+    pb   = slen(df_f, "Pipeline_Status", "Pipeline break")
+    fa   = slen(df_c, "Transfer_Status", "Failed")
+    return dict(tot=tot, act=act, wr=wr, fhh=fhh, usd=usd,
+                on_t=on_t, at_r=at_r, off=off, ti=ti,
+                states_n=states_n, pb=pb, fa=fa)
+
 def page_overview(dfs):
     th = TH()
     df_b = dfs.get("Beneficiary_Registration", pd.DataFrame())
@@ -1849,12 +2110,11 @@ def page_overview(dfs):
     df_c = dfs.get("CVA_Cash_Transfers",        pd.DataFrame())
     df_i = dfs.get("Indicator_Tracker",         pd.DataFrame())
 
-    tot  = len(df_b); act = slen(df_b,"Registration_Status","Active")
-    wr   = int(ssum(df_w,"Reached_Beneficiaries"))
-    fhh  = int(ssum(df_f,"HH_Reached"))
-    paid = sfilt(df_c,"Transfer_Status","Paid")
-    usd  = paid["Transfer_Value_USD"].sum() if has(paid,"Transfer_Value_USD") and len(paid)>0 else 0
-    on_t = slen(df_i,"Status","On track"); ti = len(df_i)
+    _s   = compute_program_summary(df_b, df_w, df_f, df_c, df_i)
+    tot  = _s["tot"];  act  = _s["act"]
+    wr   = _s["wr"];   fhh  = _s["fhh"];  usd  = _s["usd"]
+    on_t = _s["on_t"]; at_r = _s["at_r"]; off  = _s["off"]
+    ti   = _s["ti"];   states_n = _s["states_n"]
 
     # ── SI HERO BANNER ────────────────────────────────────────────────────────
     imgs_html = "".join(f"<img src='{u}' alt='SI'>" for u in SI_IMAGES * 2)
@@ -1910,7 +2170,7 @@ def page_overview(dfs):
         f"↑ {on_t/ti:.0%}" if ti else None,"up"), unsafe_allow_html=True)
 
     # Alert engine (from sidebar engine, shown inline on overview)
-    active_alerts = run_alert_engine(dfs)
+    active_alerts = get_alerts(dfs)
     critical_alerts = [a for a in active_alerts if a["level"] in ("critical","warning")]
     if critical_alerts:
         sh("⚡ Program Alerts")
@@ -1977,7 +2237,7 @@ def page_wash(dfs):
     c1,c2 = st.columns(2)
     with c1: s1 = st.selectbox("State",         sopts(df,"State"),        key="w_s")
     with c2: s2 = st.selectbox("Activity Type", sopts(df,"Activity_Type"),key="w_a")
-    df_f = sfilt(sfilt(df.copy(),"State",s1),"Activity_Type",s2)
+    df_f = filter_df(df, State=s1, Activity_Type=s2)
     reached = int(ssum(df_f,"Reached_Beneficiaries"))
     target  = int(ssum(df_f,"Target_Beneficiaries")) or 1
     pct = reached/target
@@ -2060,7 +2320,7 @@ def page_fsl(dfs):
     with c1: s1=st.selectbox("State",     sopts(df,"State"),         key="f_s")
     with c2: s2=st.selectbox("Commodity", sopts(df,"Commodity_Type"),key="f_c")
     with c3: s3=st.selectbox("Donor",     sopts(df,"Donor"),         key="f_d")
-    df_f=sfilt(sfilt(sfilt(df.copy(),"State",s1),"Commodity_Type",s2),"Donor",s3)
+    df_f = filter_df(df, State=s1, Commodity_Type=s2, Donor=s3)
     hht=int(ssum(df_f,"HH_Targeted")); hhr=int(ssum(df_f,"HH_Reached"))
     qp=ssum(df_f,"Quantity_Planned"); qd=ssum(df_f,"Quantity_Distributed")
     fem=int(ssum(df_f,"Female_HHH_Reached")); pb=slen(df_f,"Pipeline_Status","Pipeline break")
@@ -2137,7 +2397,7 @@ def page_cva(dfs):
     with c1: s1=st.selectbox("State",         sopts(df,"State"),        key="c_s")
     with c2: s2=st.selectbox("Transfer Type", sopts(df,"Transfer_Type"),key="c_t")
     with c3: s3=st.selectbox("Round",         sopts(df,"Round"),        key="c_r")
-    df_f=sfilt(sfilt(sfilt(df.copy(),"State",s1),"Transfer_Type",s2),"Round",s3)
+    df_f = filter_df(df, State=s1, Transfer_Type=s2, Round=s3)
     paid_df=sfilt(df_f,"Transfer_Status","Paid"); pend_df=sfilt(df_f,"Transfer_Status","Pending"); fail_df=sfilt(df_f,"Transfer_Status","Failed")
     usd=paid_df["Transfer_Value_USD"].sum() if has(paid_df,"Transfer_Value_USD") and len(paid_df)>0 else 0
     avg_v=paid_df["Transfer_Value_USD"].mean() if has(paid_df,"Transfer_Value_USD") and len(paid_df)>0 else 0
@@ -2278,6 +2538,20 @@ def page_raw(dfs):
 # AUTOMATIC REPORT GENERATOR
 # ══════════════════════════════════════════════════════════════════════════════
 def build_pdf_report(dfs):
+    """Generate PDF report — ReportLab imported lazily."""
+    global HAS_PDF
+    try:
+        from reportlab.lib.pagesizes import A4
+        from reportlab.lib import colors as rl_colors
+        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+        from reportlab.lib.units import cm
+        from reportlab.platypus import (SimpleDocTemplate, Paragraph, Spacer,
+                                        Table, TableStyle, HRFlowable, PageBreak)
+        from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
+        HAS_PDF = True
+    except ImportError:
+        HAS_PDF = False
+        raise RuntimeError("ReportLab not installed. Run: pip install reportlab")
     buf = io.BytesIO()
     doc = SimpleDocTemplate(buf, pagesize=A4, topMargin=2*cm, bottomMargin=2*cm,
                             leftMargin=2.2*cm, rightMargin=2.2*cm)
@@ -3472,6 +3746,25 @@ def build_word_report(dfs):
     return buf.getvalue()
 
 
+
+@st.cache_data(show_spinner=False, ttl=300)
+def _prepare_report_data(df_b, df_w, df_f, df_c, df_i):
+    """Pre-compute all report metrics — cached until data changes."""
+    tot  = len(df_b); act = slen(df_b,"Registration_Status","Active")
+    wr   = int(ssum(df_w,"Reached_Beneficiaries"))
+    fhh  = int(ssum(df_f,"HH_Reached"))
+    paid = sfilt(df_c,"Transfer_Status","Paid")
+    usd  = (paid["Transfer_Value_USD"].sum()
+            if has(paid,"Transfer_Value_USD") and len(paid)>0 else 0)
+    on_t = slen(df_i,"Status","On track"); ti=len(df_i)
+    hht  = int(ssum(df_f,"HH_Targeted"))
+    qp   = ssum(df_f,"Quantity_Planned"); qd=ssum(df_f,"Quantity_Distributed")
+    pb   = slen(df_f,"Pipeline_Status","Pipeline break")
+    fail = slen(df_c,"Transfer_Status","Failed")
+    pend = slen(df_c,"Transfer_Status","Pending")
+    return dict(tot=tot,act=act,wr=wr,fhh=fhh,usd=usd,on_t=on_t,ti=ti,
+                hht=hht,qp=qp,qd=qd,pb=pb,fail=fail,pend=pend)
+
 def page_report(dfs):
     ph("Automatic Report Generator", "Generate a comprehensive program report — PDF, Word, or Text")
     if not dfs:
@@ -3579,6 +3872,9 @@ def page_report(dfs):
 # MAIN
 # ══════════════════════════════════════════════════════════════════════════════
 def main():
+    # Clear per-rerun caches
+    st.session_state.pop("_alerts_this_rerun", None)
+
     # 1. Not logged in → login page
     if not st.session_state.get("auth"):
         login_page()
@@ -3624,7 +3920,7 @@ def main():
 
     # 6. Global alert banner (critical only, compact)
     if dfs:
-        alerts = run_alert_engine(dfs)
+        alerts = get_alerts(dfs)
         criticals = [a for a in alerts if a["level"] == "critical"]
         if criticals:
             with st.expander(
