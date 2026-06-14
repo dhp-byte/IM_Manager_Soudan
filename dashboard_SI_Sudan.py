@@ -675,59 +675,6 @@ def render_sidebar(dfs):
                         f"letter-spacing:.12em;text-transform:uppercase;margin-bottom:.8rem;'>"
                         f"⚙️ Alert Thresholds</div>", unsafe_allow_html=True)
 
-    thr     = get_thresholds()
-    changed = False
-
-    v1 = st.sidebar.slider("Min WASH coverage (%)", 50, 100,
-                            thr["wash_coverage_min"], 5, key="thr_wash")
-    v2 = st.sidebar.slider("Min FSL HH coverage (%)", 50, 100,
-                            thr["fsl_coverage_min"], 5, key="thr_fsl")
-    v3 = st.sidebar.slider("Max CVA failure rate (%)", 1, 20,
-                            thr["cva_failure_max"], 1, key="thr_cva")
-    v4 = st.sidebar.slider("Max pipeline breaks (#)", 0, 20,
-                            thr["pipeline_break_max"], 1, key="thr_pipe")
-    v5 = st.sidebar.slider("Max off-track indicators (%)", 5, 50,
-                            thr["indicator_offtrack_max"], 5, key="thr_ind")
-
-    new_thr = {
-        "wash_coverage_min":    v1,
-        "fsl_coverage_min":     v2,
-        "cva_failure_max":      v3,
-        "pipeline_break_max":   v4,
-        "indicator_offtrack_max": v5,
-        "beneficiary_suspended_max": thr["beneficiary_suspended_max"],
-    }
-    if new_thr != thr:
-        set_thresholds(new_thr)
-
-    if st.sidebar.button("↺ Reset thresholds", use_container_width=True, key="sb_reset"):
-        set_thresholds(DEFAULT_THRESHOLDS.copy()); st.rerun()
-
-    st.sidebar.markdown(f"<hr style='border:none;border-top:1px solid {brd};margin:.9rem 0;'>",
-                        unsafe_allow_html=True)
-
-    # ── Active alerts summary ─────────────────────────────────────────────────
-    if dfs:
-        alerts    = run_alert_engine(dfs)
-        n_crit    = sum(1 for a in alerts if a["level"] == "critical")
-        n_warn    = sum(1 for a in alerts if a["level"] == "warning")
-        badge_col = SI_RED if n_crit > 0 else ("#F59E0B" if n_warn > 0 else "#10B981")
-        badge_txt = (f"{n_crit} critical" if n_crit > 0
-                     else f"{n_warn} warnings" if n_warn > 0
-                     else "All clear ✅")
-
-        st.sidebar.markdown(
-            f"<div style='display:flex;align-items:center;justify-content:space-between;"
-            f"margin-bottom:.8rem;'>"
-            f"<span style='font-size:.67rem;font-weight:800;color:{SI_RED};"
-            f"letter-spacing:.12em;text-transform:uppercase;'>🔔 Alerts</span>"
-            f"<span style='background:{badge_col}22;color:{badge_col};"
-            f"font-size:.68rem;font-weight:700;padding:2px 9px;"
-            f"border-radius:20px;'>{badge_txt}</span></div>",
-            unsafe_allow_html=True
-        )
-        for a in alerts:
-            render_alert_sidebar(a, dark)
 
     # ── Branding footer ───────────────────────────────────────────────────────
     st.sidebar.markdown(f"""
