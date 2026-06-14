@@ -16,28 +16,17 @@ except ImportError:
     HAS_REQUESTS = False
 
 # ── ReportLab (PDF) ──────────────────────────────────────────────────────────
-HAS_PDF = True  # Checked lazily on first use
-
-
-import os as _os
-_config_dir  = _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), ".streamlit")
-_config_file = _os.path.join(_config_dir, "config.toml")
-if not _os.path.exists(_config_file):
-    _os.makedirs(_config_dir, exist_ok=True)
-    with open(_config_file, "w") as _cf:
-        _cf.write("""[server]\nrunOnSave = false\nheadless = true\n"""
-                  """[browser]\ngatherUsageStats = false\n"""
-                  """[runner]\nmagicEnabled = false\nfastReruns = true\n""")
-
-# ── Streamlit performance config ─────────────────────────────────────────────
-# Create .streamlit/config.toml for best performance:
-#   [server]
-#   runOnSave = false
-#   [browser]
-#   gatherUsageStats = false
-#   [theme]
-#   base = "dark"
-# ─────────────────────────────────────────────────────────────────────────────
+try:
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib import colors as rl_colors
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib.units import cm
+    from reportlab.platypus import (SimpleDocTemplate, Paragraph, Spacer,
+                                    Table, TableStyle, HRFlowable, PageBreak)
+    from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
+    HAS_PDF = True
+except ImportError:
+    HAS_PDF = False
 
 st.set_page_config(
     page_title="SI Sudan · IM Dashboard",
@@ -47,18 +36,6 @@ st.set_page_config(
 )
 
 # ══════════════════════════════════════════════════════════════════════════════
-
-# Fragment support (Streamlit >= 1.33)
-try:
-    _fragment = st.fragment
-except AttributeError:
-    def _fragment(func=None, **kw):
-        """Fallback no-op decorator for older Streamlit."""
-        if func is not None:
-            return func
-        def wrapper(f): return f
-        return wrapper
-
 # ══════════════════════════════════════════════════════════════════════════════
 # SI BRAND  (from solidarites.org)
 # ══════════════════════════════════════════════════════════════════════════════
@@ -109,11 +86,6 @@ NAV_ITEMS = [
 # CSS INJECTOR  —  SI brand identity
 # ══════════════════════════════════════════════════════════════════════════════
 def inject_css(T):
-    # Performance: skip if theme unchanged this session
-    theme_key = "dark" if T.get("bg","") == DARK.get("bg","") else "light"
-    if st.session_state.get("_css_injected") == theme_key:
-        return
-    st.session_state["_css_injected"] = theme_key
     is_dark = T.get("bg","") == DARK.get("bg","")
     shadow     = "0 4px 24px rgba(0,0,0,0.4)" if is_dark else "0 4px 24px rgba(0,0,0,0.08)"
     nav_shadow = "0 2px 20px rgba(0,0,0,0.5)" if is_dark else "0 2px 12px rgba(0,0,0,0.1)"
@@ -378,59 +350,35 @@ def inject_css(T):
 # FEATURE 1 — CHART EXPORT  (PNG download button next to every chart)
 # ══════════════════════════════════════════════════════════════════════════════
 def pc(fig, title="chart", h=340, leg=True):
-    """
-    Render Plotly chart with toolbar PNG export.
-    PNG bytes are generated lazily (on demand) to avoid blocking renders.
-    """
+    """Render Plotly chart with PNG export button."""
     fig = T(fig, h=h, leg=leg)
-    # Unique key per chart so session_state doesn't collide
-    chart_key = f"chart_{title}_{h}_{id(fig)}"
-    dl_key    = f"dl_show_{chart_key}"
-
-    st.plotly_chart(
-        fig,
-        use_container_width=True,
-        config={
-            "displayModeBar":         True,
-            "modeBarButtonsToRemove": ["select2d","lasso2d","autoScale2d"],
-            "toImageButtonOptions":   {
-                "format":   "png",
-                "filename": title.replace(" ","_"),
-                "height":   h * 2,
-                "width":    1200,
-                "scale":    2,
-            },
-            "responsive": True,
-        }
-    )
-
-    # Lazy export: only generate bytes when user clicks "Export PNG"
-    if st.button(f"⬇ Export PNG", key=dl_key,
-                 help=f"Download '{title}' as high-res PNG"):
-        st.session_state[f"_export_{chart_key}"] = True
-
-    if st.session_state.get(f"_export_{chart_key}"):
-        try:
-            with st.spinner("Generating PNG…"):
-                img_bytes = fig.to_image(
-                    format="png", width=1200, height=h*2, scale=2)
-            st.download_button(
-                "⬇ Download PNG",
-                data=img_bytes,
-                file_name=f"{title.replace(' ','_')}.png",
-                mime="image/png",
-                key=f"dl_btn_{chart_key}",
-            )
-            st.session_state[f"_export_{chart_key}"] = False
-        except Exception:
-            st.caption("Install kaleido for PNG export: pip install kaleido")
-            st.session_state[f"_export_{chart_key}"] = False
+    col_chart, col_btn = st.columns([1, 0.001])
+    with col_chart:
+        st.plotly_chart(fig, use_container_width=True,
+                        config={"displayModeBar": True,
+                                "modeBarButtonsToRemove": ["select2d","lasso2d"],
+                                "toImageButtonOptions": {
+                                    "format": "png", "filename": title,
+                                    "height": h*2, "width": 1200, "scale": 2
+                                }})
+    # Also provide a Streamlit download button as fallback
+    try:
+        img_bytes = fig.to_image(format="png", width=1200, height=h*2, scale=2)
+        st.download_button(
+            f"⬇ PNG",
+            data=img_bytes,
+            file_name=f"{title.replace(' ','_')}.png",
+            mime="image/png",
+            key=f"dl_{title}_{id(fig)}",
+            help=f"Download '{title}' as PNG"
+        )
+    except Exception:
+        pass   # kaleido not available — toolbar still works
 
 
 # ══════════════════════════════════════════════════════════════════════════════
 # FEATURE 2 — PERIOD COMPARISON HELPERS
 # ══════════════════════════════════════════════════════════════════════════════
-@st.cache_data(show_spinner=False, ttl=120)
 def _split_periods(df, date_col, ref_date=None):
     """
     Split df into current period (last 90 days) and previous period (90 days before that).
@@ -501,28 +449,12 @@ def get_thresholds():
 def set_thresholds(t):
     st.session_state["thresholds"] = t
 
-def _dfs_hash(dfs):
-    """Fast hash for a dict of DataFrames."""
-    import hashlib
-    h = hashlib.md5()
-    for k, df in sorted(dfs.items()):
-        h.update(k.encode())
-        if not df.empty:
-            h.update(str(len(df)).encode())
-            h.update(str(df.columns.tolist()).encode())
-    return h.hexdigest()
-
 def run_alert_engine(dfs):
     """
     Evaluate all data against configurable thresholds.
     Returns list of alert dicts: {level, icon, title, desc}.
     """
-    thr     = get_thresholds()
-    # Cache in session_state — only recompute when data or thresholds change
-    cache_key = f"alerts_{_dfs_hash(dfs)}_{str(sorted(thr.items()))}"
-    if st.session_state.get("_alert_cache_key") == cache_key:
-        return st.session_state.get("_alerts_cached", [])
-    st.session_state["_alert_cache_key"] = cache_key
+    thr    = get_thresholds()
     alerts = []
     now    = datetime.now().strftime("%H:%M")
 
@@ -609,7 +541,6 @@ def run_alert_engine(dfs):
             "desc":"No threshold violations detected at this time.",
             "time":now})
 
-    st.session_state["_alerts_cached"] = alerts
     return alerts
 
 def render_alert(alert):
@@ -631,18 +562,8 @@ def render_alert(alert):
 # FEATURE 4 — SIDEBAR with profile, alerts & threshold settings
 # ══════════════════════════════════════════════════════════════════════════════
 def render_sidebar(dfs):
-    """Render profile + alerts + threshold settings in Streamlit sidebar.
-    Uses session_state hash to skip full re-render when nothing changed."""
+    """Render profile + alerts + threshold settings in Streamlit sidebar."""
     th         = TH()
-    dark       = st.session_state.get("dark", True)
-    thr        = get_thresholds()
-    # Build a lightweight hash to detect changes
-    sb_hash = f"{dark}_{len(dfs)}_{str(sorted(thr.items()))}_{st.session_state.get('user','')}"
-    # Always render (sidebar content must be idempotent in Streamlit)
-    # but skip expensive alert computation if hash unchanged
-    alerts_cached = (st.session_state.get("_sb_alerts")
-                     if st.session_state.get("_sb_hash") == sb_hash else None)
-    st.session_state["_sb_hash"] = sb_hash
     user       = st.session_state.get("user", "im_manager")
     src        = st.session_state.get("data_source", "excel")
     dark       = st.session_state.get("dark", True)
@@ -754,60 +675,6 @@ def render_sidebar(dfs):
                         f"letter-spacing:.12em;text-transform:uppercase;margin-bottom:.8rem;'>"
                         f"⚙️ Alert Thresholds</div>", unsafe_allow_html=True)
 
-    thr     = get_thresholds()
-    changed = False
-
-    v1 = st.sidebar.slider("Min WASH coverage (%)", 50, 100,
-                            thr["wash_coverage_min"], 5, key="thr_wash")
-    v2 = st.sidebar.slider("Min FSL HH coverage (%)", 50, 100,
-                            thr["fsl_coverage_min"], 5, key="thr_fsl")
-    v3 = st.sidebar.slider("Max CVA failure rate (%)", 1, 20,
-                            thr["cva_failure_max"], 1, key="thr_cva")
-    v4 = st.sidebar.slider("Max pipeline breaks (#)", 0, 20,
-                            thr["pipeline_break_max"], 1, key="thr_pipe")
-    v5 = st.sidebar.slider("Max off-track indicators (%)", 5, 50,
-                            thr["indicator_offtrack_max"], 5, key="thr_ind")
-
-    new_thr = {
-        "wash_coverage_min":    v1,
-        "fsl_coverage_min":     v2,
-        "cva_failure_max":      v3,
-        "pipeline_break_max":   v4,
-        "indicator_offtrack_max": v5,
-        "beneficiary_suspended_max": thr["beneficiary_suspended_max"],
-    }
-    if new_thr != thr:
-        set_thresholds(new_thr)
-
-    if st.sidebar.button("↺ Reset thresholds", use_container_width=True, key="sb_reset"):
-        set_thresholds(DEFAULT_THRESHOLDS.copy()); st.rerun()
-
-    st.sidebar.markdown(f"<hr style='border:none;border-top:1px solid {brd};margin:.9rem 0;'>",
-                        unsafe_allow_html=True)
-
-    # ── Active alerts summary ─────────────────────────────────────────────────
-    if dfs:
-        alerts = alerts_cached if alerts_cached is not None else get_alerts(dfs)
-        st.session_state["_sb_alerts"] = alerts
-        n_crit    = sum(1 for a in alerts if a["level"] == "critical")
-        n_warn    = sum(1 for a in alerts if a["level"] == "warning")
-        badge_col = SI_RED if n_crit > 0 else ("#F59E0B" if n_warn > 0 else "#10B981")
-        badge_txt = (f"{n_crit} critical" if n_crit > 0
-                     else f"{n_warn} warnings" if n_warn > 0
-                     else "All clear ✅")
-
-        st.sidebar.markdown(
-            f"<div style='display:flex;align-items:center;justify-content:space-between;"
-            f"margin-bottom:.8rem;'>"
-            f"<span style='font-size:.67rem;font-weight:800;color:{SI_RED};"
-            f"letter-spacing:.12em;text-transform:uppercase;'>🔔 Alerts</span>"
-            f"<span style='background:{badge_col}22;color:{badge_col};"
-            f"font-size:.68rem;font-weight:700;padding:2px 9px;"
-            f"border-radius:20px;'>{badge_txt}</span></div>",
-            unsafe_allow_html=True
-        )
-        for a in alerts:
-            render_alert_sidebar(a, dark)
 
     # ── Branding footer ───────────────────────────────────────────────────────
     st.sidebar.markdown(f"""
@@ -821,13 +688,6 @@ def render_sidebar(dfs):
     </div>
     """, unsafe_allow_html=True)
 
-
-
-def get_alerts(dfs):
-    """Single access point for alerts — runs engine at most once per rerun."""
-    if "_alerts_this_rerun" not in st.session_state:
-        st.session_state["_alerts_this_rerun"] = run_alert_engine(dfs)
-    return st.session_state["_alerts_this_rerun"]
 
 def render_alert_sidebar(alert, dark=True):
     """Compact alert for sidebar display."""
@@ -874,20 +734,6 @@ def sfilt(df, col, val):
     if val == "All" or not has(df, col): return df
     return df[df[col]==val]
 
-def filter_df(df, **filters):
-    """
-    Efficient multi-filter — single copy, skips 'All' values.
-    Usage: filter_df(df, State=s1, Sector=s2, Displacement_Status=s3)
-    """
-    if df.empty: return df
-    mask = pd.Series(True, index=df.index)
-    for col, val in filters.items():
-        if val and val != "All" and col in df.columns:
-            mask &= (df[col] == val)
-    return df[mask].copy() if mask.any() else df.copy()
-
-
-
 def TH(): return DARK if st.session_state.get("dark", True) else LIGHT
 
 def bdg(status):
@@ -915,15 +761,17 @@ def ph(title, sub=""): st.markdown(f"<div class='ph'><h1>{title}</h1><p>{sub}</p
 
 def T(fig, h=340, leg=True):
     th = TH()
-    is_dark = th.get("bg","") == DARK.get("bg","")
     fig.update_layout(
         height=h, paper_bgcolor=th["plotbg"], plot_bgcolor=th["plotbg"],
         font=dict(family="Outfit", color=th["fontc"], size=11),
-        margin=dict(l=12,r=12,t=36,b=12), showlegend=leg,
+        margin=dict(l=12,r=12,t=48,b=12), showlegend=leg,
         legend=dict(bgcolor="rgba(0,0,0,0)", font=dict(color=th["muted"],size=10),
                     borderwidth=0, orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0),
         colorway=COLORS,
         title_font=dict(size=12, color=th["title"], family="Outfit"),
+        title_pad=dict(t=4, b=0),
+        title_x=0.01,
+        title_xanchor="left",
     )
     fig.update_xaxes(showgrid=False, zeroline=False, color=th["fontc"],
                      tickfont=dict(size=10,color=th["fontc"]),
@@ -935,26 +783,13 @@ def T(fig, h=340, leg=True):
 # ══════════════════════════════════════════════════════════════════════════════
 # DATA
 # ══════════════════════════════════════════════════════════════════════════════
-@st.cache_data(show_spinner="Loading…", max_entries=3)
+@st.cache_data(show_spinner="Loading…")
 def load_data(file):
-    """Load Excel file and optimise dtypes to reduce memory usage."""
     xls = pd.ExcelFile(file, engine="openpyxl")
     out = {}
     for name in xls.sheet_names:
-        try:
-            df = pd.read_excel(xls, sheet_name=name)
-            # Downcast numerics to save ~40% memory
-            for col in df.select_dtypes(include=["float64"]).columns:
-                df[col] = pd.to_numeric(df[col], downcast="float")
-            for col in df.select_dtypes(include=["int64"]).columns:
-                df[col] = pd.to_numeric(df[col], downcast="integer")
-            # Convert low-cardinality string columns to category
-            for col in df.select_dtypes(include=["object"]).columns:
-                if df[col].nunique() / max(len(df), 1) < 0.15:
-                    df[col] = df[col].astype("category")
-            out[name] = df
-        except Exception:
-            pass
+        try: out[name] = pd.read_excel(xls, sheet_name=name)
+        except: pass
     return out
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -1005,6 +840,11 @@ def top_nav():
     )
 
     # ── Nav button row ────────────────────────────────────────────────────────
+    st.markdown(
+        f"<div style='background:var(--navbg);padding:.35rem 1rem .15rem;"
+        f"border-bottom:1px solid var(--border);margin-bottom:0;'>",
+        unsafe_allow_html=True
+    )
     cols = st.columns([1]*n_nav + [0.55, 0.55])
     for i, (icon, lbl) in enumerate(NAV_ITEMS):
         with cols[i]:
@@ -1013,7 +853,7 @@ def top_nav():
                 if st.session_state.get("page") != lbl:
                     st.session_state["page"] = lbl
                     st.rerun()
-    
+    st.markdown("</div>", unsafe_allow_html=True)
 
     st.markdown("<div style='padding:1.4rem 2rem 0;'>", unsafe_allow_html=True)
 
@@ -1039,7 +879,6 @@ def kobo_get_token(username, password, base_url):
         if code == 401: return None, "Invalid KoBoToolbox username or password."
         return None, str(e)
 
-@st.cache_data(show_spinner="Fetching forms…", ttl=120)
 def kobo_list_forms(token, base_url):
     url = f"{base_url}/api/v2/assets/?asset_type=survey&format=json"
     headers = {"Authorization": f"Token {token}"}
@@ -1060,7 +899,6 @@ def kobo_list_forms(token, base_url):
     except Exception as e:
         return None, str(e)
 
-@st.cache_data(show_spinner=False, ttl=300)
 def kobo_download_data(token, uid, base_url):
     url = f"{base_url}/api/v2/assets/{uid}/data/?format=json&limit=30000"
     headers = {"Authorization": f"Token {token}"}
@@ -1555,15 +1393,13 @@ STATE_CENTROIDS = {
 import random as _rnd, json as _json, os as _os
 _rnd.seed(42)
 
-# Load Sudan shapefile GeoJSON — cached at module level
+# Load Sudan shapefile GeoJSON
 _GEOJSON_PATH = "/home/claude/sudan_states.geojson"
 try:
     with open(_GEOJSON_PATH) as _f:
         SUDAN_GEOJSON = _json.load(_f)
-    print(f"✅ GeoJSON loaded: {len(SUDAN_GEOJSON.get('features',[]))} states")
-except Exception as _e:
+except Exception:
     SUDAN_GEOJSON = None
-    print(f"⚠️  GeoJSON not found: {_e}")
 
 # Pre-computed scatter points per state (within ~0.4° of centroid)
 STATE_SCATTER = {
@@ -1596,18 +1432,8 @@ def _enrich_gps(df):
     df["GPS_Longitude"] = coords.apply(lambda x: x[1])
     return df
 
-
-def _enrich_gps_cached(df, cache_key="default"):
-    """Cached wrapper for GPS enrichment — avoids recomputing on every rerun."""
-    sk = f"_gps_{cache_key}_{len(df)}_{id(df)}"
-    if sk in st.session_state:
-        return st.session_state[sk]
-    result = _enrich_gps(df)
-    st.session_state[sk] = result
-    return result
-
-def _clean_gps(df, cache_key="default"):
-    return _enrich_gps_cached(df, cache_key) if not df.empty else pd.DataFrame()
+def _clean_gps(df):
+    return _enrich_gps(df) if not df.empty else pd.DataFrame()
 
 def _base_map(dark=True, zoom=5):
     tiles = "CartoDB dark_matter" if dark else "CartoDB positron"
@@ -1693,32 +1519,20 @@ def _map_legend(m, items, title="Legend", dark=True):
     m.get_root().html.add_child(folium.Element(html))
 
 # ── MAP 1: GeoJSON boundaries + beneficiary clusters + heatmap ───────────────
-MAX_MARKERS = 800  # cap for browser performance
-
 def map_beneficiaries(df, dark=True):
-    dfm = _clean_gps(df, f"ben_{len(df)}")
+    dfm = _clean_gps(df)
     m   = _base_map(dark)
-    _add_geojson_layer(m, dark=dark)
+    _add_geojson_layer(m, dark=dark)          # Sudan state boundaries
     _add_state_labels(m, dark)
 
     if not dfm.empty:
         HeatMap(dfm[["GPS_Latitude","GPS_Longitude"]].values.tolist(),
                 radius=18, blur=22, min_opacity=0.18, max_zoom=10).add_to(m)
 
-        # Cap markers for performance
-        dfm_plot = (dfm.sample(MAX_MARKERS, random_state=42)
-                    if len(dfm) > MAX_MARKERS else dfm)
-        if len(dfm) > MAX_MARKERS:
-            m.get_root().html.add_child(folium.Element(
-                f"<div style='position:fixed;top:60px;left:50%;transform:translateX(-50%);"
-                f"background:rgba(227,0,27,0.85);color:#fff;padding:4px 14px;"
-                f"border-radius:20px;font-size:11px;font-family:Outfit,sans-serif;"
-                f"z-index:9999;'>Showing {MAX_MARKERS:,} of {len(dfm):,} points</div>"))
-
         cl = MarkerCluster(options={"maxClusterRadius":55,
                                     "showCoverageOnHover":False,
                                     "spiderfyOnMaxZoom":True}).add_to(m)
-        for _, row in dfm_plot.iterrows():
+        for _, row in dfm.iterrows():
             sec   = str(row.get("Sector","")) if has(df,"Sector") else ""
             color = SC.get(sec, "#64748B")
             pop   = (f"<div style='font-family:Outfit,sans-serif;font-size:12px;min-width:175px;'>"
@@ -1739,22 +1553,15 @@ def map_beneficiaries(df, dark=True):
     return m
 
 # ── MAP 2: Choropleth — beneficiary density by state ─────────────────────────
-
-@st.cache_data(show_spinner=False, ttl=120)
-def _compute_state_counts(df):
-    """Cache beneficiary counts per state for choropleth."""
-    if not has(df, "State") or df.empty:
-        return pd.DataFrame(columns=["state","value"])
-    counts = df.groupby("State", observed=True).size().reset_index(name="value")
-    counts.columns = ["state","value"]
-    return counts
-
 def map_choropleth_density(df, dark=True):
     m = _base_map(dark)
-    counts = _compute_state_counts(df)
-    if not counts.empty:
+    if has(df,"State") and not df.empty:
+        counts = df.groupby("State").size().reset_index(name="value")
+        counts.columns = ["state","value"]
         _add_geojson_layer(m, data_col="Beneficiaries", state_values=counts,
                            dark=dark, line_weight=2.0)
+    else:
+        _add_geojson_layer(m, dark=dark)
     _add_state_labels(m, dark)
     return m
 
@@ -1793,7 +1600,7 @@ def map_sector_coverage(df, dark=True):
 
 # ── MAP 4: Displacement status over shapefile ─────────────────────────────────
 def map_displacement(df, dark=True):
-    dfm = _clean_gps(df, f"disp_{len(df)}")
+    dfm = _clean_gps(df)
     m   = _base_map(dark)
     _add_geojson_layer(m, dark=dark)
     _add_state_labels(m, dark)
@@ -1801,9 +1608,8 @@ def map_displacement(df, dark=True):
     DISP_COLORS = {"IDP":"#EF4444","Refugee":"#3B82F6",
                    "Host Community":"#10B981","Returnee":"#F59E0B"}
     if not dfm.empty and has(dfm,"Displacement_Status"):
-        dfm_d = dfm.sample(min(MAX_MARKERS,len(dfm)),random_state=42)
         for disp,color in DISP_COLORS.items():
-            sub = dfm_d[dfm_d["Displacement_Status"]==disp]
+            sub = dfm[dfm["Displacement_Status"]==disp]
             if sub.empty: continue
             cl = MarkerCluster(name=disp,
                                options={"maxClusterRadius":40,"showCoverageOnHover":False}).add_to(m)
@@ -1824,7 +1630,7 @@ def map_displacement(df, dark=True):
 
 # ── MAP 5: Vulnerability choropleth ──────────────────────────────────────────
 def map_vulnerability(df, dark=True):
-    dfm = _clean_gps(df, f"vuln_{len(df)}")
+    dfm = _clean_gps(df)
     m   = _base_map(dark)
 
     VULN_COLORS = {"Extremely Vulnerable":"#EF4444",
@@ -1861,37 +1667,6 @@ def map_vulnerability(df, dark=True):
     _map_legend(m,list(VULN_COLORS.items()),"Vulnerability",dark)
     return m
 
-
-@st.cache_data(show_spinner=False, ttl=120)
-def _compute_age_groups(df):
-    """Compute age group distribution — cached."""
-    if not has(df,"Age") or df.empty:
-        return pd.DataFrame(columns=["Age_Group","Count"])
-    da = df.copy()
-    da["Age"] = pd.to_numeric(da["Age"], errors="coerce")
-    da = da.dropna(subset=["Age"])
-    bins=[0,5,18,35,50,120]; labs=["0–4","5–17","18–34","35–49","50+"]
-    da["Age_Group"] = pd.cut(da["Age"], bins=bins, labels=labs, right=False)
-    return da.groupby("Age_Group", observed=True).size().reset_index(name="Count")
-
-@st.cache_data(show_spinner=False, ttl=120)
-def _compute_reg_trend(df):
-    """Compute monthly registration trend — cached."""
-    if not has(df,"Registration_Date") or df.empty:
-        return pd.DataFrame(columns=["Month","Count"])
-    dt = df.copy()
-    dt["Registration_Date"] = pd.to_datetime(dt["Registration_Date"], errors="coerce")
-    dt = dt.dropna(subset=["Registration_Date"])
-    dt["Month"] = dt["Registration_Date"].dt.to_period("M").astype(str)
-    return dt.groupby("Month").size().reset_index(name="Count")
-
-@st.cache_data(show_spinner=False, ttl=120)
-def _compute_sector_state(df):
-    """Compute sector × state cross-tab — cached."""
-    if not has(df,"State") or not has(df,"Sector") or df.empty:
-        return pd.DataFrame()
-    return df.groupby(["State","Sector"], observed=True).size().reset_index(name="Count")
-
 def page_map(dfs):
     ph("Geographic Coverage", "Sudan shapefile maps · choropleth · clusters · heatmap · spatial analysis")
     df = dfs.get("Beneficiary_Registration", pd.DataFrame())
@@ -1906,8 +1681,8 @@ def page_map(dfs):
     with c3: s3 = st.selectbox("Displacement", sopts(df,"Displacement_Status"), key="m_d")
     with c4: s4 = st.selectbox("Vulnerability",sopts(df,"Vulnerability_Level"), key="m_v")
 
-    df_f = filter_df(df, State=s1, Sector=s2,
-                       Displacement_Status=s3, Vulnerability_Level=s4)
+    df_f = sfilt(sfilt(sfilt(sfilt(df.copy(),"State",s1),"Sector",s2),
+                       "Displacement_Status",s3),"Vulnerability_Level",s4)
     nb  = len(df_f)
     fem = slen(df_f,"Sex","Female")
 
@@ -2045,22 +1820,33 @@ def page_map(dfs):
     c1,c2,c3 = st.columns(3)
     with c1:
         if has(df_f,"State") and has(df_f,"Sector") and nb > 0:
+            st.markdown(f"<div style='font-size:.78rem;font-weight:700;color:{th[chr(39)+'text'+chr(39)]};margin-bottom:.3rem;'>Beneficiaries by State &amp; Sector</div>", unsafe_allow_html=True)
             ct = df_f.groupby(["State","Sector"]).size().reset_index(name="Count")
             fig = px.bar(ct, x="State", y="Count", color="Sector", barmode="stack",
-                         color_discrete_map=SC, title="Beneficiaries by State & Sector")
+                         color_discrete_map=SC)
             pc(T(fig, h=290))
     with c2:
         if has(df_f,"Age") and nb > 0:
-            ag = _compute_age_groups(df_f)
+            st.markdown(f"<div style='font-size:.78rem;font-weight:700;color:{th[chr(39)+'text'+chr(39)]};margin-bottom:.3rem;'>Age Group Distribution</div>", unsafe_allow_html=True)
+            da = df_f.copy()
+            da["Age"] = pd.to_numeric(da["Age"], errors="coerce")
+            da = da.dropna(subset=["Age"])
+            bins=[0,5,18,35,50,120]; labs=["0–4","5–17","18–34","35–49","50+"]
+            da["Age_Group"] = pd.cut(da["Age"], bins=bins, labels=labs, right=False)
+            ag = da.groupby("Age_Group", observed=True).size().reset_index(name="Count")
             fig = px.bar(ag, x="Age_Group", y="Count", color="Age_Group",
-                         color_discrete_sequence=COLORS, title="Age Group Distribution")
+                         color_discrete_sequence=COLORS)
             fig.update_layout(showlegend=False)
             pc(T(fig, h=290))
     with c3:
         if has(df_f,"Registration_Date") and nb > 0:
-            trend = _compute_reg_trend(df_f)
-            fig = px.line(trend, x="Month", y="Count", markers=True,
-                          title="Registration Timeline")
+            st.markdown(f"<div style='font-size:.78rem;font-weight:700;color:{th[chr(39)+'text'+chr(39)]};margin-bottom:.3rem;'>Registration Timeline</div>", unsafe_allow_html=True)
+            dt = df_f.copy()
+            dt["Registration_Date"] = pd.to_datetime(dt["Registration_Date"], errors="coerce")
+            dt = dt.dropna(subset=["Registration_Date"])
+            dt["Month"] = dt["Registration_Date"].dt.to_period("M").astype(str)
+            trend = dt.groupby("Month").size().reset_index(name="Count")
+            fig = px.line(trend, x="Month", y="Count", markers=True)
             fig.update_traces(line_color=SI_RED, marker_color=SI_RED2, line_width=2)
             pc(T(fig, h=290))
 
@@ -2068,8 +1854,7 @@ def page_map(dfs):
     if has(df_f,"State") and has(df_f,"Sector") and nb > 0:
         heat = df_f.groupby(["State","Sector"]).size().reset_index(name="Count")
         fig = px.density_heatmap(heat, x="Sector", y="State", z="Count",
-                                 color_continuous_scale="Reds",
-                                 title="Beneficiary Density by State & Sector")
+                                 color_continuous_scale="Reds")
         fig.update_layout(coloraxis_colorbar=dict(tickfont=dict(color=th["fontc"])))
         pc(T(fig, h=320, leg=False))
 
@@ -2077,31 +1862,6 @@ def page_map(dfs):
 # ══════════════════════════════════════════════════════════════════════════════
 # OVERVIEW
 # ══════════════════════════════════════════════════════════════════════════════
-
-@st.cache_data(show_spinner=False, ttl=120)
-def compute_program_summary(df_b, df_w, df_f, df_c, df_i):
-    """
-    Pre-compute all overview KPIs once and cache the result.
-    Called by page_overview — avoids repeated aggregations.
-    """
-    tot  = len(df_b)
-    act  = slen(df_b, "Registration_Status", "Active")
-    wr   = int(ssum(df_w, "Reached_Beneficiaries"))
-    fhh  = int(ssum(df_f, "HH_Reached"))
-    paid = sfilt(df_c, "Transfer_Status", "Paid")
-    usd  = (paid["Transfer_Value_USD"].sum()
-            if has(paid, "Transfer_Value_USD") and len(paid) > 0 else 0)
-    on_t = slen(df_i, "Status", "On track")
-    at_r = slen(df_i, "Status", "At risk")
-    off  = slen(df_i, "Status", "Off track")
-    ti   = len(df_i)
-    states_n = suniq(df_b, "State")
-    pb   = slen(df_f, "Pipeline_Status", "Pipeline break")
-    fa   = slen(df_c, "Transfer_Status", "Failed")
-    return dict(tot=tot, act=act, wr=wr, fhh=fhh, usd=usd,
-                on_t=on_t, at_r=at_r, off=off, ti=ti,
-                states_n=states_n, pb=pb, fa=fa)
-
 def page_overview(dfs):
     th = TH()
     df_b = dfs.get("Beneficiary_Registration", pd.DataFrame())
@@ -2110,11 +1870,12 @@ def page_overview(dfs):
     df_c = dfs.get("CVA_Cash_Transfers",        pd.DataFrame())
     df_i = dfs.get("Indicator_Tracker",         pd.DataFrame())
 
-    _s   = compute_program_summary(df_b, df_w, df_f, df_c, df_i)
-    tot  = _s["tot"];  act  = _s["act"]
-    wr   = _s["wr"];   fhh  = _s["fhh"];  usd  = _s["usd"]
-    on_t = _s["on_t"]; at_r = _s["at_r"]; off  = _s["off"]
-    ti   = _s["ti"];   states_n = _s["states_n"]
+    tot  = len(df_b); act = slen(df_b,"Registration_Status","Active")
+    wr   = int(ssum(df_w,"Reached_Beneficiaries"))
+    fhh  = int(ssum(df_f,"HH_Reached"))
+    paid = sfilt(df_c,"Transfer_Status","Paid")
+    usd  = paid["Transfer_Value_USD"].sum() if has(paid,"Transfer_Value_USD") and len(paid)>0 else 0
+    on_t = slen(df_i,"Status","On track"); ti = len(df_i)
 
     # ── SI HERO BANNER ────────────────────────────────────────────────────────
     imgs_html = "".join(f"<img src='{u}' alt='SI'>" for u in SI_IMAGES * 2)
@@ -2170,7 +1931,7 @@ def page_overview(dfs):
         f"↑ {on_t/ti:.0%}" if ti else None,"up"), unsafe_allow_html=True)
 
     # Alert engine (from sidebar engine, shown inline on overview)
-    active_alerts = get_alerts(dfs)
+    active_alerts = run_alert_engine(dfs)
     critical_alerts = [a for a in active_alerts if a["level"] in ("critical","warning")]
     if critical_alerts:
         sh("⚡ Program Alerts")
@@ -2237,7 +1998,7 @@ def page_wash(dfs):
     c1,c2 = st.columns(2)
     with c1: s1 = st.selectbox("State",         sopts(df,"State"),        key="w_s")
     with c2: s2 = st.selectbox("Activity Type", sopts(df,"Activity_Type"),key="w_a")
-    df_f = filter_df(df, State=s1, Activity_Type=s2)
+    df_f = sfilt(sfilt(df.copy(),"State",s1),"Activity_Type",s2)
     reached = int(ssum(df_f,"Reached_Beneficiaries"))
     target  = int(ssum(df_f,"Target_Beneficiaries")) or 1
     pct = reached/target
@@ -2320,7 +2081,7 @@ def page_fsl(dfs):
     with c1: s1=st.selectbox("State",     sopts(df,"State"),         key="f_s")
     with c2: s2=st.selectbox("Commodity", sopts(df,"Commodity_Type"),key="f_c")
     with c3: s3=st.selectbox("Donor",     sopts(df,"Donor"),         key="f_d")
-    df_f = filter_df(df, State=s1, Commodity_Type=s2, Donor=s3)
+    df_f=sfilt(sfilt(sfilt(df.copy(),"State",s1),"Commodity_Type",s2),"Donor",s3)
     hht=int(ssum(df_f,"HH_Targeted")); hhr=int(ssum(df_f,"HH_Reached"))
     qp=ssum(df_f,"Quantity_Planned"); qd=ssum(df_f,"Quantity_Distributed")
     fem=int(ssum(df_f,"Female_HHH_Reached")); pb=slen(df_f,"Pipeline_Status","Pipeline break")
@@ -2397,7 +2158,7 @@ def page_cva(dfs):
     with c1: s1=st.selectbox("State",         sopts(df,"State"),        key="c_s")
     with c2: s2=st.selectbox("Transfer Type", sopts(df,"Transfer_Type"),key="c_t")
     with c3: s3=st.selectbox("Round",         sopts(df,"Round"),        key="c_r")
-    df_f = filter_df(df, State=s1, Transfer_Type=s2, Round=s3)
+    df_f=sfilt(sfilt(sfilt(df.copy(),"State",s1),"Transfer_Type",s2),"Round",s3)
     paid_df=sfilt(df_f,"Transfer_Status","Paid"); pend_df=sfilt(df_f,"Transfer_Status","Pending"); fail_df=sfilt(df_f,"Transfer_Status","Failed")
     usd=paid_df["Transfer_Value_USD"].sum() if has(paid_df,"Transfer_Value_USD") and len(paid_df)>0 else 0
     avg_v=paid_df["Transfer_Value_USD"].mean() if has(paid_df,"Transfer_Value_USD") and len(paid_df)>0 else 0
@@ -2538,20 +2299,6 @@ def page_raw(dfs):
 # AUTOMATIC REPORT GENERATOR
 # ══════════════════════════════════════════════════════════════════════════════
 def build_pdf_report(dfs):
-    """Generate PDF report — ReportLab imported lazily."""
-    global HAS_PDF
-    try:
-        from reportlab.lib.pagesizes import A4
-        from reportlab.lib import colors as rl_colors
-        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-        from reportlab.lib.units import cm
-        from reportlab.platypus import (SimpleDocTemplate, Paragraph, Spacer,
-                                        Table, TableStyle, HRFlowable, PageBreak)
-        from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
-        HAS_PDF = True
-    except ImportError:
-        HAS_PDF = False
-        raise RuntimeError("ReportLab not installed. Run: pip install reportlab")
     buf = io.BytesIO()
     doc = SimpleDocTemplate(buf, pagesize=A4, topMargin=2*cm, bottomMargin=2*cm,
                             leftMargin=2.2*cm, rightMargin=2.2*cm)
@@ -3746,25 +3493,6 @@ def build_word_report(dfs):
     return buf.getvalue()
 
 
-
-@st.cache_data(show_spinner=False, ttl=300)
-def _prepare_report_data(df_b, df_w, df_f, df_c, df_i):
-    """Pre-compute all report metrics — cached until data changes."""
-    tot  = len(df_b); act = slen(df_b,"Registration_Status","Active")
-    wr   = int(ssum(df_w,"Reached_Beneficiaries"))
-    fhh  = int(ssum(df_f,"HH_Reached"))
-    paid = sfilt(df_c,"Transfer_Status","Paid")
-    usd  = (paid["Transfer_Value_USD"].sum()
-            if has(paid,"Transfer_Value_USD") and len(paid)>0 else 0)
-    on_t = slen(df_i,"Status","On track"); ti=len(df_i)
-    hht  = int(ssum(df_f,"HH_Targeted"))
-    qp   = ssum(df_f,"Quantity_Planned"); qd=ssum(df_f,"Quantity_Distributed")
-    pb   = slen(df_f,"Pipeline_Status","Pipeline break")
-    fail = slen(df_c,"Transfer_Status","Failed")
-    pend = slen(df_c,"Transfer_Status","Pending")
-    return dict(tot=tot,act=act,wr=wr,fhh=fhh,usd=usd,on_t=on_t,ti=ti,
-                hht=hht,qp=qp,qd=qd,pb=pb,fail=fail,pend=pend)
-
 def page_report(dfs):
     ph("Automatic Report Generator", "Generate a comprehensive program report — PDF, Word, or Text")
     if not dfs:
@@ -3872,9 +3600,6 @@ def page_report(dfs):
 # MAIN
 # ══════════════════════════════════════════════════════════════════════════════
 def main():
-    # Clear per-rerun caches
-    st.session_state.pop("_alerts_this_rerun", None)
-
     # 1. Not logged in → login page
     if not st.session_state.get("auth"):
         login_page()
@@ -3920,7 +3645,7 @@ def main():
 
     # 6. Global alert banner (critical only, compact)
     if dfs:
-        alerts = get_alerts(dfs)
+        alerts = run_alert_engine(dfs)
         criticals = [a for a in alerts if a["level"] == "critical"]
         if criticals:
             with st.expander(
